@@ -1,86 +1,136 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import { Eye, EyeOff } from "lucide-react";
-import loginIllustration from "@/assets/images/login-illustration.png";
-import emblem from "@/assets/images/emblemofvietnam.png";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { EyeOff } from "lucide-react";
+import { getAuthToken } from "@/libs/core/utils/auth-token";
+const baseUrl =
+  typeof window !== "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+    : "";
 
 export default function LoginPage() {
+  const router = useRouter();
+
+  const [formView, setFormView] = useState<
+    "login" | "forgot_password" | "reset_password"
+  >("login");
+
   const [showPassword, setShowPassword] = useState(false);
-  const [formView, setFormView] = useState<"login" | "forgot_password" | "reset_password">("login");
+
+  // login
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+
+  // forgot/reset
   const [email, setEmail] = useState("");
   const [forgotError, setForgotError] = useState("");
   const [resetError, setResetError] = useState("");
-  //fake api
-  const fakeForgotPasswordApi = (email: string) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email === "test@gmail.com") {
-          resolve("OK");
-        } else {
-          reject("Email không tồn tại");
-        }
-      }, 1000);
-    });
-  };
-  const fakeResetPasswordApi = (newPassword: string) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // giả lập lỗi
-        if (newPassword.length < 6) {
-          reject("Mật khẩu phải >= 6 ký tự");
-        } else {
-          resolve("OK");
-        }
-      }, 1000);
-    });
-  };
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-  const maskEmail = (email: string) => {
-    const [name, domain] = email.split("@");
-    return name.slice(0, 2) + "***@" + domain;
-  };
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  // ===== CHECK LOGIN =====
+  useEffect(() => {
+    const token = getAuthToken();
+
+    if (token) {
+      router.push("/user-profile");
+    }
+  }, [router]);
+
+  // ===== LOGIN API =====
   const handleLogin = async () => {
+    if (loading) return;
+
+    setMessage("");
+
     if (!username) {
-      alert("Vui lòng nhập tên đăng nhập");
+      setMessage("Vui lòng nhập tên đăng nhập");
       return;
     }
-    if (remember) {
-      localStorage.setItem("token", "fake-token");
-    } else {
-      sessionStorage.setItem("token", "fake-token");
-    }
+
     if (!password) {
-      alert("Vui lòng nhập mật khẩu");
+      setMessage("Vui lòng nhập mật khẩu");
       return;
     }
 
     try {
       setLoading(true);
-      // const res = await loginApi({ username, password });
 
-      if (username !== "admin" || password !== "123456") {
-        throw new Error("Sai tài khoản hoặc mật khẩu");
+      const res = await fetch(`${baseUrl}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.message || "Đăng nhập thất bại");
+        return;
       }
 
-      alert("Đăng nhập thành công");
+      // remember login
+      if (remember) {
+        localStorage.setItem("token", data.accessToken);
+      } else {
+        sessionStorage.setItem("token", data.accessToken);
+      }
 
-    } catch (error: any) {
-      alert(error.message || "Sai tài khoản hoặc mật khẩu");
+      setMessage("Đăng nhập thành công");
+
+      router.push("/user-profile");
+    } catch (error) {
+      setMessage("Lỗi kết nối backend");
     } finally {
       setLoading(false);
     }
   };
+
+
+  const sendForgotPasswordOtp = async (email: string) => {
+    const res = await fetch(`${baseUrl}/auth/send-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.message || "Lỗi gửi email xác thực");
+    }
+
+    return data;
+  };
+
+  const fakeResetPasswordApi = (password: string) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (password.length < 6) reject("Mật khẩu phải >= 6 ký tự");
+        else resolve("OK");
+      }, 500);
+    });
+  };
+
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const maskEmail = (email: string) => {
+    const [name, domain] = email.split("@");
+    return name.slice(0, 2) + "***@" + domain;
+  };
   const handleForgotPassword = async () => {
+    setForgotError("");
+
     if (!email) {
       setForgotError("Vui lòng nhập email");
       return;
@@ -94,14 +144,14 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      await fakeForgotPasswordApi(email);
+      await sendForgotPasswordOtp(email);
 
 
       alert("Đã gửi email xác thực");
       setFormView("reset_password");
 
     } catch (e: any) {
-      alert("Email không tồn tại");
+      setForgotError(e?.message || "Lỗi gửi email xác thực");
 
 
     } finally {
@@ -138,18 +188,22 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-white p-8">
-        <Image
-          src={loginIllustration}
-          alt="Login illustration"
-          className="h-auto max-w-full object-contain"
-          priority
-        />
+        <div className="login-illustration-wrap max-w-full">
+          <img
+            src="/login-illustration.png"
+            alt="Login illustration"
+            className="h-auto max-w-full object-contain"
+          />
+          <div className="decor-circle decor-1">1</div>
+          <div className="decor-circle decor-2">2</div>
+          <div className="decor-circle decor-3">3</div>
+        </div>
       </div>
 
       <div className="flex w-full items-center justify-center bg-white p-4 lg:w-1/2">
         <div className="w-full max-w-md rounded-xl bg-white px-8 pb-8 pt-6 shadow-sm">
           <div className="mb-4 flex justify-center">
-            <Image src={emblem} alt="Emblem of Vietnam" width={72} height={72} />
+            <img src="/emblemofvietnam.png" alt="Emblem of Vietnam" width={72} height={72} className="h-auto w-auto" />
           </div>
 
           <h1 className="mb-6 text-center text-base font-bold leading-relaxed text-slate-800 md:text-lg">
@@ -162,36 +216,31 @@ export default function LoginPage() {
                 ĐĂNG NHẬP
               </p>
 
-              <div className="relative mb-4">
+              <div className="relative mb-4 floating">
                 <input
                   type="text"
-                  placeholder="nguyenvanb@gmail.com"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder=" "
+                  className=""
                 />
-                <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
-                  Tên tài khoản <span className="text-red-500">*</span>
-                </label>
+                <label>Tên tài khoản <span className="text-red-500">*</span></label>
               </div>
 
-              <div className="relative mb-4">
+              <div className="relative mb-4 floating">
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder=" "
                 />
-                <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
-                  Mật khẩu <span className="text-red-500">*</span>
-                </label>
+                <label>Mật khẩu <span className="text-red-500">*</span></label>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  <img src={showPassword ? '/icons/eye-off.svg' : '/icons/eye.svg'} alt="toggle" />
                 </button>
               </div>
 
@@ -216,11 +265,16 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800"
+
+                className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300"
                 onClick={handleLogin}
+                disabled={loading}
               >
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
+              {message ? (
+                <p className="mb-3 text-sm text-center text-red-600">{message}</p>
+              ) : null}
 
               <button
                 type="button"
@@ -258,9 +312,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleForgotPassword()}
-                className="mb-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800"
+                disabled={loading}
+                className="mb-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                Gửi xác thực
+                {loading ? "Đang gửi..." : "Gửi xác thực"}
               </button>
 
               <p className="text-center text-sm text-slate-500">

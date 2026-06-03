@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: vna-postgres
+    environment:
+      POSTGRES_USER: vna_user
+      POSTGRES_PASSWORD: vna_password
+      POSTGRES_DB: vna_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vna_user']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: vna-backend
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: vna_user
+      DB_PASSWORD: vna_password
+      DB_NAME: vna_db
+      JWT_SECRET: your-secret-key-change-in-production
+      MAIL_HOST: smtp.ethereal.email
+      MAIL_PORT: 587
+      MAIL_USER: ${MAIL_USER:-demo@ethereal.email}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-demo}
+      MAIL_FROM: noreply@vna.local
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: bash -lc "npm install --no-audit --no-fund && npm run start:dev"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: vna-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: bash -lc "npm install --no-audit --no-fund && npm run dev"
+
+volumes:
+  postgres_data:

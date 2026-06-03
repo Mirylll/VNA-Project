@@ -1,1 +1,79 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 @import "tailwindcss";
+
+:root{
+	--vna-sidebar: #1a237e;
+	--vna-primary: #1565C0;
+	--vna-primary-dark: #0b4aa6;
+	--vna-card-bg: #ffffff;
+}
+
+html,body{font-family: Roboto, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;}
+
+/* Sidebar */
+.app-sidebar{background:var(--vna-sidebar);}
+.app-sidebar .user-block img{border:3px solid rgba(255,255,255,0.08)}
+
+/* Floating profile button */
+.vna-profile-btn{border-radius:8px; padding:8px 12px; box-shadow:0 6px 18px rgba(0,0,0,0.12)}
+
+/* Modal styles to match mockup */
+.vna-modal .vna-modal-card{width:100%; max-width:520px; border-radius:10px; overflow:hidden}
+.vna-modal .vna-modal-small{max-width:320px}
+.vna-modal .vna-modal-header{background:linear-gradient(180deg,var(--vna-primary),var(--vna-primary-dark)); color:white; padding:12px 16px}
+.vna-modal .vna-modal-body{background:var(--vna-card-bg); padding:16px}
+.vna-modal .vna-modal-actions{padding:12px 16px; display:flex; justify-content:flex-end; gap:12px}
+
+/* Small rounded inputs inside modals */
+.vna-input{border:1px solid #e6eefc; border-radius:4px; padding:10px; background:#fff}
+
+/* Buttons */
+.vna-btn{border-radius:4px}
+.vna-btn-primary{background:var(--vna-primary); color:white}
+.vna-btn-outline{background:transparent; border:1px solid var(--vna-primary); color:var(--vna-primary)}
+
+/* Floating label input */
+.floating {
+	position: relative;
+}
+.floating input, .floating select {
+	width: 100%;
+	padding: 14px 12px 10px 12px;
+	border: 1px solid #e6eefc;
+	border-radius: 4px;
+	background: #fff;
+}
+.floating label {
+	position: absolute;
+	left: 12px;
+	top: 8px;
+	font-size: 12px;
+	color: #6b7280;
+	transition: all .12s ease;
+	background: transparent;
+	padding: 0 4px;
+}
+.floating input:focus + label,
+.floating input:not(:placeholder-shown) + label,
+.floating select:focus + label,
+.floating select:not([value=""]) + label {
+	transform: translateY(-10px) scale(0.95);
+	color: var(--vna-primary);
+}
+
+/* Modal animation */
+.vna-modal-card{transform-origin:center center; animation:modalIn .12s ease-out}
+@keyframes modalIn{from{transform:translateY(8px) scale(0.98); opacity:0}to{transform:translateY(0) scale(1); opacity:1}}
+
+/* Topbar */
+.vna-topbar{background:#fff; box-shadow:0 1px 4px rgba(16,24,40,0.05)}
+
+/* Login illustration decorations */
+.login-illustration-wrap{position:relative}
+.login-illustration-wrap .decor-circle{position:absolute; background:#ffb300; color:white; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600}
+.login-illustration-wrap .decor-1{left:18%; top:18%}
+.login-illustration-wrap .decor-2{left:45%; top:8%}
+.login-illustration-wrap .decor-3{left:70%; top:28%}
+
+
