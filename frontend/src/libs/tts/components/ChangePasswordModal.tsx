@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 interface ChangePasswordModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (oldPassword: string, newPassword: string) => void;
+  onSave?: (oldPassword: string, newPassword: string, confirmPassword: string) => void;
 }
 
 export default function ChangePasswordModal({ open, onClose, onSave }: ChangePasswordModalProps) {
@@ -29,8 +29,12 @@ export default function ChangePasswordModal({ open, onClose, onSave }: ChangePas
       setMessage('Mật khẩu mới không khớp');
       return;
     }
+    if (newPassword.length < 8) {
+      setMessage('Mật khẩu mới phải có ít nhất 8 ký tự');
+      return;
+    }
     if (onSave) {
-      onSave(oldPassword, newPassword);
+      onSave(oldPassword, newPassword, confirmPassword);
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');

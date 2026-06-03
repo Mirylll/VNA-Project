@@ -102,6 +102,9 @@ export class AuthService {
   }
 
   async sendOtpEmail(email: string) {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) throw new BadRequestException('Email không tồn tại trong hệ thống');
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
@@ -114,7 +117,8 @@ export class AuthService {
       
       return { success: true, message: 'OTP đã được gửi' };
     } catch (err) {
-      throw new BadRequestException('Lỗi gửi OTP: ' + err.message);
+      const message = err instanceof Error ? err.message : 'Không xác định';
+      throw new BadRequestException('Lỗi gửi OTP: ' + message);
     }
   }
 
@@ -140,5 +144,35 @@ export class AuthService {
     (global as any).otpStore = otpStore;
     
     return { success: true, message: 'Xác minh thành công' };
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) throw new BadRequestException('Email không tồn tại trong hệ thống');
+
+    const otpStore = (global as any).otpStore || {};
+    const otpData = otpStore[email];
+
+    if (!otpData) {
+      throw new BadRequestException('Mã OTP không tồn tại hoặc đã hết hạn');
+    }
+
+    if (Date.now() > otpData.expiresAt.getTime()) {
+      delete otpStore[email];
+      (global as any).otpStore = otpStore;
+      throw new BadRequestException('Mã OTP đã hết hạn, vui lòng gửi lại');
+    }
+
+    if (otpData.code !== otp) {
+      throw new BadRequestException('Mã OTP không đúng');
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.save(user);
+
+    delete otpStore[email];
+    (global as any).otpStore = otpStore;
+
+    return { success: true, message: 'Mật khẩu đã được đặt lại thành công' };
   }
 }

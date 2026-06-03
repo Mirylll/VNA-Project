@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [forgotError, setForgotError] = useState("");
   const [resetError, setResetError] = useState("");
 
+  const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -112,13 +113,27 @@ export default function LoginPage() {
     return data;
   };
 
-  const fakeResetPasswordApi = (password: string) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (password.length < 6) reject("Mật khẩu phải >= 6 ký tự");
-        else resolve("OK");
-      }, 500);
+  const resetPasswordApi = async () => {
+    const res = await fetch(`${baseUrl}/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+        newPassword,
+        confirmNewPassword: confirmPassword,
+      }),
     });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.message || "Lỗi khôi phục mật khẩu");
+    }
+
+    return data;
   };
 
   const isValidEmail = (email: string) =>
@@ -148,6 +163,9 @@ export default function LoginPage() {
 
 
       alert("Đã gửi email xác thực");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
       setFormView("reset_password");
 
     } catch (e: any) {
@@ -166,6 +184,18 @@ export default function LoginPage() {
       setResetError("Vui lòng nhập đầy đủ mật khẩu");
       return;
     }
+    if (!otp) {
+      setResetError("Vui lòng nhập mã OTP");
+      return;
+    }
+    if (!/^\d{6}$/.test(otp)) {
+      setResetError("OTP phải gồm 6 chữ số");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setResetError("Mật khẩu mới phải có ít nhất 8 ký tự");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setResetError("Mật khẩu không khớp");
       return;
@@ -173,14 +203,17 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      await fakeResetPasswordApi(newPassword);
+      await resetPasswordApi();
 
       alert("Đổi mật khẩu thành công");
 
       setFormView("login");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
 
-    } catch (e) {
-      setResetError("Lỗi khôi phục mật khẩu");
+    } catch (e: any) {
+      setResetError(e?.message || "Lỗi khôi phục mật khẩu");
     } finally {
       setLoading(false);
     }
@@ -387,6 +420,10 @@ export default function LoginPage() {
                 <input
                   type="text"
                   placeholder="122456"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  inputMode="numeric"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -404,9 +441,10 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleResetPassword}
+                disabled={loading}
                 className="mb-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800"
               >
-                Khôi phục mật khẩu
+                {loading ? "Đang khôi phục..." : "Khôi phục mật khẩu"}
               </button>
 
               <p className="text-center text-sm text-slate-500">

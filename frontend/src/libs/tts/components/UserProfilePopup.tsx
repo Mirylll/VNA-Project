@@ -54,7 +54,7 @@ export default function UserProfilePopup() {
     return () => window.removeEventListener('open-user-popup', handler as EventListener);
   }, []);
 
-  async function changePassword(oldPassword: string, newPassword: string) {
+  async function changePassword(oldPassword: string, newPassword: string, confirmPassword: string) {
     setMessage('');
     if (!token) return setMessage('Chưa đăng nhập');
     
@@ -62,7 +62,11 @@ export default function UserProfilePopup() {
       const res = await fetch(`${baseUrl}/auth/change-password`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: token ? `Bearer ${token}` : '' },
-        body: JSON.stringify({ oldPassword, newPassword }),
+        body: JSON.stringify({
+          currentPassword: oldPassword,
+          newPassword,
+          confirmNewPassword: confirmPassword,
+        }),
       });
       
       if (res.ok) {
