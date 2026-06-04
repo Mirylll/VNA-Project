@@ -1,10 +1,16 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './modules/auth/auth.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { UsersModule } from './modules/users/users.module';
+import { TitlesModule } from './modules/titles/titles.module';
 import { User } from './modules/users/entities/user.entity';
+import { Role } from './modules/roles/entities/role.entity';
+import { Permission } from './modules/permissions/entities/permission.entity';
+import { Title } from './modules/titles/entities/title.entity';
 import { OtpCode } from './modules/auth/entities/otp-code.entity';
 import { RefreshToken } from './modules/auth/entities/refresh-token.entity';
-import { Role } from './modules/roles/entities/role.entity';
 import 'dotenv/config';
 
 const dbConfig = process.env.DATABASE_URL || process.env.DB_HOST
@@ -22,13 +28,17 @@ const dbConfig = process.env.DATABASE_URL || process.env.DB_HOST
     };
 
 @Module({
-	imports: [
-		TypeOrmModule.forRoot({
-			...dbConfig,
-			entities: [User, Role, RefreshToken, OtpCode],
-			synchronize: process.env.TYPEORM_SYNC !== 'false', // Default to true
-		}),
-		AuthModule,
-	],
+  imports: [
+    TypeOrmModule.forRoot({
+      ...dbConfig,
+      entities: [User, Role, Permission, Title, RefreshToken, OtpCode],
+      synchronize: process.env.TYPEORM_SYNC !== 'false',
+    }),
+    AuthModule,
+    PermissionsModule,
+    RolesModule,
+    UsersModule,
+    TitlesModule,
+  ],
 })
 export class AppModule {}
