@@ -1,52 +1,223 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation';
-import { Eye, EyeOff } from "lucide-react";
-
-const baseUrl = typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") : "";
+import { useRouter } from "next/navigation";
+import { EyeOff } from "lucide-react";
+import { getAuthToken } from "@/libs/core/utils/auth-token";
+const baseUrl =
+  typeof window !== "undefined"
+    ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+    : "";
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [formView, setFormView] = useState<"login" | "forgot_password" | "reset_password">("login");
-  const [username, setUsername] = useState("demo");
-  const [password, setPassword] = useState("Demo@1234");
-  const [message, setMessage] = useState("");
-
   const router = useRouter();
 
+  const [formView, setFormView] = useState<
+    "login" | "forgot_password" | "reset_password"
+  >("login");
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  // login
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [message, setMessage] = useState("");
+
+  // forgot/reset
+  const [email, setEmail] = useState("");
+  const [forgotError, setForgotError] = useState("");
+  const [resetError, setResetError] = useState("");
+
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  // ===== CHECK LOGIN =====
   useEffect(() => {
-    // If already logged in, redirect to user profile
-    if (typeof window !== "undefined") {
-      const storedToken = localStorage.getItem("token");
-      if (storedToken) {
-        router.push('/user-profile');
-      }
+    const token = getAuthToken();
+
+    if (token) {
+      router.push("/user-profile");
     }
   }, [router]);
 
-  async function handleLogin() {
+  // ===== LOGIN API =====
+  const handleLogin = async () => {
+    if (loading) return;
+
     setMessage("");
+
+    if (!username) {
+      setMessage("Vui lòng nhập tên đăng nhập");
+      return;
+    }
+
+    if (!password) {
+      setMessage("Vui lòng nhập mật khẩu");
+      return;
+    }
+
     try {
+      setLoading(true);
+
       const res = await fetch(`${baseUrl}/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ username, password }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setMessage(data.message || "Đăng nhập thất bại");
         return;
       }
-      localStorage.setItem("token", data.accessToken);
-      setMessage("Đăng nhập thành công. Đang chuyển hướng...");
-      // redirect to user-profile
-      router.push('/user-profile');
+
+      // remember login
+      if (remember) {
+        localStorage.setItem("token", data.accessToken);
+      } else {
+        sessionStorage.setItem("token", data.accessToken);
+      }
+
+      setMessage("Đăng nhập thành công");
+
+      router.push("/user-profile");
     } catch (error) {
       setMessage("Lỗi kết nối backend");
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
+
+  const sendForgotPasswordOtp = async (email: string) => {
+    const res = await fetch(`${baseUrl}/auth/send-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.message || "Lỗi gửi email xác thực");
+    }
+
+    return data;
+  };
+
+  const resetPasswordApi = async () => {
+    const res = await fetch(`${baseUrl}/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+        newPassword,
+        confirmNewPassword: confirmPassword,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.message || "Lỗi khôi phục mật khẩu");
+    }
+
+    return data;
+  };
+
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const maskEmail = (email: string) => {
+    const [name, domain] = email.split("@");
+    return name.slice(0, 2) + "***@" + domain;
+  };
+  const handleForgotPassword = async () => {
+    setForgotError("");
+
+    if (!email) {
+      setForgotError("Vui lòng nhập email");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setForgotError("Email không đúng định dạng");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await sendForgotPasswordOtp(email);
+
+
+      alert("Đã gửi email xác thực");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setFormView("reset_password");
+
+    } catch (e: any) {
+      setForgotError(e?.message || "Lỗi gửi email xác thực");
+
+
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleResetPassword = async () => {
+    setResetError("");
+
+    // validate
+    if (!newPassword || !confirmPassword) {
+      setResetError("Vui lòng nhập đầy đủ mật khẩu");
+      return;
+    }
+    if (!otp) {
+      setResetError("Vui lòng nhập mã OTP");
+      return;
+    }
+    if (!/^\d{6}$/.test(otp)) {
+      setResetError("OTP phải gồm 6 chữ số");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setResetError("Mật khẩu mới phải có ít nhất 8 ký tự");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setResetError("Mật khẩu không khớp");
+      return;
+    }
+    try {
+      setLoading(true);
+
+      await resetPasswordApi();
+
+      alert("Đổi mật khẩu thành công");
+
+      setFormView("login");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+    } catch (e: any) {
+      setResetError(e?.message || "Lỗi khôi phục mật khẩu");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-white p-8">
@@ -102,13 +273,18 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
-                  <img src={showPassword?'/icons/eye-off.svg':'/icons/eye.svg'} alt="toggle" />
+                  <img src={showPassword ? '/icons/eye-off.svg' : '/icons/eye.svg'} alt="toggle" />
                 </button>
               </div>
 
               <div className="mb-6 flex items-center justify-between">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
-                  <input type="checkbox" className="h-4 w-4 accent-blue-600" />
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-blue-600"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                  />
                   Nhớ đăng nhập
                 </label>
                 <button
@@ -122,10 +298,12 @@ export default function LoginPage() {
 
               <button
                 type="button"
+
+                className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300"
                 onClick={handleLogin}
-                className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800"
+                disabled={loading}
               >
-                Đăng nhập
+                {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
               {message ? (
                 <p className="mb-3 text-sm text-center text-red-600">{message}</p>
@@ -141,7 +319,7 @@ export default function LoginPage() {
           ) : formView === "forgot_password" ? (
             <>
               <p className="mb-2 text-center text-lg font-bold text-blue-600">
-                QUÊN MẶT KHẨU
+                QUÊN MẬT KHẨU
               </p>
 
               <p className="mb-5 text-center text-sm text-slate-400">
@@ -151,24 +329,30 @@ export default function LoginPage() {
               <div className="relative mb-6">
                 <input
                   type="email"
-                  defaultValue="Phanthanhtung093@gmail.com"
+                  value={email}
+                  placeholder="nguyenvanb@gmail.com"
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
                   Email <span className="text-red-500">*</span>
                 </label>
+                {forgotError && (
+                  <p className="text-red-500 text-sm mt-1">{forgotError}</p>
+                )}
               </div>
 
               <button
                 type="button"
-                onClick={() => setFormView("reset_password")}
-                className="mb-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800"
+                onClick={() => handleForgotPassword()}
+                disabled={loading}
+                className="mb-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                Gửi xác thực
+                {loading ? "Đang gửi..." : "Gửi xác thực"}
               </button>
 
               <p className="text-center text-sm text-slate-500">
-                Bạn đã có tài khoản{" "}
+                Bạn đã có tài khoản?{" "}
                 <button
                   type="button"
                   onClick={() => setFormView("login")}
@@ -181,14 +365,14 @@ export default function LoginPage() {
           ) : (
             <>
               <p className="mb-2 text-center text-lg font-bold text-blue-600">
-                QUÊN MẶT KHẨU
+                QUÊN MẬT KHẨU
               </p>
 
               <p className="mb-1 text-center text-sm text-slate-400">
-                Chúng tôi đã gửi mã xác minh qua số email
+                Chúng tôi đã gửi mã xác minh qua email
               </p>
               <p className="mb-1 text-center text-sm font-bold text-slate-700">
-                phanthanhtung093@gmail.com
+                Email: <span>{maskEmail(email)}</span>
               </p>
               <p className="mb-5 text-center text-sm text-slate-400">
                 Bạn vui lòng kiểm tra và điền mã xác thực
@@ -196,9 +380,10 @@ export default function LoginPage() {
 
               <div className="relative mb-4">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••"
-                  defaultValue="122456"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -214,9 +399,10 @@ export default function LoginPage() {
 
               <div className="relative mb-4">
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••"
-                  defaultValue="122456"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -234,6 +420,10 @@ export default function LoginPage() {
                 <input
                   type="text"
                   placeholder="122456"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  inputMode="numeric"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -250,9 +440,11 @@ export default function LoginPage() {
 
               <button
                 type="button"
+                onClick={handleResetPassword}
+                disabled={loading}
                 className="mb-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800"
               >
-                Khôi phục mật khẩu
+                {loading ? "Đang khôi phục..." : "Khôi phục mật khẩu"}
               </button>
 
               <p className="text-center text-sm text-slate-500">
@@ -265,6 +457,9 @@ export default function LoginPage() {
                   Đăng nhập
                 </button>
               </p>
+              {resetError && (
+                <p className="text-red-500 text-sm">{resetError}</p>
+              )}
             </>
           )}
         </div>

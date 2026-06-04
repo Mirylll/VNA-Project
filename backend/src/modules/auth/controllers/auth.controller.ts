@@ -4,6 +4,7 @@ import { LoginDto } from '../dto/login.dto';
 import { RequestChangeEmailOtpDto } from '../dto/request-change-email.dto';
 import { VerifyChangeEmailOtpDto } from '../dto/verify-change-email-otp.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -50,6 +51,16 @@ export class AuthController {
       // Return 400 error response with success: false
       throw new BadGatewayException(error.message);
     }
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    if (dto.newPassword !== dto.confirmNewPassword) {
+      throw new BadRequestException('Xác nhận mật khẩu không khớp');
+    }
+
+    return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
   }
 
   @Post('request-change-email')

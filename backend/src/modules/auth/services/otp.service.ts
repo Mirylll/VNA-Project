@@ -18,14 +18,20 @@ export class OtpService {
   }
 
   private async createTransporter() {
-    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    const host = process.env.MAIL_HOST || process.env.SMTP_HOST;
+    const port = process.env.MAIL_PORT || process.env.SMTP_PORT || 587;
+    const user = process.env.MAIL_USER || process.env.SMTP_USER;
+    const pass = process.env.MAIL_PASSWORD || process.env.SMTP_PASS;
+    const secure = process.env.MAIL_SECURE || process.env.SMTP_SECURE;
+
+    if (host && user && pass) {
       return nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: process.env.SMTP_SECURE === 'true',
+        host,
+        port: Number(port),
+        secure: secure === 'true',
         auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
+          user,
+          pass,
         },
       });
     }
@@ -60,7 +66,7 @@ export class OtpService {
     console.log(`Change-email OTP for user ${user.id}: ${otpPlain}`);
     try {
       const transporter = await this.createTransporter();
-      const from = process.env.FROM_EMAIL || 'no-reply@example.com';
+      const from = process.env.MAIL_FROM || process.env.FROM_EMAIL || 'no-reply@example.com';
       const info = await transporter.sendMail({
         from,
         to: user.email || '',
@@ -107,7 +113,7 @@ export class OtpService {
     console.log(`OTP for email ${email}: ${otp}`);
     try {
       const transporter = await this.createTransporter();
-      const from = process.env.FROM_EMAIL || 'no-reply@example.com';
+      const from = process.env.MAIL_FROM || process.env.FROM_EMAIL || 'no-reply@example.com';
       const info = await transporter.sendMail({
         from,
         to: email,

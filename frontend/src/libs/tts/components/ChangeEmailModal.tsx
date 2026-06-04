@@ -1,16 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { requestChangeEmailOtp, verifyChangeEmailOtp } from '@/libs/core/services/auth.service';
 
 interface ChangeEmailModalProps {
   open: boolean;
   onClose: () => void;
   currentEmail?: string;
-  onSave?: (newEmail: string) => void;
+  token?: string | null;
+  onSave?: (newEmail: string) => void | Promise<void>;
 }
 
-export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanthanhtung093@gmail.com', onSave }: ChangeEmailModalProps) {
-  const [step, setStep] = useState<1 | 2>(1);
+export default function ChangeEmailModal({ open, onClose, currentEmail = '', token, onSave }: ChangeEmailModalProps) {
+  const [step, setStep] = useState<1 | 2>(2);
   const [otp, setOtp] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [countdown, setCountdown] = useState(60);
@@ -18,18 +20,10 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
   const [otpError, setOtpError] = useState('');
   const [loading, setLoading] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
-  const baseUrl = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') : '';
-
-  // Send OTP when modal opens
-  useEffect(() => {
-    if (open && step === 1) {
-      sendOtpEmail();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!open) {
-      setStep(1);
+      setStep(2);
       setOtp('');
       setNewEmail('');
       setCountdown(60);
@@ -50,24 +44,22 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
   if (!open) return null;
 
   const sendOtpEmail = async () => {
+    if (!token) {
+      setOtpError('Chưa đăng nhập');
+      return false;
+    }
+
     setSendingOtp(true);
     setOtpError('');
     setMessage('');
     try {
-      const res = await fetch(`${baseUrl}/api/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentEmail })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage('Đã gửi OTP đến email của bạn');
-        setCountdown(60);
-      } else {
-        setOtpError(data.message || 'Lỗi gửi OTP');
-      }
+      await requestChangeEmailOtp(newEmail, token);
+      setMessage('Đã gửi OTP đến email hiện tại của bạn');
+      setCountdown(60);
+      return true;
     } catch (error) {
-      setOtpError('Lỗi kết nối');
+      setOtpError(error instanceof Error ? error.message : 'Lỗi gửi OTP');
+      return false;
     } finally {
       setSendingOtp(false);
     }
@@ -88,28 +80,18 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
     setLoading(true);
     setOtpError('');
     try {
-      const res = await fetch(`${baseUrl}/api/auth/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentEmail, otp })
-      });
-      const data = await res.json();
-      
-      if (res.ok && data.success) {
-        setStep(2);
-      } else {
-        // Handle error response
-        const errorMsg = data.message || data.error?.message || 'Xác minh OTP thất bại';
-        setOtpError(errorMsg);
-      }
+      if (!token) throw new Error('Chưa đăng nhập');
+      await verifyChangeEmailOtp(otp, token);
+      await onSave?.(newEmail);
+      onClose();
     } catch (error) {
-      setOtpError('Lỗi xác minh OTP');
+      setOtpError(error instanceof Error ? error.message : 'Lỗi xác minh OTP');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveEmail = () => {
+  const handleSaveEmail = async () => {
     setMessage('');
     if (!newEmail) {
       setOtpError('Vui lòng nhập email mới');
@@ -119,10 +101,13 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
       setOtpError('Email không hợp lệ');
       return;
     }
-    if (onSave) {
-      onSave(newEmail);
+    if (newEmail === currentEmail) {
+      setOtpError('Email mới giống email hiện tại');
+      return;
     }
-    onClose();
+
+    const sent = await sendOtpEmail();
+    if (sent) setStep(1);
   };
 
   const handleResendOtp = async () => {
@@ -150,8 +135,8 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
               ) : (
                 <>
                   <div className="mb-4 text-center space-y-2">
-                    <p className="text-sm text-gray-600">Chúng tôi đã gửi mã xác minh qua số email cũ</p>
-                    <p className="font-bold text-gray-800 text-sm">{currentEmail}</p>
+                    <p className="text-sm text-gray-600">Chúng tôi đã gửi mã xác minh qua email hiện tại</p>
+                    <p className="font-bold text-gray-800 text-sm">{currentEmail || 'Email hiện tại'}</p>
                     <p className="text-sm text-gray-600">Bạn vui lòng kiểm tra và điền mã xác thực</p>
                   </div>
 
@@ -234,7 +219,7 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
             <>
               {/* Step 2: Enter New Email */}
               <div className="mb-4 text-center">
-                <p className="text-sm text-gray-600">Vui lòng nhập email mới</p>
+                <p className="text-sm text-gray-600">Vui lòng nhập email mới để nhận mã xác thực qua email hiện tại</p>
               </div>
 
               <div className="mb-4">
@@ -262,14 +247,14 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = 'phanth
               <button
                 type="button"
                 onClick={handleSaveEmail}
-                disabled={!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)}
+                disabled={!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail) || sendingOtp}
                 className={`mb-3 w-full rounded px-4 py-2 text-sm font-medium text-white transition ${
-                  !newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)
+                  !newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail) || sendingOtp
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                Lưu
+                {sendingOtp ? 'Đang gửi OTP...' : 'Gửi xác thực'}
               </button>
 
               <div className="text-center">

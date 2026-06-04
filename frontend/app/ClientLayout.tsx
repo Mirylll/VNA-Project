@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import UserProfilePopup from '@/libs/tts/components/UserProfilePopup';
 import Sidebar from '@/libs/tts/components/Sidebar';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,12 +15,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     // Only run once on client side
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       setIsAuthenticated(!!token);
       setIsLoginPage(pathname === '/login');
       setChecking(false); // Only set to false after auth check is complete
     }
-  }, []); // Empty dependencies - run only once
+  }, [pathname]);
 
   // While checking auth, render nothing to prevent redirect loop
   if (checking) return null;

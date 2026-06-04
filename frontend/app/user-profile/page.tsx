@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/libs/tts/components/Sidebar';
-import UserProfilePopup from '@/libs/tts/components/UserProfilePopup';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 interface UserFormData {
   username: string;
@@ -33,6 +32,11 @@ const initialFormData: UserFormData = {
   isActive: true,
 };
 
+const baseUrl =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    : '';
+
 export default function UserProfilePage() {
   const [token, setToken] = useState<string | null>(null);
   const [formData, setFormData] = useState<UserFormData>(initialFormData);
@@ -41,13 +45,41 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const t = localStorage.getItem('token');
+      const t = getAuthToken();
       setToken(t);
       if (!t) {
         router.push('/login');
+        return;
       }
+
+      fetch(`${baseUrl}/auth/me`, {
+        headers: { authorization: `Bearer ${t}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((user) => {
+          if (!user) return;
+
+          setFormData((prev) => ({
+            ...prev,
+            username: user.username || prev.username,
+            fullName: user.fullName || prev.fullName,
+            email: user.email || prev.email,
+          }));
+        })
+        .catch(() => undefined);
     }
   }, [router]);
+
+  useEffect(() => {
+    const handleEmailChanged = (event: Event) => {
+      const email = (event as CustomEvent<{ email?: string }>).detail?.email;
+      if (!email) return;
+      setFormData((prev) => ({ ...prev, email }));
+    };
+
+    window.addEventListener('user-email-changed', handleEmailChanged);
+    return () => window.removeEventListener('user-email-changed', handleEmailChanged);
+  }, []);
 
   if (!token) return null;
 
@@ -70,10 +102,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Sidebar />
-      <UserProfilePopup />
-      
-      <div className="ml-64">
+      <div>
         {/* TOP BAR */}
         <header className="fixed top-0 right-0 left-64 z-30 bg-white border-b border-gray-200">
           <div className="flex items-center justify-between px-6 py-4">

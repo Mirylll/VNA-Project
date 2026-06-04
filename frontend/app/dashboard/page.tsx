@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 type User = { id: string; username: string; email?: string; fullName?: string };
 
@@ -12,7 +13,7 @@ export default function DashboardPage() {
   const baseUrl = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') : '';
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const token = getAuthToken();
     if (!token) {
       router.push('/login');
       return;

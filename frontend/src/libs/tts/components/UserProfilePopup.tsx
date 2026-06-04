@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ChangePasswordModal from './ChangePasswordModal';
 import ChangeEmailModal from './ChangeEmailModal';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 type User = { id: string; username: string; email?: string; fullName?: string };
 
@@ -19,15 +20,28 @@ export default function UserProfilePopup() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setToken(localStorage.getItem('token'));
+      setToken(getAuthToken());
       setPathname(window.location.pathname || '');
     }
   }, []);
 
   useEffect(() => {
+    if (!token) return;
+
+    fetch(`${baseUrl}/auth/me`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setUser(data);
+      })
+      .catch(() => setUser(null));
+  }, [baseUrl, token]);
+
+  useEffect(() => {
     function handler(e: any) {
       const action = e?.detail?.action as string | undefined;
-      setToken(typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+      setToken(getAuthToken());
       
       if (action === 'changePassword') {
         setShowChangePassword(true);
@@ -40,7 +54,7 @@ export default function UserProfilePopup() {
     return () => window.removeEventListener('open-user-popup', handler as EventListener);
   }, []);
 
-  async function changePassword(oldPassword: string, newPassword: string) {
+  async function changePassword(oldPassword: string, newPassword: string, confirmPassword: string) {
     setMessage('');
     if (!token) return setMessage('Chưa đăng nhập');
     
@@ -48,7 +62,11 @@ export default function UserProfilePopup() {
       const res = await fetch(`${baseUrl}/auth/change-password`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: token ? `Bearer ${token}` : '' },
-        body: JSON.stringify({ oldPassword, newPassword }),
+        body: JSON.stringify({
+          currentPassword: oldPassword,
+          newPassword,
+          confirmNewPassword: confirmPassword,
+        }),
       });
       
       if (res.ok) {
@@ -66,16 +84,11 @@ export default function UserProfilePopup() {
 
   async function changeEmail(newEmail: string) {
     setMessage('');
-    if (!token) return setMessage('Chưa đăng nhập');
-    
-    try {
-      // In a real app, this would call an API to verify the new email
-      setMessage('Email đã được cập nhật thành công');
-      setShowChangeEmail(false);
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      setMessage('Lỗi cập nhật email');
-    }
+    setUser((prev) => (prev ? { ...prev, email: newEmail } : prev));
+    window.dispatchEvent(new CustomEvent('user-email-changed', { detail: { email: newEmail } }));
+    setMessage('Email đã được cập nhật thành công');
+    setShowChangeEmail(false);
+    setTimeout(() => setMessage(''), 3000);
   }
 
   // If not logged in, or we're on the login page/root, don't render anything
@@ -95,7 +108,8 @@ export default function UserProfilePopup() {
       <ChangeEmailModal
         open={showChangeEmail}
         onClose={() => setShowChangeEmail(false)}
-        currentEmail="phanthanhtung093@gmail.com"
+        currentEmail={user?.email || ''}
+        token={token}
         onSave={changeEmail}
       />
 

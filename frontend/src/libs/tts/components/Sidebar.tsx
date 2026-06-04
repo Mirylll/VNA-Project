@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { clearAuthToken, getAuthToken } from '@/libs/core/utils/auth-token';
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState(false);
@@ -10,7 +11,7 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setToken(localStorage.getItem('token'));
+      setToken(getAuthToken());
       setPathname(window.location.pathname || '');
     }
   }, []);
@@ -227,7 +228,7 @@ export default function Sidebar() {
                   <button 
                     className="w-full text-left px-4 py-3 hover:bg-red-50 transition flex items-center gap-3 text-red-600"
                     onClick={() => { 
-                      localStorage.removeItem('token'); 
+                      clearAuthToken(); 
                       location.href = '/login'; 
                     }}
                   >
