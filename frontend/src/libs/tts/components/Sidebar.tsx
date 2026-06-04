@@ -1,11 +1,50 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { Settings, ChevronDown } from 'lucide-react';
 import { clearAuthToken, getAuthToken } from '@/libs/core/utils/auth-token';
+
+interface SubMenuItem {
+  label: string;
+  id: string;
+}
+
+interface MenuGroup {
+  label: string;
+  id: string;
+  items: SubMenuItem[];
+}
+
+const menuGroups: MenuGroup[] = [
+  {
+    label: 'Quản trị phần mềm',
+    id: 'quan-tri-phan-mem',
+    items: [
+      { label: 'Phân quyền', id: 'phan-quyen' },
+      { label: 'Vai trò', id: 'vai-tro' },
+      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung' },
+      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep' },
+      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh' },
+      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep' },
+      { label: 'Kỳ báo cáo', id: 'ky-bao-cao' },
+    ],
+  },
+  {
+    label: 'Tai nạn lao động',
+    id: 'tai-nan-lao-dong',
+    items: [
+      { label: 'Danh mục chung', id: 'danh-muc-chung' },
+      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld' },
+    ],
+  },
+];
 
 export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([
+    'quan-tri-phan-mem',
+  ]);
+  const [activeItem, setActiveItem] = useState('loai-hinh-doanh-nghiep');
   const [token, setToken] = useState<string | null>(null);
   const [pathname, setPathname] = useState<string>('');
 
@@ -22,214 +61,132 @@ export default function Sidebar() {
   }
 
   function toggleExpand(menu: string) {
-    setExpandedMenus(prev => 
-      prev.includes(menu) 
-        ? prev.filter(m => m !== menu)
-        : [...prev, menu]
+    setExpandedMenus((prev) =>
+      prev.includes(menu)
+        ? prev.filter((m) => m !== menu)
+        : [...prev, menu],
     );
   }
 
-  // hide sidebar on login route or when not authenticated
   if (!token || pathname === '/' || pathname.startsWith('/login')) return null;
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 text-white shadow-lg" style={{ background: '#1a237e' }}>
+    <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 text-white shadow-lg bg-[#112D75]">
       <div className="flex h-full flex-col">
         {/* HEADER */}
-        <div className="p-4 flex items-center gap-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="h-10 w-10 rounded-full bg-red-500 flex items-center justify-center font-bold text-white">VN</div>
-          <div className="text-sm font-semibold">Ủy ban nhân dân</div>
+        <div className="px-5 py-4 flex items-center gap-3 border-b border-white/10">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white p-1 shrink-0 overflow-hidden shadow-sm">
+            <img
+              src="/emblemofvietnam.png"
+              alt="Emblem of Vietnam"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="flex flex-col justify-center leading-tight">
+            <span className="text-sm font-semibold leading-tight">Ủy ban nhân dân</span>
+            <span className="text-sm font-semibold leading-tight">thành phố Hồ Chí Minh</span>
+          </div>
         </div>
 
         {/* MAIN MENU */}
-        <nav className="flex-1 overflow-auto p-3 text-sm">
-          <ul className="space-y-1">
-            {/* Hướng dẫn sử dụng */}
-            <li>
+        <nav className="flex-1 overflow-auto py-4 text-sm">
+          {menuGroups.map((group) => (
+            <div key={group.id} className="mb-2">
+              {/* Parent button */}
               <button
-                onClick={() => openProfile('profile')}
-                className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center gap-2 transition"
-              >
-                <span>📖</span>
-                <span>Hướng dẫn sử dụng</span>
-              </button>
-            </li>
-
-            {/* Trang chủ */}
-            <li>
-              <button className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center gap-2 transition">
-                <span>🏠</span>
-                <span>Trang chủ</span>
-              </button>
-            </li>
-
-            {/* Hệ thống - Expandable */}
-            <li>
-              <button
-                onClick={() => toggleExpand('he-thong')}
-                className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center justify-between transition"
+                onClick={() => toggleExpand(group.id)}
+                className="w-full flex items-center justify-between px-5 py-3 text-slate-300 hover:text-white transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <span>⚙️</span>
-                  <span>Hệ thống</span>
+                  <Settings size={18} />
+                  <span>{group.label}</span>
                 </span>
-                <span className={`text-lg transition-transform ${expandedMenus.includes('he-thong') ? 'rotate-90' : ''}`}>›</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 ${
+                    expandedMenus.includes(group.id) ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
-              {expandedMenus.includes('he-thong') && (
-                <ul className="ml-4 space-y-1 mt-1">
-                  <li>
-                    <button className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 cursor-pointer text-sm transition">
-                      • Quản lý người dùng
-                    </button>
-                  </li>
-                  <li>
-                    <button className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 cursor-pointer text-sm transition">
-                      • Vai trò người dùng
-                    </button>
-                  </li>
-                  <li>
-                    <button className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 cursor-pointer text-sm transition">
-                      • Tiếp nhận
-                    </button>
-                  </li>
+
+              {/* Sub-items */}
+              {expandedMenus.includes(group.id) && (
+                <ul className="mt-1 space-y-0.5">
+                  {group.items.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        onClick={() => setActiveItem(item.id)}
+                        className={`w-full text-left flex items-center gap-2 px-5 py-2.5 transition-colors ${
+                          activeItem === item.id
+                            ? 'bg-[#1D4ED8] text-white'
+                            : 'text-slate-300 hover:text-white'
+                        }`}
+                        style={{ paddingLeft: '3rem' }}
+                      >
+                        <span className="text-xs">•</span>
+                        <span>{item.label}</span>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
-            </li>
-
-            {/* Quản lý phần mềm - Expandable */}
-            <li>
-              <button
-                onClick={() => toggleExpand('quan-ly-phan-mem')}
-                className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center justify-between transition"
-              >
-                <span className="flex items-center gap-2">
-                  <span>💻</span>
-                  <span>Quản lý phần mềm</span>
-                </span>
-                <span className={`text-lg transition-transform ${expandedMenus.includes('quan-ly-phan-mem') ? 'rotate-90' : ''}`}>›</span>
-              </button>
-              {expandedMenus.includes('quan-ly-phan-mem') && (
-                <ul className="ml-4 space-y-1 mt-1">
-                  <li>
-                    <button className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 cursor-pointer text-sm transition">
-                      • Phiên bản
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </li>
-
-            {/* Chuẩn nghề nghiệp giáo viên - Expandable */}
-            <li>
-              <button
-                onClick={() => toggleExpand('chuan-giao-vien')}
-                className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center justify-between transition"
-              >
-                <span className="flex items-center gap-2">
-                  <span>👨‍🎓</span>
-                  <span className="text-xs">Chuẩn nghề giáo viên</span>
-                </span>
-                <span className={`text-lg transition-transform ${expandedMenus.includes('chuan-giao-vien') ? 'rotate-90' : ''}`}>›</span>
-              </button>
-              {expandedMenus.includes('chuan-giao-vien') && (
-                <ul className="ml-4 space-y-1 mt-1">
-                  <li>
-                    <button className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 cursor-pointer text-sm transition">
-                      • Chi tiết
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </li>
-
-            {/* Chuẩn nghề nghiệp HT - HP - Expandable */}
-            <li>
-              <button
-                onClick={() => toggleExpand('chuan-ht-hp')}
-                className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center justify-between transition"
-              >
-                <span className="flex items-center gap-2">
-                  <span>👨‍💼</span>
-                  <span className="text-xs">Chuẩn HT - HP</span>
-                </span>
-                <span className={`text-lg transition-transform ${expandedMenus.includes('chuan-ht-hp') ? 'rotate-90' : ''}`}>›</span>
-              </button>
-              {expandedMenus.includes('chuan-ht-hp') && (
-                <ul className="ml-4 space-y-1 mt-1">
-                  <li>
-                    <button className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 cursor-pointer text-sm transition">
-                      • Chi tiết
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </li>
-
-            {/* Báo cáo thống kê */}
-            <li>
-              <button className="w-full text-left px-3 py-2.5 rounded hover:bg-blue-800 cursor-pointer flex items-center gap-2 transition">
-                <span>📊</span>
-                <span>Báo cáo thống kê</span>
-              </button>
-            </li>
-          </ul>
+            </div>
+          ))}
         </nav>
 
         {/* BOTTOM USER SECTION */}
-        <div className="p-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="px-4 py-3 border-t border-white/10">
           <div className="flex items-center gap-3 relative">
             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
               PT
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm truncate">Phan Thanh Tùng</div>
-              <div className="text-xs text-blue-200 truncate">Quản trị viên</div>
+              <div className="font-semibold text-sm truncate text-white">
+                Phan Thanh Tùng
+              </div>
+              <div className="text-xs text-blue-200 truncate">
+                Quản trị viên
+              </div>
             </div>
-            <button 
-              onClick={() => setOpenMenu((s) => !s)} 
-              className="ml-2 rounded bg-white/10 hover:bg-white/20 px-2 py-1 text-sm font-bold flex-shrink-0 transition"
+            <button
+              onClick={() => setOpenMenu((s) => !s)}
+              className="ml-2 rounded bg-white/10 hover:bg-white/20 px-2 py-1 text-sm font-bold flex-shrink-0 text-white transition"
             >
               ›
             </button>
 
-            {/* POPUP MENU */}
             {openMenu && (
               <>
-                {/* Backdrop */}
-                <div 
+                <div
                   className="fixed inset-0 z-40"
                   onClick={() => setOpenMenu(false)}
                 />
-                
-                {/* Menu */}
                 <div className="absolute bottom-full right-0 mb-2 w-56 rounded-lg bg-white text-gray-800 shadow-xl z-50 overflow-hidden">
-                  <button 
+                  <button
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center gap-3 border-b border-gray-100"
-                    onClick={() => { 
-                      openProfile('profile'); 
-                      setOpenMenu(false); 
+                    onClick={() => {
+                      openProfile('profile');
+                      setOpenMenu(false);
                     }}
                   >
                     <span>👤</span>
                     <span className="text-sm">Thông tin tài khoản</span>
                   </button>
-                  
-                  <button 
+                  <button
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center gap-3 border-b border-gray-100"
-                    onClick={() => { 
-                      openProfile('changePassword'); 
-                      setOpenMenu(false); 
+                    onClick={() => {
+                      openProfile('changePassword');
+                      setOpenMenu(false);
                     }}
                   >
                     <span>🔑</span>
                     <span className="text-sm">Đổi mật khẩu</span>
                   </button>
-                  
-                  <button 
+                  <button
                     className="w-full text-left px-4 py-3 hover:bg-red-50 transition flex items-center gap-3 text-red-600"
-                    onClick={() => { 
-                      clearAuthToken(); 
-                      location.href = '/login'; 
+                    onClick={() => {
+                      clearAuthToken();
+                      location.href = '/login';
                     }}
                   >
                     <span>🚪</span>
