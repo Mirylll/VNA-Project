@@ -66,6 +66,10 @@ html,body{font-family: Roboto, system-ui, -apple-system, 'Segoe UI', Roboto, 'He
 .vna-modal-card{transform-origin:center center; animation:modalIn .12s ease-out}
 @keyframes modalIn{from{transform:translateY(8px) scale(0.98); opacity:0}to{transform:translateY(0) scale(1); opacity:1}}
 
+/* Selection bar animation */
+@keyframes fadeInUp{from{transform:translateY(16px); opacity:0}to{transform:translateY(0); opacity:1}}
+.animate-fade-in-up{animation:fadeInUp .25s ease-out}
+
 /* Topbar */
 .vna-topbar{background:#fff; box-shadow:0 1px 4px rgba(16,24,40,0.05)}
 

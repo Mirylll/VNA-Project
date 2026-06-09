@@ -40,7 +40,7 @@ export default function LoginPage() {
     const token = getAuthToken();
 
     if (token) {
-      router.push("/user-profile");
+      router.push("/admin/permissions");
     }
   }, [router]);
 
@@ -87,7 +87,7 @@ export default function LoginPage() {
 
       setMessage("Đăng nhập thành công");
 
-      router.push("/user-profile");
+      router.push("/admin/permissions");
     } catch (error) {
       setMessage("Lỗi kết nối backend");
     } finally {
