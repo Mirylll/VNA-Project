@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { Permission } from '../permissions/entities/permission.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
@@ -14,6 +15,8 @@ export class RolesService {
     private readonly roleRepo: Repository<Role>,
     @InjectRepository(Permission)
     private readonly permissionRepo: Repository<Permission>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) {}
 
   async findAll(): Promise<Role[]> {
@@ -38,6 +41,12 @@ export class RolesService {
   }
 
   async remove(id: string): Promise<void> {
+    const userCount = await this.userRepo.count({ where: { role: { id } } });
+    if (userCount > 0) {
+      throw new BadRequestException(
+        `Không thể xoá vai trò đang được ${userCount} người dùng sử dụng`,
+      );
+    }
     await this.roleRepo.delete(id);
   }
 

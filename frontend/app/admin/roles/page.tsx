@@ -1,3 +1,5 @@
+import RoleListPage from '@/libs/tts/components/RoleListPage';
+
 export default function RolesPage() {
-  return <div className="p-6"><h1 className="text-xl font-bold">Vai trò</h1></div>;
+  return <RoleListPage />;
 }
