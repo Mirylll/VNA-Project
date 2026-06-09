@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 
@@ -218,7 +218,7 @@ export default function PermissionListPage({
               const isOpen = expandedGroups.includes(group.code);
 
               return (
-                <>
+                <Fragment key={group.code}>
                   {/* Group row */}
                   <tr
                     key={group.code}
@@ -273,7 +273,7 @@ export default function PermissionListPage({
                         </td>
                       </tr>
                     ))}
-                </>
+                </Fragment>
               );
             })
           )}
