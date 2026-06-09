@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Settings, ChevronDown } from 'lucide-react';
 import { clearAuthToken, getAuthToken } from '@/libs/core/utils/auth-token';
 
 interface SubMenuItem {
   label: string;
   id: string;
+  route: string;
 }
 
 interface MenuGroup {
@@ -20,38 +22,61 @@ const menuGroups: MenuGroup[] = [
     label: 'Quản trị phần mềm',
     id: 'quan-tri-phan-mem',
     items: [
-      { label: 'Phân quyền', id: 'phan-quyen' },
-      { label: 'Vai trò', id: 'vai-tro' },
-      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung' },
-      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep' },
-      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh' },
-      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep' },
-      { label: 'Kỳ báo cáo', id: 'ky-bao-cao' },
+      { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions' },
+      { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles' },
+      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung', route: '/admin/users' },
+      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep', route: '/admin/enterprise-types' },
+      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh', route: '/admin/industries' },
+      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep', route: '/admin/enterprises' },
+      { label: 'Kỳ báo cáo', id: 'ky-bao-cao', route: '/admin/report-periods' },
     ],
   },
   {
     label: 'Tai nạn lao động',
     id: 'tai-nan-lao-dong',
     items: [
-      { label: 'Danh mục chung', id: 'danh-muc-chung' },
-      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld' },
+      { label: 'Danh mục chung', id: 'danh-muc-chung', route: '/admin/tnld-categories' },
+      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld', route: '/admin/tnld-contracts' },
     ],
   },
 ];
 
+function getRouteMap() {
+  const map: Record<string, string> = {};
+  for (const group of menuGroups) {
+    for (const item of group.items) {
+      map[item.id] = item.route;
+    }
+  }
+  return map;
+}
+
+function getIdFromPath(path: string): string {
+  const routeMap = getRouteMap();
+  const reverse: Record<string, string> = {};
+  for (const [id, route] of Object.entries(routeMap)) {
+    reverse[route] = id;
+  }
+  return reverse[path] || '';
+}
+
 export default function Sidebar() {
+  const router = useRouter();
   const [openMenu, setOpenMenu] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     'quan-tri-phan-mem',
   ]);
-  const [activeItem, setActiveItem] = useState('loai-hinh-doanh-nghiep');
+  const [activeItem, setActiveItem] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [pathname, setPathname] = useState<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setToken(getAuthToken());
-      setPathname(window.location.pathname || '');
+      const p = window.location.pathname;
+      setPathname(p);
+      const id = getIdFromPath(p);
+      if (id) setActiveItem(id);
     }
   }, []);
 
@@ -115,7 +140,10 @@ export default function Sidebar() {
                   {group.items.map((item) => (
                     <li key={item.id}>
                       <button
-                        onClick={() => setActiveItem(item.id)}
+                        onClick={() => {
+                          setActiveItem(item.id);
+                          router.push(item.route);
+                        }}
                         className={`w-full text-left flex items-center gap-2 px-5 py-2.5 transition-colors ${
                           activeItem === item.id
                             ? 'bg-[#1D4ED8] text-white'
