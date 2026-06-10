@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EyeOff } from "lucide-react";
 import { getAuthToken } from "@/libs/core/utils/auth-token";
+import BusinessRegistrationModal from "@/libs/tts/components/BusinessRegistrationModal";
+
 const baseUrl =
   typeof window !== "undefined"
     ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -17,6 +19,7 @@ export default function LoginPage() {
   >("login");
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegModal, setShowRegModal] = useState(false);
 
   // login
   const [username, setUsername] = useState("");
@@ -311,6 +314,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
+                onClick={() => setShowRegModal(true)}
                 className="w-full rounded-lg border border-blue-600 bg-white px-4 py-2.5 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 active:bg-blue-100"
               >
                 Đăng ký tài khoản doanh nghiệp
@@ -464,6 +468,11 @@ export default function LoginPage() {
           )}
         </div>
       </div>
+
+      {/* Business Registration Modal */}
+      {showRegModal && (
+        <BusinessRegistrationModal onClose={() => setShowRegModal(false)} />
+      )}
     </div>
   );
 }
