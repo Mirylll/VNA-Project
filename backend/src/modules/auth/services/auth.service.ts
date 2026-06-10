@@ -102,15 +102,13 @@ export class AuthService {
   }
 
   async sendOtpEmail(email: string) {
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) throw new BadRequestException('Email không tồn tại trong hệ thống');
-
+    // Không cần user tồn tại – dùng cho cả đăng ký mới và quên mật khẩu
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
     try {
       await this.otpService.sendOtpViaEmail(email, otp);
-      // Store OTP in memory with expiry (in production, use Redis or DB)
+      // Lưu OTP vào bộ nhớ tạm (global store)
       const otpStore = (global as any).otpStore || {};
       otpStore[email] = { code: otp, expiresAt };
       (global as any).otpStore = otpStore;
@@ -175,4 +173,75 @@ export class AuthService {
 
     return { success: true, message: 'Mật khẩu đã được đặt lại thành công' };
   }
-}
+
+  // ── Đăng ký tài khoản doanh nghiệp ────────────────────────────────────────────
+  async registerEnterprise(data: {
+    mst: string;
+    tenDN: string;
+    email: string;
+    otp: string;
+    loaiHinhKD?: string;
+    nganhNghe?: string;
+    diaChi?: string;
+    nguoiDungDau?: string;
+    sdtNguoiDungDau?: string;
+    tenNuocNgoai?: string;
+    ngayCap?: string;
+    phuongXaTen?: string;
+    diaDiemKD?: string;
+  }) {
+    // 1. Kiểm tra OTP hợp lệ
+    const otpStore = (global as any).otpStore || {};
+    const otpData = otpStore[data.email];
+
+    if (!otpData) {
+      throw new BadRequestException('Mã OTP không tồn tại hoặc đã hết hạn');
+    }
+    if (Date.now() > otpData.expiresAt.getTime()) {
+      delete otpStore[data.email];
+      (global as any).otpStore = otpStore;
+      throw new BadRequestException('Mã OTP đã hết hạn, vui lòng gửi lại');
+    }
+    if (otpData.code !== data.otp) {
+      throw new BadRequestException('Mã OTP không đúng');
+    }
+
+    // 2. Kiểm tra MST đã tồn tại chưa
+    const existingByUsername = await this.userRepository.findOne({ where: { username: data.mst } });
+    if (existingByUsername) {
+      throw new BadRequestException('Mã số thuế này đã được đăng ký tài khoản');
+    }
+
+    // 3. Kiểm tra email đã tồn tại chưa
+    const existingByEmail = await this.userRepository.findOne({ where: { email: data.email } });
+    if (existingByEmail) {
+      throw new BadRequestException('Email này đã được đăng ký tài khoản');
+    }
+
+    // 4. Tạo tài khoản với mật khẩu mặc định 12345678
+    const DEFAULT_PASSWORD = '12345678';
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+
+    const fullName = data.tenDN || data.mst;
+    const user = this.userRepository.create({
+      username: data.mst,
+      passwordHash,
+      fullName,
+      email: data.email,
+      isActive: true,
+    });
+    await this.userRepository.save(user);
+
+    // 5. Xóa OTP khỏi store
+    delete otpStore[data.email];
+    (global as any).otpStore = otpStore;
+
+    return {
+      success: true,
+      message: 'Tài khoản doanh nghiệp đã được tạo thành công',
+      account: {
+        username: data.mst,
+        defaultPassword: DEFAULT_PASSWORD,
+      },
+    };
+  }

@@ -140,6 +140,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [verifiedOtp, setVerifiedOtp] = useState(""); // OTP đã xác thực thành công
+  const [confirmLoading, setConfirmLoading] = useState(false); // loading khi gọi register API
 
   // ── wards lists
   const registrationWards: Ward[] = HCM_WARDS;
@@ -227,8 +229,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     return Object.keys(errs).length === 0;
   };
 
-  // ── send OTP API
+  // ── send OTP API (also used by "Gửi lại")
   const sendOtp = async () => {
+    setOtpError("");
+    // Luôn start countdown ngay lập tức, không chờ API
+    startCountdown();
     try {
       setSendLoading(true);
       const res = await fetch(`${BASE_URL}/auth/send-otp`, {
@@ -238,9 +243,19 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Lỗi gửi email xác thực");
-      startCountdown();
+      // OTP đã gửi thành công, không cần làm gì thêm
     } catch (e: any) {
-      setOtpError(e?.message || "Lỗi gửi OTP");
+      // Nếu backend chưa chạy (Failed to fetch / NetworkError) → không báo lỗi,
+      // chỉ báo lỗi khi backend trả về lỗi nghiệp vụ cụ thể
+      const msg = e?.message || "";
+      const isNetworkErr =
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("fetch");
+      if (!isNetworkErr) {
+        setOtpError(msg || "Lỗi gửi OTP");
+      }
+      // Khi network error: countdown vẫn chạy, user vẫn có thể nhập OTP
     } finally {
       setSendLoading(false);
     }
@@ -252,22 +267,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     setOtp("");
     setOtpError("");
     setStage("otp");
-    // gửi OTP ngay
-    try {
-      setSendLoading(true);
-      const res = await fetch(`${BASE_URL}/auth/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email.trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Lỗi gửi email xác thực");
-      startCountdown();
-    } catch (e: any) {
-      setOtpError(e?.message || "Lỗi gửi OTP");
-    } finally {
-      setSendLoading(false);
-    }
+    // Gọi sendOtp (đã tự startCountdown bên trong)
+    await sendOtp();
   };
 
   // ── verify OTP
@@ -288,25 +289,71 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Mã OTP không đúng");
       }
-      // Nếu endpoint không tồn tại (dev mode) → cho qua với OTP = 123456
+      // OTP hợp lệ → lưu lại để dùng khi register
+      setVerifiedOtp(otp);
       if (timerRef.current) clearInterval(timerRef.current);
       setStage("confirm");
     } catch (e: any) {
-      // Nếu backend chưa có verify-otp endpoint → dev fallback
-      if (e?.message?.includes("Failed to fetch") || e?.message?.includes("NetworkError")) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setStage("confirm");
+      const msg = e?.message || "";
+      const isNetworkErr =
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed");
+      if (isNetworkErr) {
+        // Backend không chạy → hiển thị lỗi kết nối
+        setOtpError("⚠️ Không kết nối được đến server. Kiểm tra lại backend.");
       } else {
-        setOtpError(e?.message || "Mã OTP không đúng hoặc đã hết hạn");
+        setOtpError(msg || "Mã OTP không đúng hoặc đã hết hạn");
       }
     } finally {
       setOtpLoading(false);
     }
   };
 
-  // ── confirm → account
-  const handleConfirm = () => {
-    setStage("account");
+  // ── confirm → gọi API tạo tài khoản
+  const handleConfirm = async () => {
+    try {
+      setConfirmLoading(true);
+      const selectedWardObj = registrationWards.find((w) => w.code === form.phuongXa);
+      const phuongXaTen = selectedWardObj
+        ? `${selectedWardObj.name}, ${selectedWardObj.district}`
+        : "";
+
+      const res = await fetch(`${BASE_URL}/auth/register-enterprise`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mst: form.mst.trim(),
+          tenDN: form.tenDN.trim(),
+          email: form.email.trim(),
+          otp: verifiedOtp,
+          loaiHinhKD: form.loaiHinhKD,
+          nganhNghe: form.nganhNghe,
+          diaChi: form.diaChi,
+          nguoiDungDau: form.nguoiDungDau,
+          sdtNguoiDungDau: form.sdtNguoiDungDau,
+          tenNuocNgoai: form.tenNuocNgoai,
+          ngayCap: form.ngayCap,
+          phuongXaTen,
+          diaDiemKD: form.diaDiemKD,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Lỗi tạo tài khoản");
+      }
+      setStage("account");
+    } catch (e: any) {
+      const msg = e?.message || "";
+      const isNetworkErr = msg.includes("Failed to fetch") || msg.includes("NetworkError");
+      if (isNetworkErr) {
+        alert("⚠️ Không kết nối được đến server. Hãy kiểm tra backend đang chạy.");
+      } else {
+        alert("Lỗi: " + msg);
+      }
+    } finally {
+      setConfirmLoading(false);
+    }
   };
 
   // ── build address display
@@ -543,12 +590,25 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
             <button
               type="button"
               onClick={handleConfirm}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              disabled={confirmLoading}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:bg-blue-300"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Xác nhận
+              {confirmLoading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Đang tạo tài khoản...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Xác nhận
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -53,6 +53,30 @@ export class AuthController {
     }
   }
 
+  @Post('register-enterprise')
+  @HttpCode(HttpStatus.CREATED)
+  async registerEnterprise(@Body() body: {
+    mst: string;
+    tenDN: string;
+    email: string;
+    otp: string;
+    loaiHinhKD?: string;
+    nganhNghe?: string;
+    diaChi?: string;
+    nguoiDungDau?: string;
+    sdtNguoiDungDau?: string;
+    tenNuocNgoai?: string;
+    ngayCap?: string;
+    phuongXaTen?: string;
+    diaDiemKD?: string;
+  }) {
+    try {
+      return await this.authService.registerEnterprise(body);
+    } catch (error) {
+      throw new BadRequestException(error.message || 'Lỗi tạo tài khoản doanh nghiệp');
+    }
+  }
+
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {
