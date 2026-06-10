@@ -22,7 +22,7 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
+  @Column({ name: 'last_login_at', nullable: true })
   lastLoginAt?: Date;
 
   @ManyToOne(() => Role, { nullable: true })

@@ -104,6 +104,7 @@ export class AuthService {
   async sendOtpEmail(email: string) {
     // Không cần user tồn tại – dùng cho cả đăng ký mới và quên mật khẩu
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`[DEV] Generated OTP for ${email}: ${otp}`);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
     try {
@@ -137,9 +138,6 @@ export class AuthService {
     if (otpData.code !== otp) {
       throw new BadRequestException('Mã OTP không đúng');
     }
-    
-    delete otpStore[email];
-    (global as any).otpStore = otpStore;
     
     return { success: true, message: 'Xác minh thành công' };
   }
@@ -245,3 +243,4 @@ export class AuthService {
       },
     };
   }
+}

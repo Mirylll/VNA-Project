@@ -19,10 +19,10 @@ export class OtpCode {
   @Column({ name: 'target_value', length: 255, nullable: true })
   targetValue?: string;
 
-  @Column({ name: 'expires_at', type: 'timestamptz' })
+  @Column({ name: 'expires_at' })
   expiresAt!: Date;
 
-  @Column({ name: 'verified_at', type: 'timestamptz', nullable: true })
+  @Column({ name: 'verified_at', nullable: true })
   verifiedAt?: Date;
 
   @Column({ name: 'attempt_count', default: 0 })
