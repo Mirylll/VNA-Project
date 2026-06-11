@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Upload, Plus, ChevronDown, Pencil, KeyRound, RefreshCw } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import SelectionBar from './SelectionBar';
+import ResetPasswordModal from './ResetPasswordModal';
 
 interface UserData {
   id: string;
@@ -69,6 +70,7 @@ export default function UserListPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserData | null>(null);
   const [filters, setFilters] = useState<Record<string, string>>({
     fullName: '',
     username: '',
@@ -345,7 +347,7 @@ export default function UserListPage() {
                   </td>
                   <td className="px-2 py-3">
                     <button
-                      onClick={() => {}}
+                      onClick={() => setResetPasswordUser(user)}
                       className="text-gray-400 hover:text-blue-600 transition-colors"
                     >
                       <KeyRound size={15} />
@@ -383,6 +385,13 @@ export default function UserListPage() {
         selectedCount={selectedIds.length}
         onClear={() => setSelectedIds([])}
         onDelete={handleDeleteSelected}
+      />
+
+      <ResetPasswordModal
+        open={!!resetPasswordUser}
+        user={resetPasswordUser}
+        onClose={() => setResetPasswordUser(null)}
+        onSaved={fetchUsers}
       />
     </div>
   );
