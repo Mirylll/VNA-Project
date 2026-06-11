@@ -5,6 +5,8 @@ import { OtpCode } from '../entities/otp-code.entity';
 import { User } from '../../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 import * as nodemailer from 'nodemailer';
+import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class OtpService {
@@ -108,31 +110,82 @@ export class OtpService {
     return true;
   }
 
-  async sendOtpViaEmail(email: string, otp: string) {
+  async sendOtpViaEmail(
+    email: string,
+    otp: string,
+    context?: { fullName?: string; username?: string; isRegister?: boolean },
+  ) {
     // eslint-disable-next-line no-console
     console.log(`OTP for email ${email}: ${otp}`);
 
-    const host = process.env.MAIL_HOST || process.env.SMTP_HOST;
-    const user = process.env.MAIL_USER || process.env.SMTP_USER;
-    const pass = process.env.MAIL_PASSWORD || process.env.SMTP_PASS;
+    const ctx = context || {
+      fullName: 'Doanh nghiệp',
+      username: email,
+      isRegister: true,
+    };
 
-    if (!host || !user || !pass) {
-      // No SMTP configured — send via Ethereal only
-      await this.sendViaEthereal(email, otp);
-      return;
+    // Determine subject
+    const subject = ctx.isRegister
+      ? 'Mã xác thực đăng ký tài khoản doanh nghiệp - VNA Group'
+      : 'Mã xác thực khôi phục mật khẩu - VNA Group';
+
+    // Build email template with logo path resolver
+    const logoPath = path.resolve(process.cwd(), '../frontend/logo/logo.png');
+    const attachments: any[] = [];
+    if (fs.existsSync(logoPath)) {
+      attachments.push({
+        filename: 'logo.png',
+        path: logoPath,
+        cid: 'logo_vna',
+      });
     }
 
-    // Try real SMTP first
+    const htmlContent = `
+<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #000; line-height: 1.6;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    ${fs.existsSync(logoPath) ? '<img src="cid:logo_vna" style="width: 140px; height: auto; display: inline-block;" alt="Công ty công nghệ phần mềm quốc gia VNA" />' : '<h2 style="color: #d4af37; margin: 0;">VNA</h2>'}
+  </div>
+  
+  <h2 style="font-size: 24px; font-weight: bold; margin-top: 0; margin-bottom: 20px; color: #000;">
+    Xin chào, ${ctx.fullName}
+  </h2>
+  
+  <p style="font-size: 16px; margin-bottom: 20px; color: #000;">
+    ${ctx.isRegister 
+      ? `Bạn vừa yêu cầu đăng ký tài khoản doanh nghiệp trên hệ thống <strong>Công ty công nghệ phần mềm quốc gia VNA</strong>. Dưới đây là mã OTP của bạn:`
+      : `Bạn vừa yêu cầu khôi phục mật khẩu cho tài khoản <strong>${ctx.username}</strong>. Dưới đây là mã OTP của bạn:`
+    }
+  </p>
+  
+  <p style="font-size: 18px; margin-bottom: 20px; color: #000;">
+    Mã OTP của bạn là: <strong style="font-size: 20px; letter-spacing: 1px; color: #000;">${otp}</strong>
+  </p>
+  
+  <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; font-size: 14px; color: #000;">
+    <p style="margin: 0 0 8px 0; font-weight: normal;">Lưu ý quan trọng: Mã OTP có hiệu lực trong <strong>5 phút</strong></p>
+    <p style="margin: 0 0 8px 0; font-weight: normal;">Không chia sẻ mã này với bất kỳ ai, kể cả nhân viên hỗ trợ.</p>
+    <p style="margin: 0; color: #555;">
+      ${ctx.isRegister
+        ? 'Nếu bạn không thực hiện yêu cầu đăng ký này, vui lòng bỏ qua email này.'
+        : 'Nếu bạn không yêu cầu khôi phục mật khẩu, vui lòng bỏ qua email này.'
+      }
+    </p>
+  </div>
+</div>
+    `;
+
     try {
       const transporter = await this.createTransporter();
       const from = process.env.MAIL_FROM || process.env.FROM_EMAIL || 'no-reply@example.com';
       const info = await transporter.sendMail({
         from,
         to: email,
-        subject: 'Mã xác thực thay đổi email',
+        subject,
         text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
-        html: `<p>Mã OTP của bạn là: <b>${otp}</b></p><p>Có hiệu lực trong 5 phút.</p>`,
+        html: htmlContent,
+        attachments,
       });
+      // if using Ethereal, log preview URL
       // eslint-disable-next-line no-console
       if ((nodemailer as any).getTestMessageUrl) {
         // eslint-disable-next-line no-console
@@ -140,27 +193,8 @@ export class OtpService {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('SMTP failed, falling back to Ethereal:', err);
-      await this.sendViaEthereal(email, otp);
+      console.error('Failed to send OTP email', err);
+      throw err;
     }
-  }
-
-  private async sendViaEthereal(email: string, otp: string) {
-    const testAccount = await nodemailer.createTestAccount();
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    });
-    const from = process.env.MAIL_FROM || process.env.FROM_EMAIL || 'no-reply@example.com';
-    const info = await transporter.sendMail({
-      from,
-      to: email,
-      subject: 'Mã xác thực thay đổi email (Ethereal)',
-      text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
-      html: `<p>Mã OTP của bạn là: <b>${otp}</b></p><p>Có hiệu lực trong 5 phút.</p>`,
-    });
-    // eslint-disable-next-line no-console
-    console.log('Ethereal Preview URL:', (nodemailer as any).getTestMessageUrl(info));
   }
 }

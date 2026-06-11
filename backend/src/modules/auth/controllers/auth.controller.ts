@@ -33,9 +33,9 @@ export class AuthController {
 
   @Post('send-otp')
   @HttpCode(HttpStatus.OK)
-  async sendOtp(@Body() body: { email: string }) {
+  async sendOtp(@Body() body: { email: string; type?: 'register' | 'forgot_password' }) {
     try {
-      return await this.authService.sendOtpEmail(body.email);
+      return await this.authService.sendOtpEmail(body.email, body.type);
     } catch (error) {
       throw new BadRequestException(error.message || 'Lỗi gửi OTP');
     }
@@ -50,6 +50,30 @@ export class AuthController {
     } catch (error) {
       // Return 400 error response with success: false
       throw new BadGatewayException(error.message);
+    }
+  }
+
+  @Post('register-enterprise')
+  @HttpCode(HttpStatus.CREATED)
+  async registerEnterprise(@Body() body: {
+    mst: string;
+    tenDN: string;
+    email: string;
+    otp: string;
+    loaiHinhKD?: string;
+    nganhNghe?: string;
+    diaChi?: string;
+    nguoiDungDau?: string;
+    sdtNguoiDungDau?: string;
+    tenNuocNgoai?: string;
+    ngayCap?: string;
+    phuongXaTen?: string;
+    diaDiemKD?: string;
+  }) {
+    try {
+      return await this.authService.registerEnterprise(body);
+    } catch (error) {
+      throw new BadRequestException(error.message || 'Lỗi tạo tài khoản doanh nghiệp');
     }
   }
 
