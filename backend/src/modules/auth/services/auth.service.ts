@@ -42,7 +42,6 @@ export class AuthService {
     if (!matched) {
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại');
     }
-    user.lastLoginAt = new Date();
     await this.userRepository.save(user);
     const payload = { sub: user.id, username: user.username };
     const accessToken = this.jwtService.sign(payload);

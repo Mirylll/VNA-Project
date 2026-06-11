@@ -1,6 +1,15 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
 import { Title } from '../../titles/entities/title.entity';
+import { Province } from './province.entity';
+import { District } from './district.entity';
+import { UserAvatar } from './user-avatar.entity';
+
+export enum Gender {
+  MALE = 'Nam',
+  FEMALE = 'Nữ',
+  OTHER = 'Khác',
+}
 
 @Entity('users')
 export class User {
@@ -19,11 +28,20 @@ export class User {
   @Column({ length: 150, nullable: true, unique: true })
   email?: string;
 
+  @Column({ name: 'date_of_birth', type: 'date', nullable: true })
+  dateOfBirth?: string;
+
+  @Column({ type: 'varchar', length: 10, default: Gender.MALE, nullable: true })
+  gender?: string;
+
+  @Column({ name: 'avatar_url', length: 500, nullable: true })
+  avatarUrl?: string;
+
+  @Column({ length: 255, nullable: true })
+  address?: string;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
-
-  @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
-  lastLoginAt?: Date;
 
   @ManyToOne(() => Role, { nullable: true })
   @JoinColumn({ name: 'role_id' })
@@ -32,6 +50,18 @@ export class User {
   @ManyToOne(() => Title, { nullable: true })
   @JoinColumn({ name: 'title_id' })
   title?: Title;
+
+  @ManyToOne(() => Province, { nullable: true })
+  @JoinColumn({ name: 'province_id' })
+  province?: Province;
+
+  @ManyToOne(() => District, { nullable: true })
+  @JoinColumn({ name: 'district_id' })
+  district?: District;
+
+  @OneToOne(() => UserAvatar, { nullable: true })
+  @JoinColumn({ name: 'avatar_id' })
+  avatar?: UserAvatar;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
