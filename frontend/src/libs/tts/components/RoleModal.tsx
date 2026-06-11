@@ -59,6 +59,12 @@ export default function RoleModal({
   const isEdit = !!initialData;
   const pageSize = 10;
 
+  const allPermissionIds = permissions.flatMap((g: any) =>
+    (g.children || []).map((c: any) => c.id),
+  );
+  const allSelected = allPermissionIds.length > 0 && allPermissionIds.every((id: number) => selectedIds.includes(id));
+  const someSelected = allPermissionIds.some((id: number) => selectedIds.includes(id)) && !allSelected;
+
   useEffect(() => {
     if (open) {
       setCode(initialData?.code ?? '');
@@ -100,6 +106,17 @@ export default function RoleModal({
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
+  }
+
+  function toggleAllPermissions() {
+    if (allSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !allPermissionIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => [
+        ...prev,
+        ...allPermissionIds.filter((id: number) => !prev.includes(id)),
+      ]);
+    }
   }
 
   function toggleGroupPermissions(group: any) {
@@ -189,7 +206,13 @@ export default function RoleModal({
               <thead>
                 <tr className="bg-gray-50 border-b border-slate-200">
                   <th className="w-10 px-2 py-2.5 text-left">
-                    <input type="checkbox" className="accent-blue-600" />
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                      onChange={toggleAllPermissions}
+                      className="accent-blue-600"
+                    />
                   </th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-[45%]">
                     Mã quyền

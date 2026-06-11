@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Upload, Plus, Eye, Pencil, KeyRound, ChevronDown } from 'lucide-react';
 
 function ToggleSwitch({
@@ -27,46 +28,34 @@ function ToggleSwitch({
   );
 }
 
-interface EnterpriseListPageProps {
-  items?: any[];
-  onImportClick?: () => void;
-  onAddNewClick?: () => void;
-  onViewClick?: (id: any) => void;
-  onEditClick?: (id: any) => void;
-  onKeyClick?: (id: any) => void;
-  onFilterChange?: (field: string, value: string) => void;
-  onToggleStatus?: (id: any, value: boolean) => void;
-}
-
-export default function EnterpriseListPage({
-  items = [],
-  onImportClick = () => {},
-  onAddNewClick = () => {},
-  onViewClick = (_id: any) => {},
-  onEditClick = (_id: any) => {},
-  onKeyClick = (_id: any) => {},
-  onFilterChange = (_field: string, _value: string) => {},
-  onToggleStatus = (_id: any, _value: boolean) => {},
-}: EnterpriseListPageProps) {
+export default function EnterpriseListPage() {
+  const router = useRouter();
   const [demoActive, setDemoActive] = useState(true);
+
+  function handleAddNew() {
+    router.push('/admin/enterprises/create');
+  }
+
+  function handleEdit() {
+    router.push('/admin/enterprises/create?id=1');
+  }
 
   return (
     <div className="p-6">
-      {/* Top header bar */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold text-gray-900">
           Danh sách doanh nghiệp
         </h1>
         <div className="flex items-center gap-3">
           <button
-            onClick={onImportClick}
+            onClick={() => {}}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors"
           >
             <Upload size={16} />
             Thêm từ file
           </button>
           <button
-            onClick={onAddNewClick}
+            onClick={handleAddNew}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
           >
             <Plus size={16} />
@@ -114,21 +103,21 @@ export default function EnterpriseListPage({
               <td className="px-3 py-2">
                 <input
                   placeholder=""
-                  onChange={(e) => onFilterChange('name', e.target.value)}
+                  onChange={() => {}}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
               <td className="px-3 py-2">
                 <input
                   placeholder=""
-                  onChange={(e) => onFilterChange('taxCode', e.target.value)}
+                    onChange={() => {}}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
               <td className="px-3 py-2">
                 <div className="relative">
                   <select
-                    onChange={(e) => onFilterChange('enterpriseType', e.target.value)}
+                    onChange={() => {}}
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="" />
@@ -140,8 +129,8 @@ export default function EnterpriseListPage({
               </td>
               <td className="px-3 py-2">
                 <div className="relative">
-                  <select
-                    onChange={(e) => onFilterChange('industry', e.target.value)}
+                   <select
+                    onChange={() => {}}
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="" />
@@ -153,8 +142,8 @@ export default function EnterpriseListPage({
               </td>
               <td className="px-3 py-2">
                 <div className="relative">
-                  <select
-                    onChange={(e) => onFilterChange('ward', e.target.value)}
+                   <select
+                    onChange={() => {}}
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="" />
@@ -166,8 +155,8 @@ export default function EnterpriseListPage({
               </td>
               <td className="px-3 py-2">
                 <div className="relative">
-                  <select
-                    onChange={(e) => onFilterChange('status', e.target.value)}
+                   <select
+                    onChange={() => {}}
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="" />
@@ -188,19 +177,19 @@ export default function EnterpriseListPage({
               <td className="px-3 py-3">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onViewClick('')}
+                    onClick={() => {}}
                     className="text-gray-400 hover:text-blue-600 transition-colors"
                   >
                     <Eye size={15} />
                   </button>
                   <button
-                    onClick={() => onEditClick('')}
+                    onClick={handleEdit}
                     className="text-gray-400 hover:text-blue-600 transition-colors"
                   >
                     <Pencil size={15} />
                   </button>
                   <button
-                    onClick={() => onKeyClick('')}
+                    onClick={() => {}}
                     className="text-gray-400 hover:text-blue-600 transition-colors"
                   >
                     <KeyRound size={15} />
