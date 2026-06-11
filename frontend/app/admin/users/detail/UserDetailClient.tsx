@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { Eye, EyeOff, User } from 'lucide-react';
+import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
+import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
 
 interface TitleItem {
   id: number;
@@ -68,6 +69,14 @@ export default function UserDetailClient({
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+
   const [titles, setTitles] = useState<TitleItem[]>([]);
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
@@ -75,6 +84,12 @@ export default function UserDetailClient({
   const [fetchError, setFetchError] = useState(false);
 
   const router = useRouter();
+
+  useEffect(() => {
+    return () => {
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    };
+  }, [pendingPreview]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,6 +120,7 @@ export default function UserDetailClient({
           .then((r) => (r.ok ? r.json() : null))
           .then((user) => {
             if (!user) return;
+            setAvatarUrl(user.avatarUrl || null);
             setFormData({
               username: user.username || '',
               password: '',
@@ -163,9 +179,15 @@ export default function UserDetailClient({
       else if (formData.password.length < 6) errs.password = 'Mật khẩu tối thiểu 6 ký tự';
       else if (formData.password.length > 100) errs.password = 'Mật khẩu tối đa 100 ký tự';
     }
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!formData.email.trim()) {
+      errs.email = 'Email không được để trống';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = 'Email không hợp lệ';
     }
+    if (formData.dateOfBirth && new Date(formData.dateOfBirth) > new Date()) {
+      errs.dateOfBirth = 'Ngày tháng năm sinh không được là ngày tương lai';
+    }
+    if (formData.titleId === '') errs.titleId = 'Vui lòng chọn chức danh';
     if (formData.roleId === '') errs.roleId = 'Vui lòng chọn vai trò';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -201,6 +223,18 @@ export default function UserDetailClient({
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error('Lỗi tạo người dùng');
+
+        const created = await res.json();
+
+        if (pendingFile) {
+          const fd = new FormData();
+          fd.append('file', pendingFile);
+          await fetch(`${baseUrl}/users/${created.id}/avatar`, {
+            method: 'PATCH',
+            headers: { authorization: `Bearer ${token}` },
+            body: fd,
+          });
+        }
       } else {
         await fetch(`${baseUrl}/users/${searchParams.id}`, {
           method: 'PUT',
@@ -235,6 +269,63 @@ export default function UserDetailClient({
 
   const errMsg = (field: string) =>
     errors[field] ? <p className="text-red-500 text-xs mt-1">{errors[field]}</p> : null;
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      setAvatarError('Chỉ chấp nhận file .jpeg, .jpg, .png');
+      return;
+    }
+    if (file.size > 5_242_880) {
+      setAvatarError('Kích thước file tối đa là 5MB');
+      return;
+    }
+
+    setAvatarError('');
+
+    if (isAdd) {
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+      setPendingFile(file);
+      setPendingPreview(URL.createObjectURL(file));
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const res = await fetch(`${baseUrl}/users/${searchParams.id}/avatar`, {
+        method: 'PATCH',
+        headers: { authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      if (res.status === 401) {
+        clearAuthToken();
+        router.push('/login');
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Tải ảnh thất bại');
+      }
+
+      const updated = await res.json();
+      setAvatarUrl(updated.avatarUrl);
+    } catch (err: any) {
+      setAvatarError(err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleCancel = () => {
     router.push('/admin/users');
@@ -280,8 +371,26 @@ export default function UserDetailClient({
         <div className="flex gap-8">
           {/* LEFT - Avatar */}
           <div className="flex-shrink-0 w-56">
-            <div className="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center mb-3 mx-auto text-3xl">
-              📷
+            <div className="relative w-28 h-28 mx-auto mb-3">
+              <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-slate-200 bg-gray-100 flex items-center justify-center">
+                {pendingPreview ? (
+                  <img src={pendingPreview} alt="avatar" className="w-full h-full object-cover" />
+                ) : avatarUrl ? (
+                  <img src={`${baseUrl}${avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={40} className="text-slate-400" />
+                )}
+              </div>
+              <label className="absolute bottom-0 right-0 w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors shadow-md border-2 border-white">
+                <img src="/icons/camera.svg" alt="upload" className="w-4 h-4 brightness-0 invert" />
+                <input
+                  type="file"
+                  accept=".jpeg,.jpg,.png"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  disabled={uploading}
+                />
+              </label>
             </div>
             <p className="text-center text-sm text-gray-800 font-medium mb-2">
               Tải ảnh đại diện
@@ -292,6 +401,12 @@ export default function UserDetailClient({
             <p className="text-center text-xs text-gray-500 mb-4">
               Kích thước tối đa 5 MB
             </p>
+            {uploading && (
+              <p className="text-xs text-blue-600 text-center mb-2">Đang tải...</p>
+            )}
+            {avatarError && (
+              <p className="text-xs text-red-500 text-center mb-2">{avatarError}</p>
+            )}
 
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-700 font-medium">
@@ -356,7 +471,8 @@ export default function UserDetailClient({
                       placeholder="Ngày tháng năm sinh"
                       className={fieldClass('dateOfBirth')}
                     />
-                    <label className={labelClass}>Ngày tháng năm sinh</label>
+                    <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
+                    {errMsg('dateOfBirth')}
                   </div>
                   <div className="relative">
                     <select
@@ -387,7 +503,8 @@ export default function UserDetailClient({
                         </option>
                       ))}
                     </select>
-                    <label className={labelClass}>Chức danh</label>
+                    <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
+                    {errMsg('titleId')}
                   </div>
                   <div className="relative">
                     <select
@@ -409,22 +526,37 @@ export default function UserDetailClient({
                     {errMsg('roleId')}
                   </div>
 
-                  {/* Row 4: Email — full width, readonly */}
+                  {/* Row 4: Email — full width */}
                   <div className="col-span-2 relative">
-                    <input
-                      type="text"
-                      value={formData.email || ''}
-                      readOnly
-                      placeholder="Email"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 bg-gray-50 cursor-not-allowed outline-none"
-                    />
-                    <label className={labelClass}>Email</label>
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800 text-sm font-medium bg-white px-1"
-                    >
-                      Thay đổi
-                    </button>
+                    {emailVerified ? (
+                      <input
+                        type="text"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        placeholder="Email"
+                        className={fieldClass('email')}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={formData.email || ''}
+                        readOnly
+                        placeholder="Email"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 bg-gray-50 cursor-not-allowed outline-none"
+                      />
+                    )}
+                    <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+                    {!emailVerified && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailModal(true)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800 text-sm font-medium bg-white px-1"
+                      >
+                        Thay đổi
+                      </button>
+                    )}
+                    {errMsg('email')}
                   </div>
                 </>
               ) : (
@@ -494,7 +626,8 @@ export default function UserDetailClient({
                       placeholder="Ngày tháng năm sinh"
                       className={fieldClass('dateOfBirth')}
                     />
-                    <label className={labelClass}>Ngày tháng năm sinh</label>
+                    <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
+                    {errMsg('dateOfBirth')}
                   </div>
 
                   {/* Row 3: Giới tính | Chức danh */}
@@ -525,7 +658,8 @@ export default function UserDetailClient({
                         </option>
                       ))}
                     </select>
-                    <label className={labelClass}>Chức danh</label>
+                    <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
+                    {errMsg('titleId')}
                   </div>
 
                   {/* Row 4: Vai trò | Email */}
@@ -557,7 +691,7 @@ export default function UserDetailClient({
                       placeholder="Email"
                       className={fieldClass('email')}
                     />
-                    <label className={labelClass}>Email</label>
+                    <label className={labelClass}>Email <span className="text-red-500">*</span></label>
                     {errMsg('email')}
                   </div>
                 </>
@@ -616,6 +750,18 @@ export default function UserDetailClient({
           </div>
         </div>
       </div>
+
+      <ChangeEmailModal
+        open={showEmailModal}
+        currentEmail={formData.email}
+        userId={searchParams.id || ''}
+        onClose={() => setShowEmailModal(false)}
+        onSuccess={(newEmail: string) => {
+          setFormData((prev) => ({ ...prev, email: newEmail }));
+          setEmailVerified(true);
+          setShowEmailModal(false);
+        }}
+      />
     </div>
   );
 }

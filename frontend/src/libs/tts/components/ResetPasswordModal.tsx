@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Save, X } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -14,6 +15,7 @@ interface ResetPasswordModalProps {
   user: { id: string; username: string } | null;
   onClose: () => void;
   onSaved: () => void;
+  onSuccess?: () => void;
 }
 
 export default function ResetPasswordModal({
@@ -21,7 +23,9 @@ export default function ResetPasswordModal({
   user,
   onClose,
   onSaved,
+  onSuccess,
 }: ResetPasswordModalProps) {
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -55,13 +59,23 @@ export default function ResetPasswordModal({
         body: JSON.stringify({ password }),
       });
 
-      if (!res.ok) throw new Error('Lỗi khi lưu mật khẩu');
+      if (res.status === 401) {
+        clearAuthToken();
+        router.push('/login');
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Lỗi khi lưu mật khẩu');
+      }
 
       setPassword('');
       onSaved();
+      onSuccess?.();
       onClose();
-    } catch {
-      setError('Không thể cập nhật mật khẩu. Vui lòng thử lại.');
+    } catch (e: any) {
+      setError(e.message || 'Không thể cập nhật mật khẩu. Vui lòng thử lại.');
     } finally {
       setSaving(false);
     }

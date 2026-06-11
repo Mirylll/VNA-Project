@@ -6,6 +6,8 @@ import { Upload, Plus, ChevronDown, Pencil, KeyRound, RefreshCw } from 'lucide-r
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import SelectionBar from './SelectionBar';
 import ResetPasswordModal from './ResetPasswordModal';
+import SuccessToast from './SuccessToast';
+import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
 interface UserData {
   id: string;
@@ -71,6 +73,8 @@ export default function UserListPage() {
   const [fetchError, setFetchError] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserData | null>(null);
+  const [toastMessage, setToastMessage] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [filters, setFilters] = useState<Record<string, string>>({
     fullName: '',
     username: '',
@@ -117,12 +121,9 @@ export default function UserListPage() {
   }
 
   async function handleDeleteSelected() {
+    setDeleteConfirm(false);
     const token = getAuthToken();
     if (!token) return;
-
-    const count = selectedIds.length;
-    if (!window.confirm(`Bạn có chắc chắn muốn xoá ${count} người dùng đã chọn?`))
-      return;
 
     const results = await Promise.allSettled(
       selectedIds.map((id) =>
@@ -135,6 +136,7 @@ export default function UserListPage() {
 
     const succeeded = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.filter((r) => r.status === 'rejected').length;
+    const count = selectedIds.length;
 
     setSelectedIds([]);
     fetchUsers();
@@ -384,7 +386,7 @@ export default function UserListPage() {
       <SelectionBar
         selectedCount={selectedIds.length}
         onClear={() => setSelectedIds([])}
-        onDelete={handleDeleteSelected}
+        onDelete={() => setDeleteConfirm(true)}
       />
 
       <ResetPasswordModal
@@ -392,6 +394,20 @@ export default function UserListPage() {
         user={resetPasswordUser}
         onClose={() => setResetPasswordUser(null)}
         onSaved={fetchUsers}
+        onSuccess={() => setToastMessage('Đặt lại mật khẩu thành công')}
+      />
+
+      <SuccessToast
+        message={toastMessage}
+        visible={!!toastMessage}
+        onClose={() => setToastMessage('')}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteConfirm}
+        message={`Xoá ${selectedIds.length} người dùng đã chọn?`}
+        onConfirm={handleDeleteSelected}
+        onCancel={() => setDeleteConfirm(false)}
       />
     </div>
   );
