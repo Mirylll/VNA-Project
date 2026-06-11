@@ -1,36 +1,34 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useEnterpriseForm } from '@/libs/tts/contexts/EnterpriseFormContext';
+import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 
-const labelMap: Record<string, string> = {
-  name: 'Tên doanh nghiệp',
-  taxCode: 'Mã số thuế',
-  enterpriseTypeId: 'Loại hình kinh doanh',
-  industryId: 'Ngành nghề kinh doanh chính',
-  licenseDate: 'Ngày cấp GPKD',
-  provinceId: 'Tỉnh/Thành phố ĐKKD',
-  wardId: 'Phường/Xã ĐKKD',
-  address: 'Địa chỉ',
-  foreignName: 'Tên viết bằng tiếng nước ngoài',
-  email: 'Email',
-  phone: 'Số điện thoại cơ quan',
-  operationProvinceId: 'Tỉnh/TP hoạt động KD',
-  operationWardId: 'Phường/xã hoạt động KD',
-  operationAddress: 'Địa điểm kinh doanh',
-  leaderName: 'Người đứng đầu doanh nghiệp',
-  leaderPhone: 'SĐT liên hệ người đứng đầu',
-};
+const baseUrl =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    : '';
 
-const valueMap: Record<string, Record<string, string>> = {
-  enterpriseTypeId: { '1': 'Công ty cổ phần', '2': 'Công ty TNHH', '3': 'Doanh nghiệp tư nhân' },
-  industryId: { '1': 'Công nghệ thông tin', '2': 'Xây dựng', '3': 'Thương mại' },
-  provinceId: { '1': 'Thành phố Hồ Chí Minh', '2': 'Hà Nội', '3': 'Đà Nẵng' },
-  wardId: { '1': 'Phường Gò Vấp', '2': 'Phường 1', '3': 'Phường 2' },
-  operationProvinceId: { '1': 'Thành phố Hồ Chí Minh', '2': 'Hà Nội', '3': 'Đà Nẵng' },
-  operationWardId: { '1': 'Phường Gò Vấp', '2': 'Phường 1', '3': 'Phường 2' },
-};
+const fields = [
+  { key: 'taxCode', label: 'Mã số thuế' },
+  { key: 'name', label: 'Tên doanh nghiệp' },
+  { key: 'foreignName', label: 'Tên viết bằng tiếng nước ngoài' },
+  { key: 'licenseDate', label: 'Ngày cấp GPKD' },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Số điện thoại cơ quan' },
+  { key: 'enterpriseTypeId', label: 'Loại hình kinh doanh' },
+  { key: 'industryId', label: 'Ngành nghề kinh doanh chính' },
+  { key: 'provinceId', label: 'Tỉnh/Thành phố ĐKKD' },
+  { key: 'wardId', label: 'Phường/Xã ĐKKD' },
+  { key: 'address', label: 'Địa chỉ' },
+  { key: 'operationProvinceId', label: 'Tỉnh/TP hoạt động KD' },
+  { key: 'operationWardId', label: 'Phường/xã hoạt động KD' },
+  { key: 'operationAddress', label: 'Địa điểm kinh doanh' },
+  { key: 'leaderName', label: 'Người đứng đầu doanh nghiệp' },
+  { key: 'leaderPhone', label: 'SĐT liên hệ người đứng đầu' },
+];
 
 export default function EnterpriseStep2({
   searchParams,
@@ -38,86 +36,249 @@ export default function EnterpriseStep2({
   searchParams: { id?: string };
 }) {
   const isEdit = !!searchParams?.id;
-  const { formData, resetForm } = useEnterpriseForm();
+  const { formData, resetForm, deletedAttachmentIds, clearDeletedAttachments } = useEnterpriseForm();
   const router = useRouter();
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [typesMap, setTypesMap] = useState<Record<string, string>>({});
+  const [industriesMap, setIndustriesMap] = useState<Record<string, string>>({});
+  const [wardsMap, setWardsMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    fetch(`${baseUrl}/enterprise-types`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const map: Record<string, string> = {};
+        data.forEach((et: any) => { map[String(et.id)] = et.name; });
+        setTypesMap(map);
+      })
+      .catch(() => {});
+
+    fetch(`${baseUrl}/industries`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const map: Record<string, string> = {};
+        data.forEach((ind: any) => { map[String(ind.id)] = `${ind.code} - ${ind.name}`; });
+        setIndustriesMap(map);
+      })
+      .catch(() => {});
+
+    fetch(`${baseUrl}/districts?provinceId=1`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        const map: Record<string, string> = {};
+        data.forEach((w: any) => { map[String(w.id)] = w.name; });
+        setWardsMap(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleBack = () => {
     router.push(`/admin/enterprises/create${isEdit ? `?id=${searchParams.id}` : ''}`);
   };
 
-  const handleConfirm = () => {
-    // TODO: POST /enterprises or PUT /enterprises/:id
-    resetForm();
-    router.push('/admin/enterprises');
+  const handleConfirm = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setError('Bạn cần đăng nhập');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    const body: any = {
+      name: formData.name.trim(),
+      taxCode: formData.taxCode.trim() || undefined,
+      enterpriseTypeId: Number(formData.enterpriseTypeId),
+      industryId: Number(formData.industryId),
+      licenseDate: formData.licenseDate || undefined,
+      provinceId: Number(formData.provinceId),
+      wardId: Number(formData.wardId),
+      address: formData.address || undefined,
+      foreignName: formData.foreignName || undefined,
+      email: formData.email || undefined,
+      phone: formData.phone || undefined,
+      operationProvinceId: formData.operationProvinceId ? Number(formData.operationProvinceId) : undefined,
+      operationWardId: formData.operationWardId ? Number(formData.operationWardId) : undefined,
+      operationAddress: formData.operationAddress || undefined,
+      leaderName: formData.leaderName || undefined,
+      leaderPhone: formData.leaderPhone || undefined,
+      username: formData.taxCode.trim(),
+      password: '12345678',
+      isActive: true,
+    };
+
+    try {
+      const res = await fetch(
+        `${baseUrl}/enterprises${isEdit ? `/${searchParams.id}` : ''}`,
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (res.status === 401) {
+        clearAuthToken();
+        router.push('/login');
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || (isEdit ? 'Cập nhật thất bại' : 'Thêm mới thất bại'));
+      }
+
+      const enterprise = await res.json();
+      const enterpriseId = enterprise.id || searchParams.id;
+
+      // 1. Delete attachments marked for deletion (edit mode)
+      if (isEdit && deletedAttachmentIds.length > 0) {
+        const deleteResults = await Promise.allSettled(
+          deletedAttachmentIds.map((attId) =>
+            fetch(`${baseUrl}/enterprises/${enterpriseId}/attachments/${attId}`, {
+              method: 'DELETE',
+              headers: { authorization: `Bearer ${token}` },
+            }),
+          ),
+        );
+        const deleteFailed = deleteResults.filter((r) => r.status === 'rejected');
+        if (deleteFailed.length > 0) {
+          setError(`Xoá file thất bại: ${deleteFailed.length} file`);
+        }
+        clearDeletedAttachments();
+      }
+
+      // 2. Upload new attachments (both create and edit)
+      const newAttachments = formData.attachments.filter((att) => att.file);
+      if (newAttachments.length > 0) {
+        const uploadPromises = newAttachments.map(async (att) => {
+          const fd = new FormData();
+          fd.append('file', att.file!);
+          fd.append('name', att.name);
+          const uploadRes = await fetch(
+            `${baseUrl}/enterprises/${enterpriseId}/attachments`,
+            {
+              method: 'POST',
+              headers: { authorization: `Bearer ${token}` },
+              body: fd,
+            },
+          );
+          if (!uploadRes.ok) {
+            const errText = await uploadRes.text().catch(() => 'Upload file thất bại');
+            throw new Error(`${att.name}: ${errText}`);
+          }
+        });
+
+        const results = await Promise.allSettled(uploadPromises);
+        const rejected = results.filter((r) => r.status === 'rejected');
+        if (rejected.length > 0) {
+          const messages = rejected
+            .map((r: any) => r.reason?.message || 'Lỗi upload')
+            .join('; ');
+          setError(`Doanh nghiệp đã lưu nhưng có lỗi upload: ${messages}`);
+          resetForm();
+          router.push('/admin/enterprises');
+          return;
+        }
+      }
+
+      resetForm();
+      router.push('/admin/enterprises');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi kết nối backend');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const renderValue = (key: string, value: string) => {
     if (!value) return <span className="text-gray-400">—</span>;
-    const mapped = valueMap[key]?.[value];
-    return mapped || value;
+    if (key === 'enterpriseTypeId') return typesMap[value] || value;
+    if (key === 'industryId') return industriesMap[value] || value;
+    if (key === 'wardId' || key === 'operationWardId') return wardsMap[value] || value;
+    if (key === 'provinceId' || key === 'operationProvinceId') {
+      const provinceLabel: Record<string, string> = {
+        '1': 'Thành phố Hồ Chí Minh',
+        '2': 'Hà Nội',
+        '3': 'Đà Nẵng',
+      };
+      return provinceLabel[value] || value;
+    }
+    return value;
   };
 
   return (
-    <div>
-      {/* Xác nhận thông tin */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-        <h3 className="text-base font-bold text-gray-800 mb-6 pb-3 border-b border-slate-200">
-          Xác nhận thông tin đăng ký
-        </h3>
+    <div className="max-w-3xl mx-auto">
+      <h2 className="text-lg font-bold text-gray-900 mb-6">
+        Thông tin về hồ sơ
+      </h2>
 
+      {error && (
+        <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
+          {error}
+        </div>
+      )}
+
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            {Object.entries(labelMap).map(([key, label]) => (
-              <div key={key} className="col-span-1">
-                <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-                <p className="text-sm text-gray-800 font-medium">
-                  {renderValue(key, formData[key as keyof typeof formData] as string)}
-                </p>
+          {fields.map(({ key, label }) => {
+            const rawValue = formData[key as keyof typeof formData] as string;
+            return (
+              <div key={key} className="flex gap-4">
+                <div className="w-56 shrink-0 text-sm font-semibold text-gray-800">
+                  {label}
+                  <span className="ml-0.5">:</span>
+                </div>
+                <div className="flex-1 text-sm text-gray-600">
+                  {renderValue(key, rawValue)}
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* File đính kèm */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-        <h3 className="text-base font-bold text-gray-800 mb-6 pb-3 border-b border-slate-200">
-          File đính kèm
-        </h3>
-        <div className="w-full overflow-hidden border border-slate-200 rounded-lg">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-slate-200">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên file</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thông tin file</th>
-              </tr>
-            </thead>
-            <tbody>
-              {formData.attachments.map((file, idx) => (
-                <tr key={idx} className="border-b border-slate-200 last:border-b-0">
-                  <td className="px-4 py-3 text-sm text-gray-700">{file.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{file.fileName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-end gap-3">
+
+      <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
         <button
           onClick={handleBack}
-          className="text-slate-500 hover:text-slate-700 text-sm font-medium transition-colors"
+          disabled={saving}
+          className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
         >
-          Quay lại
+          Trở về
         </button>
         <button
           onClick={handleConfirm}
-          className="flex items-center gap-1.5 bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm"
+          disabled={saving}
+          className="flex items-center gap-1.5 bg-blue-600 text-white font-semibold px-6 py-2 rounded-md shadow-sm hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
         >
-          <Check size={15} />
-          Xác nhận
+          {saving ? (
+            <>
+              <Loader2 size={15} className="animate-spin" />
+              Đang lưu...
+            </>
+          ) : (
+            <>
+              <Check size={15} />
+              Xác nhận
+            </>
+          )}
         </button>
       </div>
     </div>

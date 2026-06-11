@@ -2,9 +2,13 @@
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
-interface AttachmentFile {
+export interface AttachmentFile {
   name: string;
   fileName: string;
+  url?: string;
+  size?: string;
+  file?: File;
+  id?: number;
 }
 
 export interface EnterpriseFormData {
@@ -33,6 +37,9 @@ interface EnterpriseFormContextType {
   updateAttachments: (files: AttachmentFile[]) => void;
   resetForm: () => void;
   loadFromApi: (data: Partial<EnterpriseFormData>) => void;
+  deletedAttachmentIds: number[];
+  markAttachmentForDelete: (id: number) => void;
+  clearDeletedAttachments: () => void;
 }
 
 const defaultFormData: EnterpriseFormData = {
@@ -52,16 +59,14 @@ const defaultFormData: EnterpriseFormData = {
   operationAddress: '',
   leaderName: '',
   leaderPhone: '',
-  attachments: [
-    { name: 'Giấy phép kinh doanh', fileName: 'GPKD.pdf' },
-    { name: 'Giấy tờ khác', fileName: 'GTK1.pdf' },
-  ],
+  attachments: [],
 };
 
 const EnterpriseFormContext = createContext<EnterpriseFormContextType | null>(null);
 
 export function EnterpriseFormProvider({ children }: { children: ReactNode }) {
   const [formData, setFormData] = useState<EnterpriseFormData>(defaultFormData);
+  const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<number[]>([]);
 
   const updateField = useCallback((field: keyof EnterpriseFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -73,15 +78,37 @@ export function EnterpriseFormProvider({ children }: { children: ReactNode }) {
 
   const resetForm = useCallback(() => {
     setFormData(defaultFormData);
+    setDeletedAttachmentIds([]);
   }, []);
 
   const loadFromApi = useCallback((data: Partial<EnterpriseFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   }, []);
 
+  const markAttachmentForDelete = useCallback((id: number) => {
+    setDeletedAttachmentIds((prev) => [...prev, id]);
+    setFormData((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((a) => a.id !== id),
+    }));
+  }, []);
+
+  const clearDeletedAttachments = useCallback(() => {
+    setDeletedAttachmentIds([]);
+  }, []);
+
   return (
     <EnterpriseFormContext.Provider
-      value={{ formData, updateField, updateAttachments, resetForm, loadFromApi }}
+      value={{
+        formData,
+        updateField,
+        updateAttachments,
+        resetForm,
+        loadFromApi,
+        deletedAttachmentIds,
+        markAttachmentForDelete,
+        clearDeletedAttachments,
+      }}
     >
       {children}
     </EnterpriseFormContext.Provider>

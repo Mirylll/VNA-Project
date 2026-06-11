@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
+import { Check } from 'lucide-react';
 import { EnterpriseFormProvider } from '@/libs/tts/contexts/EnterpriseFormContext';
 
 export default function CreateEnterpriseLayout({
@@ -15,21 +16,20 @@ export default function CreateEnterpriseLayout({
   return (
     <EnterpriseFormProvider>
       <div className="p-6">
-        {/* Stepper */}
         <div className="flex items-center justify-center mb-8">
           <div className="flex items-center gap-3">
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                 currentStep === 1
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-300 text-gray-500'
+                  : 'bg-blue-600 text-white'
               }`}
             >
-              1
+              {currentStep === 2 ? <Check size={16} /> : '1'}
             </div>
             <span
               className={`text-sm font-semibold ${
-                currentStep === 1 ? 'text-blue-600' : 'text-gray-400'
+                currentStep >= 1 ? 'text-blue-600' : 'text-gray-400'
               }`}
             >
               Thông tin doanh nghiệp
@@ -44,7 +44,7 @@ export default function CreateEnterpriseLayout({
                   : 'bg-gray-300 text-gray-500'
               }`}
             >
-              2
+              {currentStep === 2 ? '2' : '2'}
             </div>
             <span
               className={`text-sm font-semibold ${
