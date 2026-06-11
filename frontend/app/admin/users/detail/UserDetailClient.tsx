@@ -114,8 +114,8 @@ export default function UserDetailClient({
               titleId: user.title?.id ?? '',
               roleId: user.role?.id ?? '',
               email: user.email || '',
-              provinceId: 1,
-              districtId: '',
+              provinceId: user.province?.id ?? 1,
+              districtId: user.district?.id ?? '',
               address: user.address || '',
               isActive: user.isActive ?? true,
             });
