@@ -25,4 +25,6 @@ src/**/*.js
 src/**/*.js.map
 *.js
 *.js.map
+uploads/
+*.tsbuildinfo
 

@@ -66,17 +66,17 @@ export class CreateUserManagement1719500000000 implements MigrationInterface {
       }),
     );
 
-    // 4. ALTER users — add columns
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN date_of_birth date NULL`);
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN gender varchar(10) DEFAULT 'Nam' NULL`);
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN avatar_url varchar(500) NULL`);
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN address varchar(255) NULL`);
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN province_id int NULL`);
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN district_id int NULL`);
-    await queryRunner.query(`ALTER TABLE users ADD COLUMN avatar_id int NULL`);
+    // 4. ALTER users — add columns (IF NOT EXISTS for idempotency)
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth date NULL`);
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender varchar(10) DEFAULT 'Nam' NULL`);
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url varchar(500) NULL`);
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS address varchar(255) NULL`);
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS province_id int NULL`);
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS district_id int NULL`);
+    await queryRunner.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id int NULL`);
 
-    // 5. DROP last_login_at
-    await queryRunner.query(`ALTER TABLE users DROP COLUMN last_login_at`);
+    // 5. DROP last_login_at (IF EXISTS for idempotency)
+    await queryRunner.query(`ALTER TABLE users DROP COLUMN IF EXISTS last_login_at`);
 
     // 6. FKs on users
     await queryRunner.createForeignKey(
