@@ -98,11 +98,11 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = '', tok
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-      setOtpError('Email không hợp lệ');
+      setOtpError('Email không hợp lệ, vui lòng kiểm tra lại dữ liệu');
       return;
     }
     if (newEmail === currentEmail) {
-      setOtpError('Email mới giống email hiện tại');
+      setOtpError('Email mới không được trùng email hiện tại, vui lòng kiểm tra lại dữ liệu');
       return;
     }
 
@@ -219,7 +219,7 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = '', tok
             <>
               {/* Step 2: Enter New Email */}
               <div className="mb-4 text-center">
-                <p className="text-sm text-gray-600">Vui lòng nhập email mới để nhận mã xác thực qua email hiện tại</p>
+                  <p className="text-sm text-gray-600">Vui lòng nhập email mới để nhận mã xác thực qua email hiện tại</p>
               </div>
 
               <div className="mb-4">
@@ -254,7 +254,7 @@ export default function ChangeEmailModal({ open, onClose, currentEmail = '', tok
                     : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {sendingOtp ? 'Đang gửi OTP...' : 'Gửi xác thực'}
+                {sendingOtp ? 'Đang gửi OTP...' : 'Lưu'}
               </button>
 
               <div className="text-center">

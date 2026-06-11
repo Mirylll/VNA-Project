@@ -184,7 +184,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   // ---- Admin User ----
   const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@vna.local';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'ducdung.learn2103@gmail.com';
   const adminFullName = process.env.SEED_ADMIN_FULL_NAME || 'Administrator';
 
   const existingAdmin = await userRepo.findOne({

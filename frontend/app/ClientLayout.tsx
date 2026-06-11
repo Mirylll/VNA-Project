@@ -11,6 +11,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoginPage, setIsLoginPage] = useState(false);
   const [checking, setChecking] = useState(true);
+  const isEnterprisePage = pathname.startsWith('/enterprise');
 
   useEffect(() => {
     // Only run once on client side
@@ -27,8 +28,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
-      {!isLoginPage && isAuthenticated && <Sidebar />}
-      <div className={!isLoginPage && isAuthenticated ? 'ml-64' : ''}>{children}</div>
+      {!isLoginPage && !isEnterprisePage && isAuthenticated && <Sidebar />}
+      <div className={!isLoginPage && !isEnterprisePage && isAuthenticated ? 'ml-64' : ''}>
+        {children}
+      </div>
       {!isLoginPage && isAuthenticated && <UserProfilePopup />}
     </>
   );

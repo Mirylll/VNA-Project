@@ -109,7 +109,10 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
     try {
-      await this.otpService.sendOtpViaEmail(email, otp);
+      await this.otpService.sendOtpViaEmail(email, otp, {
+        recipientName: user.fullName,
+        username: user.username,
+      });
       // Store OTP in memory with expiry (in production, use Redis or DB)
       const otpStore = (global as any).otpStore || {};
       otpStore[email] = { code: otp, expiresAt };

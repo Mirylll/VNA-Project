@@ -13,18 +13,18 @@ import { OtpCode } from './modules/auth/entities/otp-code.entity';
 import { RefreshToken } from './modules/auth/entities/refresh-token.entity';
 import 'dotenv/config';
 
-const dbConfig = process.env.DATABASE_URL || process.env.DB_HOST
+const dbConfig = process.env.DATABASE_URL
   ? {
       type: 'postgres' as const,
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT || 5432),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      url: process.env.DATABASE_URL,
     }
   : {
-      type: 'sqlite' as const,
-      database: 'vna.db',
+      type: 'postgres' as const,
+      host: process.env.DB_HOST || 'localhost',
+      port: Number(process.env.DB_PORT || 5432),
+      username: process.env.DB_USERNAME || 'vna_user',
+      password: process.env.DB_PASSWORD || 'vna_password',
+      database: process.env.DB_NAME || 'vna_db',
     };
 
 @Module({

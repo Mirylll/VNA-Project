@@ -193,8 +193,8 @@ export default function Sidebar() {
                   <button
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center gap-3 border-b border-gray-100"
                     onClick={() => {
-                      openProfile('profile');
                       setOpenMenu(false);
+                      router.push('/admin/account');
                     }}
                   >
                     <span>👤</span>
