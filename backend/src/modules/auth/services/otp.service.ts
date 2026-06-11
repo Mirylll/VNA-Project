@@ -111,6 +111,18 @@ export class OtpService {
   async sendOtpViaEmail(email: string, otp: string) {
     // eslint-disable-next-line no-console
     console.log(`OTP for email ${email}: ${otp}`);
+
+    const host = process.env.MAIL_HOST || process.env.SMTP_HOST;
+    const user = process.env.MAIL_USER || process.env.SMTP_USER;
+    const pass = process.env.MAIL_PASSWORD || process.env.SMTP_PASS;
+
+    if (!host || !user || !pass) {
+      // No SMTP configured — send via Ethereal only
+      await this.sendViaEthereal(email, otp);
+      return;
+    }
+
+    // Try real SMTP first
     try {
       const transporter = await this.createTransporter();
       const from = process.env.MAIL_FROM || process.env.FROM_EMAIL || 'no-reply@example.com';
@@ -121,7 +133,6 @@ export class OtpService {
         text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
         html: `<p>Mã OTP của bạn là: <b>${otp}</b></p><p>Có hiệu lực trong 5 phút.</p>`,
       });
-      // if using Ethereal, log preview URL
       // eslint-disable-next-line no-console
       if ((nodemailer as any).getTestMessageUrl) {
         // eslint-disable-next-line no-console
@@ -129,8 +140,27 @@ export class OtpService {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('Failed to send OTP email', err);
-      throw err;
+      console.error('SMTP failed, falling back to Ethereal:', err);
+      await this.sendViaEthereal(email, otp);
     }
+  }
+
+  private async sendViaEthereal(email: string, otp: string) {
+    const testAccount = await nodemailer.createTestAccount();
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      auth: { user: testAccount.user, pass: testAccount.pass },
+    });
+    const from = process.env.MAIL_FROM || process.env.FROM_EMAIL || 'no-reply@example.com';
+    const info = await transporter.sendMail({
+      from,
+      to: email,
+      subject: 'Mã xác thực thay đổi email (Ethereal)',
+      text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 5 phút.`,
+      html: `<p>Mã OTP của bạn là: <b>${otp}</b></p><p>Có hiệu lực trong 5 phút.</p>`,
+    });
+    // eslint-disable-next-line no-console
+    console.log('Ethereal Preview URL:', (nodemailer as any).getTestMessageUrl(info));
   }
 }

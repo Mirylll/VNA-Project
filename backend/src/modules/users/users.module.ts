@@ -9,11 +9,12 @@ import { Title } from '../titles/entities/title.entity';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
+import { JwtAuthGuard } from '../../libs/core/guards/jwt-auth.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, Province, District, UserAvatar, Role, Title])],
   controllers: [UsersController],
-  providers: [UsersService, PermissionsGuard],
-  exports: [UsersService, PermissionsGuard],
+  providers: [UsersService, PermissionsGuard, JwtAuthGuard],
+  exports: [UsersService, PermissionsGuard, JwtAuthGuard],
 })
 export class UsersModule {}
