@@ -1,7 +1,24 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Plus, ChevronDown, Pencil, KeyRound } from 'lucide-react';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
+
+interface UserData {
+  id: string;
+  username: string;
+  fullName: string;
+  email: string;
+  isActive: boolean;
+  role?: { id: number; name: string };
+  title?: { id: number; name: string };
+}
+
+const baseUrl =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    : '';
 
 function ToggleSwitch({
   checked,
@@ -29,13 +46,60 @@ function ToggleSwitch({
 
 export default function UserListPage() {
   const router = useRouter();
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    fetch(`${baseUrl}/users`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then(setUsers)
+      .catch(() => setFetchError(true))
+      .finally(() => setLoading(false));
+  }, [router]);
 
   function handleAddNew() {
     router.push('/admin/users/detail');
   }
 
-  function handleEdit(id: any) {
+  function handleEdit(id: string) {
     router.push(`/admin/users/detail?id=${id}`);
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-lg font-semibold text-gray-900">Danh sách người dùng</h1>
+        </div>
+        <div className="w-full overflow-hidden border border-slate-200 rounded-lg p-8 text-center text-sm text-gray-400">
+          Đang tải...
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-lg font-semibold text-gray-900">Danh sách người dùng</h1>
+        </div>
+        <div className="w-full overflow-hidden border border-slate-200 rounded-lg p-8 text-center text-sm text-red-500">
+          Không thể tải dữ liệu. Vui lòng thử lại.
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -45,10 +109,7 @@ export default function UserListPage() {
           Danh sách người dùng
         </h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => {}}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors"
-          >
+          <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors">
             <Upload size={16} />
             Import
           </button>
@@ -142,38 +203,61 @@ export default function UserListPage() {
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-slate-200 hover:bg-gray-50 transition-colors">
-              <td className="px-2 py-3 text-center">
-                <input type="checkbox" className="accent-blue-600" />
-              </td>
-              <td className="px-2 py-3">
-                <button
-                  onClick={() => handleEdit('')}
-                  className="text-gray-400 hover:text-blue-600 transition-colors"
+            {users.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="p-8 text-center text-sm text-gray-400">
+                  Chưa có người dùng nào
+                </td>
+              </tr>
+            ) : (
+              users.map((user) => (
+                <tr
+                  key={user.id}
+                  className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
                 >
-                  <Pencil size={15} />
-                </button>
-              </td>
-              <td className="px-2 py-3">
-                <button
-                  onClick={() => {}}
-                  className="text-gray-400 hover:text-blue-600 transition-colors"
-                >
-                  <KeyRound size={15} />
-                </button>
-              </td>
-              <td className="px-3 py-3 text-sm text-gray-500" />
-              <td className="px-3 py-3 text-sm text-gray-500" />
-              <td className="px-3 py-3 text-sm text-gray-500" />
-              <td className="px-3 py-3 text-sm text-gray-500" />
-              <td className="px-3 py-3 text-sm text-gray-500" />
-              <td className="px-3 py-3">
-                <ToggleSwitch
-                  checked={false}
-                  onChange={() => {}}
-                />
-              </td>
-            </tr>
+                  <td className="px-2 py-3 text-center">
+                    <input type="checkbox" className="accent-blue-600" />
+                  </td>
+                  <td className="px-2 py-3">
+                    <button
+                      onClick={() => handleEdit(user.id)}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  </td>
+                  <td className="px-2 py-3">
+                    <button
+                      onClick={() => {}}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                      <KeyRound size={15} />
+                    </button>
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-900 font-medium">
+                    {user.fullName}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-500">
+                    {user.username}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-500">
+                    {user.email || '—'}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-500">
+                    {user.role?.name || '—'}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-500">
+                    {user.title?.name || '—'}
+                  </td>
+                  <td className="px-3 py-3">
+                    <ToggleSwitch
+                      checked={user.isActive}
+                      onChange={() => {}}
+                    />
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
