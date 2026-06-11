@@ -130,7 +130,7 @@ export class OtpService {
       : 'Mã xác thực khôi phục mật khẩu - VNA Group';
 
     // Build email template with logo path resolver
-    const logoPath = path.resolve(process.cwd(), '../frontend/logo.png');
+    const logoPath = path.resolve(process.cwd(), '../frontend/logo/logo.png');
     const attachments: any[] = [];
     if (fs.existsSync(logoPath)) {
       attachments.push({
@@ -143,7 +143,7 @@ export class OtpService {
     const htmlContent = `
 <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #000; line-height: 1.6;">
   <div style="text-align: center; margin-bottom: 30px;">
-    ${fs.existsSync(logoPath) ? '<img src="cid:logo_vna" style="width: 140px; height: auto; display: inline-block;" alt="VNA Group" />' : '<h2 style="color: #d4af37; margin: 0;">VNA GROUP</h2>'}
+    ${fs.existsSync(logoPath) ? '<img src="cid:logo_vna" style="width: 140px; height: auto; display: inline-block;" alt="Công ty công nghệ phần mềm quốc gia VNA" />' : '<h2 style="color: #d4af37; margin: 0;">VNA</h2>'}
   </div>
   
   <h2 style="font-size: 24px; font-weight: bold; margin-top: 0; margin-bottom: 20px; color: #000;">
@@ -152,7 +152,7 @@ export class OtpService {
   
   <p style="font-size: 16px; margin-bottom: 20px; color: #000;">
     ${ctx.isRegister 
-      ? `Bạn vừa yêu cầu đăng ký tài khoản doanh nghiệp tại VNA Group. Dưới đây là mã OTP của bạn:`
+      ? `Bạn vừa yêu cầu đăng ký tài khoản doanh nghiệp trên hệ thống <strong>Công ty công nghệ phần mềm quốc gia VNA</strong>. Dưới đây là mã OTP của bạn:`
       : `Bạn vừa yêu cầu khôi phục mật khẩu cho tài khoản <strong>${ctx.username}</strong>. Dưới đây là mã OTP của bạn:`
     }
   </p>
@@ -166,7 +166,7 @@ export class OtpService {
     <p style="margin: 0 0 8px 0; font-weight: normal;">Không chia sẻ mã này với bất kỳ ai, kể cả nhân viên hỗ trợ.</p>
     <p style="margin: 0; color: #555;">
       ${ctx.isRegister
-        ? 'Nếu bạn không yêu cầu đăng ký tài khoản doanh nghiệp, vui lòng bỏ qua email này.'
+        ? 'Nếu bạn không thực hiện yêu cầu đăng ký này, vui lòng bỏ qua email này.'
         : 'Nếu bạn không yêu cầu khôi phục mật khẩu, vui lòng bỏ qua email này.'
       }
     </p>

@@ -101,13 +101,20 @@ export class AuthService {
     return { message: 'Mật khẩu đã được cập nhật' };
   }
 
-  async sendOtpEmail(email: string) {
-    // Không cần user tồn tại – dùng cho cả đăng ký mới và quên mật khẩu
+  async sendOtpEmail(email: string, type?: 'register' | 'forgot_password') {
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (type === 'forgot_password' && !user) {
+      throw new BadRequestException('Email chưa đăng ký trong hệ thống. Xin vui lòng thử lại sau');
+    }
+    if (type === 'register' && user) {
+      throw new BadRequestException('Email này đã được đăng ký tài khoản');
+    }
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     console.log(`[DEV] Generated OTP for ${email}: ${otp}`);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
-    const user = await this.userRepository.findOne({ where: { email } });
     const context = user
       ? { fullName: user.fullName, username: user.username, isRegister: false }
       : { fullName: 'Quý đối tác', username: email, isRegister: true };

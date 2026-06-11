@@ -239,7 +239,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
       const res = await fetch(`${BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email.trim() }),
+        body: JSON.stringify({ email: form.email.trim(), type: "register" }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Lỗi gửi email xác thực");

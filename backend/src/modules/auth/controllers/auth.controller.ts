@@ -33,9 +33,9 @@ export class AuthController {
 
   @Post('send-otp')
   @HttpCode(HttpStatus.OK)
-  async sendOtp(@Body() body: { email: string }) {
+  async sendOtp(@Body() body: { email: string; type?: 'register' | 'forgot_password' }) {
     try {
-      return await this.authService.sendOtpEmail(body.email);
+      return await this.authService.sendOtpEmail(body.email, body.type);
     } catch (error) {
       throw new BadRequestException(error.message || 'Lỗi gửi OTP');
     }

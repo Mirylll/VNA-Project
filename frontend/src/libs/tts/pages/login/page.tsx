@@ -105,7 +105,7 @@ export default function LoginPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, type: "forgot_password" }),
     });
     const data = await res.json().catch(() => ({}));
 
