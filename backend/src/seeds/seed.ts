@@ -4,6 +4,8 @@ import { Permission } from '../modules/permissions/entities/permission.entity';
 import { Role } from '../modules/roles/entities/role.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Title } from '../modules/titles/entities/title.entity';
+import { Province } from '../modules/users/entities/province.entity';
+import { District } from '../modules/users/entities/district.entity';
 
 interface PermissionSeed {
   code: string;
@@ -66,9 +68,10 @@ const permissionGroups: PermissionSeed[] = [
 ];
 
 const roleSeeds = [
-  { code: 'ROLE_MANAGER', name: 'Role1/Manager' },
-  { code: 'ROLE_EMPLOYEE', name: 'Role2/Employee' },
-  { code: 'ROLE_CEO', name: 'Role3/CEO' },
+  { code: 'ADMIN', name: 'Quản trị viên' },
+  { code: 'MANAGER', name: 'Manager' },
+  { code: 'EMPLOYEE', name: 'Employee' },
+  { code: 'CEO', name: 'CEO' },
 ];
 
 const titleSeeds = [
@@ -77,6 +80,41 @@ const titleSeeds = [
   'Nhân viên',
   'Kế toán',
   'Quản trị viên',
+];
+
+// 20 phường + 10 xã phổ biến TP.HCM (post-merger 2025 structure)
+// To add more: insert new { name, type } entries and re-run seeder
+const WARDS = [
+  { name: 'Bến Thành',     type: 'phuong' },
+  { name: 'Bàn Cờ',        type: 'phuong' },
+  { name: 'Xuân Hòa',      type: 'phuong' },
+  { name: 'Khánh Hội',     type: 'phuong' },
+  { name: 'An Đông',       type: 'phuong' },
+  { name: 'Bình Phú',      type: 'phuong' },
+  { name: 'Bình Tây',      type: 'phuong' },
+  { name: 'Tân Thuận Đông',type: 'phuong' },
+  { name: 'Bình Đông',     type: 'phuong' },
+  { name: 'Tân Thới Nhất', type: 'phuong' },
+  { name: 'An Phú Đông',   type: 'phuong' },
+  { name: 'An Lạc',        type: 'phuong' },
+  { name: 'Bình Tân',      type: 'phuong' },
+  { name: 'Bình Hưng Hòa', type: 'phuong' },
+  { name: 'Bình Quới',     type: 'phuong' },
+  { name: 'Bình Lợi Trung',type: 'phuong' },
+  { name: 'An Nhơn',       type: 'phuong' },
+  { name: 'An Hội Tây',    type: 'phuong' },
+  { name: 'Bảy Hiền',      type: 'phuong' },
+  { name: 'An Khánh',      type: 'phuong' },
+  { name: 'Bình Hưng',     type: 'xa'    },
+  { name: 'Vĩnh Lộc A',    type: 'xa'    },
+  { name: 'Vĩnh Lộc B',    type: 'xa'    },
+  { name: 'Lê Minh Xuân',  type: 'xa'    },
+  { name: 'Tân Kiên',      type: 'xa'    },
+  { name: 'Phước Kiển',    type: 'xa'    },
+  { name: 'Phú Xuân',      type: 'xa'    },
+  { name: 'Nhơn Đức',      type: 'xa'    },
+  { name: 'Tân Thới Nhì',  type: 'xa'    },
+  { name: 'An Phú',        type: 'xa'    },
 ];
 
 export async function seed(dataSource: DataSource): Promise<void> {
@@ -143,14 +181,14 @@ export async function seed(dataSource: DataSource): Promise<void> {
     const allComps = await permissionRepo.find({ where: { type: 'Component' } });
 
     // CEO gets all permissions
-    const ceoRole = savedRoles.get('ROLE_CEO');
+    const ceoRole = savedRoles.get('CEO');
     if (ceoRole) {
       ceoRole.permissions = allComps;
       await roleRepo.save(ceoRole);
     }
 
     // Manager gets VIEW, CREATE, UPDATE (not DELETE) + REPORT
-    const managerRole = savedRoles.get('ROLE_MANAGER');
+    const managerRole = savedRoles.get('MANAGER');
     if (managerRole) {
       managerRole.permissions = allComps.filter((p) =>
         p.code.endsWith('_VIEW') ||
@@ -163,7 +201,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
     }
 
     // Employee gets VIEW only + REPORT
-    const employeeRole = savedRoles.get('ROLE_EMPLOYEE');
+    const employeeRole = savedRoles.get('EMPLOYEE');
     if (employeeRole) {
       employeeRole.permissions = allComps.filter((p) =>
         p.code.endsWith('_VIEW') || p.code === 'ADMIN_C_REPORT_VIEW',
@@ -172,7 +210,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
     }
 
     // Legacy Admin role gets all permissions
-    const adminRole = await roleRepo.findOne({ where: { code: 'ROLE_ADMIN' } });
+    const adminRole = await roleRepo.findOne({ where: { code: 'ADMIN' } });
     if (adminRole) {
       adminRole.permissions = allComps;
       await roleRepo.save(adminRole);
@@ -192,7 +230,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   });
 
   if (!existingAdmin) {
-    const adminRole = savedRoles.get('ROLE_CEO');
+    const adminRole = savedRoles.get('CEO');
     const adminTitle = await titleRepo.findOne({ where: { name: 'Giám đốc' } });
     const passwordHash = await bcrypt.hash(adminPassword, 10);
 
@@ -208,5 +246,34 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
     await userRepo.save(admin);
     console.log('✅ Seeded admin user');
+  }
+
+  // ---- Province ----
+  const provinceRepo = dataSource.getRepository(Province);
+  const provinceCount = await provinceRepo.count();
+  if (provinceCount === 0) {
+    await provinceRepo.save(provinceRepo.create({ id: 1, name: 'Thành phố Hồ Chí Minh' }));
+    console.log('✅ Seeded province: Thành phố Hồ Chí Minh');
+  }
+
+  // ---- HCMC Wards ----
+  const districtRepo = dataSource.getRepository(District);
+  const province = await provinceRepo.findOne({ where: { id: 1 } });
+  if (!province) {
+    console.warn('⚠️  Province id=1 not found, skipping HCMC wards seed');
+  } else {
+    let inserted = 0;
+    let skipped = 0;
+    for (const ward of WARDS) {
+      const exists = await districtRepo.findOne({
+        where: { name: ward.name, province: { id: 1 } },
+      });
+      if (exists) { skipped++; continue; }
+      await districtRepo.save(districtRepo.create({ name: ward.name, province }));
+      inserted++;
+    }
+    if (inserted > 0 || skipped > 0) {
+      console.log(`✅ HCMC wards seeded: ${inserted} inserted, ${skipped} skipped.`);
+    }
   }
 }
