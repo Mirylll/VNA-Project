@@ -38,11 +38,13 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại');
     }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên');
+    }
     const matched = await bcrypt.compare(password, user.passwordHash);
     if (!matched) {
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại');
     }
-    user.lastLoginAt = new Date();
     await this.userRepository.save(user);
     const payload = { sub: user.id, username: user.username };
     const accessToken = this.jwtService.sign(payload);
@@ -81,13 +83,24 @@ export class AuthService {
     if (data.fullName !== undefined) user.fullName = data.fullName;
     if (data.email !== undefined) user.email = data.email;
     await this.userRepository.save(user);
-    return { message: 'Cập nhật thông tin thành công', user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName } };
+    return { message: 'Cập nhật thông tin thành công', user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl, titleName: user.title?.name || null, roleName: user.role?.name || null } };
   }
 
   async getProfile(userId: string) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['title', 'role'],
+    });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
-    return { id: user.id, username: user.username, email: user.email, fullName: user.fullName };
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      titleName: user.title?.name || null,
+      roleName: user.role?.name || null,
+    };
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
