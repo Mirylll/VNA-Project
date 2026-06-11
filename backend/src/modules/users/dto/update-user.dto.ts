@@ -27,4 +27,24 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  dateOfBirth?: string | null;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string | null;
+
+  @IsOptional()
+  @IsNumber()
+  provinceId?: number | null;
+
+  @IsOptional()
+  @IsNumber()
+  districtId?: number | null;
 }

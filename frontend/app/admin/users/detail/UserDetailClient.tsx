@@ -180,10 +180,15 @@ export default function UserDetailClient({
         fullName: formData.fullName,
         email: formData.email,
         isActive: formData.isActive,
+        dateOfBirth: formData.dateOfBirth || null,
+        gender: formData.gender,
+        address: formData.address || null,
       };
 
       if (formData.roleId !== '') body.roleId = Number(formData.roleId);
       if (formData.titleId !== '') body.titleId = Number(formData.titleId);
+      if (formData.provinceId) body.provinceId = Number(formData.provinceId);
+      if (formData.districtId !== '') body.districtId = Number(formData.districtId);
 
       if (isAdd) {
         body.password = formData.password;
