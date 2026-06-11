@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, User } from 'lucide-react';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
-import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
 
 interface TitleItem {
   id: number;
@@ -74,8 +73,6 @@ export default function UserDetailClient({
   const [avatarError, setAvatarError] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState('');
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
 
   const [titles, setTitles] = useState<TitleItem[]>([]);
   const [roles, setRoles] = useState<RoleItem[]>([]);
@@ -528,34 +525,15 @@ export default function UserDetailClient({
 
                   {/* Row 4: Email — full width */}
                   <div className="col-span-2 relative">
-                    {emailVerified ? (
-                      <input
-                        type="text"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="Email"
-                        className={fieldClass('email')}
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={formData.email || ''}
-                        readOnly
-                        placeholder="Email"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 bg-gray-50 cursor-not-allowed outline-none"
-                      />
-                    )}
+                    <input
+                      type="text"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Email"
+                      className={fieldClass('email')}
+                    />
                     <label className={labelClass}>Email <span className="text-red-500">*</span></label>
-                    {!emailVerified && (
-                      <button
-                        type="button"
-                        onClick={() => setShowEmailModal(true)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800 text-sm font-medium bg-white px-1"
-                      >
-                        Thay đổi
-                      </button>
-                    )}
                     {errMsg('email')}
                   </div>
                 </>
@@ -750,18 +728,6 @@ export default function UserDetailClient({
           </div>
         </div>
       </div>
-
-      <ChangeEmailModal
-        open={showEmailModal}
-        currentEmail={formData.email}
-        userId={searchParams.id || ''}
-        onClose={() => setShowEmailModal(false)}
-        onSuccess={(newEmail: string) => {
-          setFormData((prev) => ({ ...prev, email: newEmail }));
-          setEmailVerified(true);
-          setShowEmailModal(false);
-        }}
-      />
     </div>
   );
 }
