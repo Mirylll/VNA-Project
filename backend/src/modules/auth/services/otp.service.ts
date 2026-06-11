@@ -130,7 +130,7 @@ export class OtpService {
       : 'Mã xác thực khôi phục mật khẩu - VNA Group';
 
     // Build email template with logo path resolver
-    const logoPath = path.resolve(process.cwd(), '../frontend/logo/logo.png');
+    const logoPath = path.resolve(process.cwd(), 'assets/logo.png');
     const attachments: any[] = [];
     if (fs.existsSync(logoPath)) {
       attachments.push({
