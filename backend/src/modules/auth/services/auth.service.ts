@@ -107,8 +107,13 @@ export class AuthService {
     console.log(`[DEV] Generated OTP for ${email}: ${otp}`);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
     
+    const user = await this.userRepository.findOne({ where: { email } });
+    const context = user
+      ? { fullName: user.fullName, username: user.username, isRegister: false }
+      : { fullName: 'Quý đối tác', username: email, isRegister: true };
+
     try {
-      await this.otpService.sendOtpViaEmail(email, otp);
+      await this.otpService.sendOtpViaEmail(email, otp, context);
       // Lưu OTP vào bộ nhớ tạm (global store)
       const otpStore = (global as any).otpStore || {};
       otpStore[email] = { code: otp, expiresAt };
