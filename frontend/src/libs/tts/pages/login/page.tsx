@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { EyeOff } from "lucide-react";
 import { getAuthToken } from "@/libs/core/utils/auth-token";
 import BusinessRegistrationModal from "@/libs/tts/components/BusinessRegistrationModal";
+import SuccessDialog from "@/libs/tts/components/SuccessDialog";
 
 const baseUrl =
   typeof window !== "undefined"
@@ -36,7 +37,13 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [countdown, setCountdown] = useState(60);
+  const [canResend, setCanResend] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   const [loading, setLoading] = useState(false);
+
+  const [successDialog, setSuccessDialog] = useState({ open: false, message: "" });
 
   // ===== CHECK LOGIN =====
   useEffect(() => {
@@ -139,6 +146,22 @@ export default function LoginPage() {
     return data;
   };
 
+  const startCountdown = () => {
+    setCountdown(60);
+    setCanResend(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(timerRef.current!);
+          setCanResend(true);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
   const isValidEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -164,8 +187,9 @@ export default function LoginPage() {
 
       await sendForgotPasswordOtp(email);
 
+      startCountdown();
+      setSuccessDialog({ open: true, message: "Mã OTP đã được gửi đến email của bạn" });
 
-      alert("Đã gửi email xác thực");
       setOtp("");
       setNewPassword("");
       setConfirmPassword("");
@@ -208,12 +232,7 @@ export default function LoginPage() {
 
       await resetPasswordApi();
 
-      alert("Đổi mật khẩu thành công");
-
-      setFormView("login");
-      setOtp("");
-      setNewPassword("");
-      setConfirmPassword("");
+      setSuccessDialog({ open: true, message: "Mật khẩu đã được đặt lại thành công" });
 
     } catch (e: any) {
       setResetError(e?.message || "Lỗi khôi phục mật khẩu");
@@ -221,6 +240,18 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const handleCloseSuccessDialog = () => {
+    const wasReset = successDialog.message === "Mật khẩu đã được đặt lại thành công";
+    setSuccessDialog({ open: false, message: "" });
+    if (wasReset) {
+      setFormView("login");
+      setOtp("");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+  };
+
   return (
     <div className="flex min-h-screen">
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-white p-8">
@@ -436,10 +467,18 @@ export default function LoginPage() {
               </div>
 
               <p className="mb-1 text-center text-sm font-semibold text-blue-600">
-                00:60
+                00:{String(countdown).padStart(2, "0")}
               </p>
               <p className="mb-6 text-center text-xs text-slate-400">
-                Chưa nhận được mã? Gửi lại
+                Chưa nhận được mã?{" "}
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={!canResend || loading}
+                  className="font-semibold text-blue-600 hover:underline disabled:text-slate-300 disabled:no-underline"
+                >
+                  Gửi lại
+                </button>
               </p>
 
               <button
@@ -473,6 +512,13 @@ export default function LoginPage() {
       {showRegModal && (
         <BusinessRegistrationModal onClose={() => setShowRegModal(false)} />
       )}
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        open={successDialog.open}
+        message={successDialog.message}
+        onClose={handleCloseSuccessDialog}
+      />
     </div>
   );
 }
