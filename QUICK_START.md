@@ -31,28 +31,6 @@ npm install
 npm run dev
 ```
 
----
-
-## 🔑 Accounts
-
-### Admin Panel
-| Username | Password | Role |
-|---|---|---|
-| `admin` | `admin123` | CEO (full permissions) |
-| `banbanban` | *(user-defined)* | Employee |
-| `baobao` | *(user-defined)* | CEO |
-| `ducduc` | *(user-defined)* | Manager |
-
-### Enterprise Portal (username = tax code)
-| Tax Code | Password | Note |
-|---|---|---|
-| `910000888295` | `12345678` | Default |
-| `910000888296` | `12345678` | Default |
-| `910000888297` | `HoangAnh@2024` | Changed |
-| `910000888298` | `Xanh@123` | Changed |
-
----
-
 ## 📂 Database Sharing
 
 The project uses `dump-data.sql` (data-only) to synchronize database state:
