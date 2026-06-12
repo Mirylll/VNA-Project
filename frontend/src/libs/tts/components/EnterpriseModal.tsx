@@ -45,14 +45,14 @@ export default function EnterpriseModal({
       headers: { authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setEnterpriseTypes(d))
+      .then((d) => setEnterpriseTypes(d.filter((item: any) => item.isActive !== false)))
       .catch(() => {});
 
     fetch(`${baseUrl}/industries`, {
       headers: { authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setIndustries(d))
+      .then((d) => setIndustries(d.filter((item: any) => item.isActive !== false && item.level === 4)))
       .catch(() => {});
 
     fetch(`${baseUrl}/districts?provinceId=1`, {
@@ -114,6 +114,8 @@ export default function EnterpriseModal({
       enterpriseTypeId: Number(enterpriseTypeId),
       industryId: Number(industryId),
       wardId: wardId ? Number(wardId) : undefined,
+      username: taxCode.trim(),
+      password: '12345678',
       isActive,
     };
 

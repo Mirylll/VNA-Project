@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Calendar, Upload, Eye, Download, Trash2 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useEnterpriseForm } from '@/libs/tts/contexts/EnterpriseFormContext';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
-import AttachmentDialog from '@/libs/tts/components/AttachmentDialog';
-import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
+import DatePicker from '@/libs/tts/components/DatePicker';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -35,8 +34,58 @@ export default function EnterpriseStep1({
   const [industries, setIndustries] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [attachDialogOpen, setAttachDialogOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ idx: number; name: string; id?: number } | null>(null);
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const REQUIRED_LABELS = ["Giấy phép kinh doanh", "Giấy tờ khác"];
+
+  const fileEntries = REQUIRED_LABELS.map(label => {
+    const existing = formData.attachments.find(a => a.name === label);
+    return {
+      label,
+      file: existing?.file || null,
+      fileName: existing?.fileName || null,
+      url: existing?.url || null,
+      id: existing?.id,
+    };
+  });
+
+  const handleFileChange = (label: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.type !== "application/pdf") {
+      alert("Chỉ chấp nhận file PDF");
+      return;
+    }
+    const newAtt = {
+      name: label,
+      fileName: f.name,
+      file: f,
+      url: URL.createObjectURL(f),
+      size: `${(f.size / 1024).toFixed(0)} KB`
+    };
+
+    const next = [...formData.attachments];
+    const existingIdx = next.findIndex(a => a.name === label);
+    if (existingIdx >= 0) {
+      const existing = next[existingIdx];
+      if (existing.id) markAttachmentForDelete(existing.id);
+      next[existingIdx] = newAtt;
+    } else {
+      next.push(newAtt);
+    }
+    updateField('attachments', next);
+    e.target.value = '';
+  };
+
+  const handleDeleteFile = (label: string) => {
+    const existingIdx = formData.attachments.findIndex(a => a.name === label);
+    if (existingIdx >= 0) {
+      const existing = formData.attachments[existingIdx];
+      if (existing.id) markAttachmentForDelete(existing.id);
+      const next = formData.attachments.filter((_, i) => i !== existingIdx);
+      updateField('attachments', next);
+    }
+  };
 
   useEffect(() => {
     if (!isEdit || !searchParams?.id) return;
@@ -107,13 +156,13 @@ export default function EnterpriseStep1({
       headers: { authorization: `Bearer ${token}` },
     })
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setEnterpriseTypes(data))
+      .then((data) => setEnterpriseTypes(data.filter((d: any) => d.isActive !== false)))
       .catch(() => {});
     fetch(`${baseUrl}/industries`, {
       headers: { authorization: `Bearer ${token}` },
     })
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setIndustries(data))
+      .then((data) => setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4)))
       .catch(() => {});
   }, []);
 
@@ -259,23 +308,15 @@ export default function EnterpriseStep1({
             </>
           )}
 
-          <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
+          <div className="relative border border-slate-200 rounded-lg px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Ngày cấp GPKD
             </label>
-            <div className="relative">
-              <input
-                type="date"
-                name="licenseDate"
-                value={formData.licenseDate}
-                onChange={handleInputChange}
-                className="w-full border-none outline-none text-sm py-0.5 [color-scheme:light]"
-              />
-              <Calendar
-                size={14}
-                className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-              />
-            </div>
+            <DatePicker
+              value={formData.licenseDate}
+              onChange={(iso) => updateField('licenseDate', iso)}
+              placeholder="dd/mm/yyyy"
+            />
           </div>
 
           {renderField('provinceId',
@@ -358,7 +399,8 @@ export default function EnterpriseStep1({
               name="foreignName"
               value={formData.foreignName}
               onChange={handleInputChange}
-              className="w-full border-none outline-none text-sm py-0.5"
+              placeholder="VNA International"
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
             />
           </div>
 
@@ -385,7 +427,8 @@ export default function EnterpriseStep1({
               name="phone"
               value={formData.phone}
               onChange={handleInputChange}
-              className="w-full border-none outline-none text-sm py-0.5"
+              placeholder="028 3828 2888"
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
             />
           </div>
 
@@ -457,7 +500,8 @@ export default function EnterpriseStep1({
               name="leaderName"
               value={formData.leaderName}
               onChange={handleInputChange}
-              className="w-full border-none outline-none text-sm py-0.5"
+              placeholder="Nguyễn Văn A"
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
             />
           </div>
 
@@ -469,7 +513,8 @@ export default function EnterpriseStep1({
               name="leaderPhone"
               value={formData.leaderPhone}
               onChange={handleInputChange}
-              className="w-full border-none outline-none text-sm py-0.5"
+              placeholder="090 123 4567"
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
             />
           </div>
         </div>
@@ -477,78 +522,78 @@ export default function EnterpriseStep1({
 
       {/* ===== PANEL C ===== */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-        <h3 className="text-base font-bold text-gray-800 mb-6 pb-3 border-b border-slate-200">
-          File đính kèm
-        </h3>
-
-        <div className="w-full overflow-hidden border border-slate-200 rounded-lg">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-slate-200">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Tên file
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Thông tin file
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {formData.attachments.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-400">
-                    Chưa có file đính kèm
+        <h3 className="text-base font-bold text-gray-800 mb-4">File đính kèm</h3>
+        <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Tên file</th>
+              <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Thông tin file</th>
+              <th className="text-right px-4 py-2.5 text-gray-600 font-medium">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {fileEntries.map((f, i) => {
+              const hasFile = !!(f.file || f.fileName);
+              return (
+                <tr key={i} className="border-t border-gray-200">
+                  <td className="px-4 py-3 text-gray-700">{f.label}</td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {hasFile ? f.fileName : <span className="italic text-gray-300">Chưa có file</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* View */}
+                      <button
+                        type="button"
+                        onClick={() => f.url && window.open(f.url, '_blank')}
+                        disabled={!hasFile}
+                        title="Xem file"
+                        className={`p-1.5 rounded transition ${
+                          hasFile
+                            ? "text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                            : "text-gray-200 cursor-not-allowed"
+                        }`}
+                      >
+                        <EyeIcon />
+                      </button>
+                      {/* Upload / ghi đè */}
+                      <button
+                        type="button"
+                        title="Tải lên"
+                        onClick={() => fileRefs.current[i]?.click()}
+                        className="p-1.5 rounded text-gray-500 hover:text-green-600 hover:bg-green-50 transition"
+                      >
+                        <UploadIcon />
+                      </button>
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFile(f.label)}
+                        disabled={!hasFile}
+                        title="Xóa file"
+                        className={`p-1.5 rounded transition ${
+                          hasFile
+                            ? "text-gray-500 hover:text-red-600 hover:bg-red-50"
+                            : "text-gray-200 cursor-not-allowed"
+                        }`}
+                      >
+                        <TrashIcon />
+                      </button>
+                      {/* Hidden file input */}
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        ref={(el) => { fileRefs.current[i] = el; }}
+                        className="hidden"
+                        onChange={(e) => handleFileChange(f.label, e)}
+                      />
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                formData.attachments.map((file, idx) => (
-                  <tr key={idx} className="border-b border-slate-200 last:border-b-0">
-                    <td className="px-4 py-3 text-sm text-gray-700">{file.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{file.fileName}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => file.url && window.open(file.url, '_blank')}
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Eye size={15} />
-                        </button>
-                        {file.url && (
-                          <a
-                            href={file.url}
-                            download={file.fileName}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-blue-600 transition-colors"
-                          >
-                            <Download size={15} />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => setDeleteConfirm({ idx, name: file.name, id: file.id })}
-                          className="text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <button
-          onClick={() => setAttachDialogOpen(true)}
-          className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-lg border border-dashed border-blue-400 text-blue-500 text-sm hover:bg-blue-50 transition-colors"
-        >
-          <Upload size={16} />
-          Thêm file đính kèm
-        </button>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* ===== FOOTER ===== */}
@@ -567,31 +612,31 @@ export default function EnterpriseStep1({
           <ChevronDown size={15} className="rotate-[-90deg]" />
         </button>
       </div>
-
-      <AttachmentDialog
-        open={attachDialogOpen}
-        onClose={() => setAttachDialogOpen(false)}
-      />
-
-      <ConfirmDeleteDialog
-        open={!!deleteConfirm}
-        message="Xoá file đính kèm"
-        itemName={deleteConfirm?.name}
-        onConfirm={() => {
-          try {
-            if (deleteConfirm === null) return;
-            if (deleteConfirm.id) {
-              markAttachmentForDelete(deleteConfirm.id);
-            } else {
-              const next = formData.attachments.filter((_, i) => i !== deleteConfirm.idx);
-              updateField('attachments', next);
-            }
-          } finally {
-            setDeleteConfirm(null);
-          }
-        }}
-        onCancel={() => setDeleteConfirm(null)}
-      />
     </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
   );
 }
