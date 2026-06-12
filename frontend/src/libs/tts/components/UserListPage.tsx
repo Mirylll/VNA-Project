@@ -120,6 +120,43 @@ export default function UserListPage() {
     router.push(`/admin/users/detail?id=${id}`);
   }
 
+  async function handleToggleStatus(user: UserData) {
+    const token = getAuthToken();
+    if (!token) return;
+
+    // Optimistic update: cập nhật ngay trong state local, không re-fetch
+    const newIsActive = !user.isActive;
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === user.id ? { ...u, isActive: newIsActive } : u,
+      ),
+    );
+
+    try {
+      const res = await fetch(`${baseUrl}/users/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isActive: newIsActive }),
+      });
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
+      if (!res.ok) throw new Error();
+    } catch {
+      // Rollback nếu API lỗi
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === user.id ? { ...u, isActive: user.isActive } : u,
+        ),
+      );
+      setToastMessage('Không thể thay đổi trạng thái');
+    }
+  }
+
   async function handleDeleteSelected() {
     setDeleteConfirm(false);
     const token = getAuthToken();
@@ -203,13 +240,13 @@ export default function UserListPage() {
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Email
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[190px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Vai trò
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Chức danh
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[200px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </th>
             </tr>
@@ -220,7 +257,7 @@ export default function UserListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo họ tên..."
                   value={filters.fullName}
                   onChange={(e) =>
                     setFilters((p) => ({ ...p, fullName: e.target.value }))
@@ -230,7 +267,7 @@ export default function UserListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tài khoản..."
                   value={filters.username}
                   onChange={(e) =>
                     setFilters((p) => ({ ...p, username: e.target.value }))
@@ -240,7 +277,7 @@ export default function UserListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo email..."
                   value={filters.email}
                   onChange={(e) =>
                     setFilters((p) => ({ ...p, email: e.target.value }))
@@ -257,7 +294,7 @@ export default function UserListPage() {
                     }
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
-                    <option value="" />
+                    <option value="">Lọc theo vai trò</option>
                     <option value="Admin">Admin</option>
                     <option value="CEO">CEO</option>
                     <option value="Manager">Manager</option>
@@ -268,7 +305,7 @@ export default function UserListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo chức danh..."
                   value={filters.title || ''}
                   onChange={(e) =>
                     setFilters((p) => ({ ...p, title: e.target.value }))
@@ -285,7 +322,7 @@ export default function UserListPage() {
                     }
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
-                    <option value="" />
+                    <option value="">Lọc theo trạng thái</option>
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Ngừng</option>
                   </select>
@@ -373,7 +410,7 @@ export default function UserListPage() {
                   <td className="px-3 py-3">
                     <ToggleSwitch
                       checked={user.isActive}
-                      onChange={() => {}}
+                      onChange={() => handleToggleStatus(user)}
                     />
                   </td>
                 </tr>

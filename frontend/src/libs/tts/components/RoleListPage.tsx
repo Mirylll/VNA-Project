@@ -215,7 +215,7 @@ export default function RoleListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo mã vai trò..."
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -223,7 +223,7 @@ export default function RoleListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tên vai trò..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"

@@ -21,8 +21,11 @@ export class UpdateUserDto {
   roleId?: number | null;
 
   @IsOptional()
-  @IsNumber()
   titleId?: number | null;
+
+  @IsOptional()
+  @IsString()
+  titleName?: string | null;
 
   @IsOptional()
   @IsBoolean()

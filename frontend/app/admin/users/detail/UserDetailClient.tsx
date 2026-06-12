@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, User } from 'lucide-react';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
+import DatePicker from '@/libs/tts/components/DatePicker';
 
 interface TitleItem {
   id: number;
@@ -26,7 +28,7 @@ interface UserFormData {
   fullName: string;
   dateOfBirth: string;
   gender: string;
-  titleId: number | '';
+  titleName: string;
   roleId: number | '';
   email: string;
   provinceId: number;
@@ -41,7 +43,7 @@ const emptyForm: UserFormData = {
   fullName: '',
   dateOfBirth: '',
   gender: 'Nam',
-  titleId: '',
+  titleName: '',
   roleId: '',
   email: '',
   provinceId: 1,
@@ -74,7 +76,6 @@ export default function UserDetailClient({
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState('');
 
-  const [titles, setTitles] = useState<TitleItem[]>([]);
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [districts, setDistricts] = useState<DistrictItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,9 +101,6 @@ export default function UserDetailClient({
     const headers = { authorization: `Bearer ${t}` };
 
     const promises: Promise<void>[] = [
-      fetch(`${baseUrl}/titles`, { headers })
-        .then((r) => (r.ok ? r.json() : []))
-        .then(setTitles),
       fetch(`${baseUrl}/roles`, { headers })
         .then((r) => (r.ok ? r.json() : []))
         .then(setRoles),
@@ -124,7 +122,7 @@ export default function UserDetailClient({
               fullName: user.fullName || '',
               dateOfBirth: user.dateOfBirth || '',
               gender: user.gender || 'Nam',
-              titleId: user.title?.id ?? '',
+              titleName: user.title?.name || '',
               roleId: user.role?.id ?? '',
               email: user.email || '',
               provinceId: user.province?.id ?? 1,
@@ -184,7 +182,7 @@ export default function UserDetailClient({
     if (formData.dateOfBirth && new Date(formData.dateOfBirth) > new Date()) {
       errs.dateOfBirth = 'Ngày tháng năm sinh không được là ngày tương lai';
     }
-    if (formData.titleId === '') errs.titleId = 'Vui lòng chọn chức danh';
+    if (!formData.titleName.trim()) errs.titleName = 'Vui lòng nhập chức danh';
     if (formData.roleId === '') errs.roleId = 'Vui lòng chọn vai trò';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -205,7 +203,7 @@ export default function UserDetailClient({
       };
 
       if (formData.roleId !== '') body.roleId = Number(formData.roleId);
-      if (formData.titleId !== '') body.titleId = Number(formData.titleId);
+      if (formData.titleName.trim()) body.titleName = formData.titleName.trim();
       if (formData.provinceId) body.provinceId = Number(formData.provinceId);
       if (formData.districtId !== '') body.districtId = Number(formData.districtId);
 
@@ -460,13 +458,13 @@ export default function UserDetailClient({
 
                   {/* Row 2: Ngày tháng năm sinh | Giới tính */}
                   <div className="relative">
-                    <input
-                      type="date"
-                      name="dateOfBirth"
+                    <DatePicker
                       value={formData.dateOfBirth}
-                      onChange={handleInputChange}
-                      placeholder="Ngày tháng năm sinh"
-                      className={fieldClass('dateOfBirth')}
+                      onChange={(iso) =>
+                        setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
+                      }
+                      placeholder="dd/mm/yyyy"
+                      className={errors.dateOfBirth ? 'border-red-500' : ''}
                     />
                     <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
                     {errMsg('dateOfBirth')}
@@ -487,21 +485,16 @@ export default function UserDetailClient({
 
                   {/* Row 3: Chức danh | Vai trò */}
                   <div className="relative">
-                    <select
-                      name="titleId"
-                      value={formData.titleId}
+                    <input
+                      type="text"
+                      name="titleName"
+                      value={formData.titleName}
                       onChange={handleInputChange}
-                      className={fieldClass('titleId')}
-                    >
-                      <option value="">-- Chọn chức danh --</option>
-                      {titles.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Chức danh"
+                      className={fieldClass('titleName')}
+                    />
                     <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
-                    {errMsg('titleId')}
+                    {errMsg('titleName')}
                   </div>
                   <div className="relative">
                     <select
@@ -596,13 +589,13 @@ export default function UserDetailClient({
                     {errMsg('fullName')}
                   </div>
                   <div className="relative">
-                    <input
-                      type="date"
-                      name="dateOfBirth"
+                    <DatePicker
                       value={formData.dateOfBirth}
-                      onChange={handleInputChange}
-                      placeholder="Ngày tháng năm sinh"
-                      className={fieldClass('dateOfBirth')}
+                      onChange={(iso) =>
+                        setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
+                      }
+                      placeholder="dd/mm/yyyy"
+                      className={errors.dateOfBirth ? 'border-red-500' : ''}
                     />
                     <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
                     {errMsg('dateOfBirth')}
@@ -623,21 +616,16 @@ export default function UserDetailClient({
                     <label className={labelClass}>Giới tính</label>
                   </div>
                   <div className="relative">
-                    <select
-                      name="titleId"
-                      value={formData.titleId}
+                    <input
+                      type="text"
+                      name="titleName"
+                      value={formData.titleName}
                       onChange={handleInputChange}
-                      className={fieldClass('titleId')}
-                    >
-                      <option value="">-- Chọn chức danh --</option>
-                      {titles.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Chức danh"
+                      className={fieldClass('titleName')}
+                    />
                     <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
-                    {errMsg('titleId')}
+                    {errMsg('titleName')}
                   </div>
 
                   {/* Row 4: Vai trò | Email */}
@@ -699,19 +687,18 @@ export default function UserDetailClient({
           </div>
 
           <div className="relative">
-            <select
-              name="districtId"
+            <Autocomplete
               value={formData.districtId}
-              onChange={handleInputChange}
-              className={fieldClass('districtId')}
-            >
-              <option value="">-- Chọn phường/xã --</option>
-              {districts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+              options={districts}
+              placeholder="-- Chọn phường/xã --"
+              onSelect={(val) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  districtId: val === '' ? '' : Number(val),
+                }))
+              }
+              className={errors.districtId ? 'border-red-500' : ''}
+            />
             <label className={labelClass}>Phường/xã</label>
           </div>
 

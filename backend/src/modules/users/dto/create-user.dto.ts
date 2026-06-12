@@ -30,6 +30,10 @@ export class CreateUserDto {
   titleId?: number;
 
   @IsOptional()
+  @IsString()
+  titleName?: string;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
