@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict P9pk4NwGC2aihM81dei1n7nhgrBtkgeJJBUGKRY0QmGENdrqJYeDpQeThMJgarc
+\restrict WQ8ICw83XR5Fwt1wB6vRvNy00LstdChV7RMuwoKsVig5CbYiI2lGX10NBAWccRB
 
 -- Dumped from database version 15.18 (Debian 15.18-1.pgdg13+1)
 -- Dumped by pg_dump version 15.18 (Debian 15.18-1.pgdg13+1)
@@ -24,7 +24,6 @@ SET row_security = off;
 
 SET SESSION AUTHORIZATION DEFAULT;
 
-TRUNCATE TABLE public.provinces CASCADE;
 ALTER TABLE public.provinces DISABLE TRIGGER ALL;
 
 INSERT INTO public.provinces (id, name) VALUES (1, 'Thành phố Hồ Chí Minh');
@@ -36,7 +35,6 @@ ALTER TABLE public.provinces ENABLE TRIGGER ALL;
 -- Data for Name: districts; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.districts CASCADE;
 ALTER TABLE public.districts DISABLE TRIGGER ALL;
 
 INSERT INTO public.districts (id, name, province_id) VALUES (1, 'Bến Thành', 1);
@@ -77,7 +75,6 @@ ALTER TABLE public.districts ENABLE TRIGGER ALL;
 -- Data for Name: enterprise_types; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.enterprise_types CASCADE;
 ALTER TABLE public.enterprise_types DISABLE TRIGGER ALL;
 
 INSERT INTO public.enterprise_types (id, code, name, description, is_active, created_at, updated_at) VALUES (1, 'CP', 'Công ty cổ phần', NULL, true, '2026-06-11 08:32:00.846753', '2026-06-11 08:32:00.846753');
@@ -95,7 +92,6 @@ ALTER TABLE public.enterprise_types ENABLE TRIGGER ALL;
 -- Data for Name: industries; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.industries CASCADE;
 ALTER TABLE public.industries DISABLE TRIGGER ALL;
 
 INSERT INTO public.industries (id, code, name, level, is_active, created_at, updated_at, parent_id) VALUES (58, 'LV1-1', 'Nông nghiệp, lâm nghiệp và thủy sản', 1, true, '2026-06-12 04:37:42.140875', '2026-06-12 04:37:42.140875', NULL);
@@ -126,7 +122,6 @@ ALTER TABLE public.industries ENABLE TRIGGER ALL;
 -- Data for Name: enterprises; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.enterprises CASCADE;
 ALTER TABLE public.enterprises DISABLE TRIGGER ALL;
 
 INSERT INTO public.enterprises (id, name, tax_code, license_date, address, foreign_name, email, phone, operation_address, leader_name, leader_phone, username, password, is_active, created_at, updated_at, enterprise_type_id, industry_id, province_id, ward_id, operation_province_id, operation_ward_id) VALUES (12, 'Công ty TNHH Thương mại ABC', '910000888295', NULL, '45 Lý Tự Trọng, Quận 1', NULL, 'abc@thuongmai.vn', '02838282891', NULL, NULL, NULL, '910000888295', '12345678', true, '2026-06-12 05:15:18.271579', '2026-06-12 05:15:18.271579', 2, 73, 1, 1, NULL, NULL);
@@ -141,7 +136,6 @@ ALTER TABLE public.enterprises ENABLE TRIGGER ALL;
 -- Data for Name: attachments; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.attachments CASCADE;
 ALTER TABLE public.attachments DISABLE TRIGGER ALL;
 
 
@@ -152,7 +146,6 @@ ALTER TABLE public.attachments ENABLE TRIGGER ALL;
 -- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.roles CASCADE;
 ALTER TABLE public.roles DISABLE TRIGGER ALL;
 
 INSERT INTO public.roles (id, code, name, created_at, updated_at) VALUES (1, 'ADMIN', 'Quản trị viên', '2026-06-11 08:32:00.586972', '2026-06-11 08:32:00.586972');
@@ -167,7 +160,6 @@ ALTER TABLE public.roles ENABLE TRIGGER ALL;
 -- Data for Name: titles; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.titles CASCADE;
 ALTER TABLE public.titles DISABLE TRIGGER ALL;
 
 INSERT INTO public.titles (id, name, created_at) VALUES (1, 'Giám đốc', '2026-06-11 08:32:00.570523');
@@ -183,7 +175,6 @@ ALTER TABLE public.titles ENABLE TRIGGER ALL;
 -- Data for Name: user_avatars; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.user_avatars CASCADE;
 ALTER TABLE public.user_avatars DISABLE TRIGGER ALL;
 
 INSERT INTO public.user_avatars (id, file_name, file_path, file_size, mime_type, uploaded_at, user_id) VALUES (1, '1781168998598-kitty.jpg', 'uploads/avatars/ba4f41b1-3531-4d7b-bae4-6db019b97b4d/1781168998598-kitty.jpg', 43489, 'image/jpeg', '2026-06-11 09:09:58.603434', 'ba4f41b1-3531-4d7b-bae4-6db019b97b4d');
@@ -198,7 +189,6 @@ ALTER TABLE public.user_avatars ENABLE TRIGGER ALL;
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.users CASCADE;
 ALTER TABLE public.users DISABLE TRIGGER ALL;
 
 INSERT INTO public.users (id, username, password_hash, full_name, email, date_of_birth, gender, avatar_url, address, is_active, created_at, updated_at, deleted_at, role_id, title_id, province_id, district_id, avatar_id) VALUES ('244a4bb8-61fc-4994-8575-585fa235454d', 'banbanban', '$2b$10$dGQG58n0bweIMP3gJUp/4uWjWMspzLrtX.iSuIW5KRdbWil376Tsq', 'Võ Kim Bằng', 'vokimbang@gmail.com', '2004-10-22', 'Nam', '/uploads/avatars/244a4bb8-61fc-4994-8575-585fa235454d/1781169008966-catt.jpg', '241 Hùng Vương', true, '2026-06-11 09:09:43.944026', '2026-06-11 09:10:10.057904', NULL, 3, 3, 1, NULL, 2);
@@ -217,7 +207,6 @@ ALTER TABLE public.users ENABLE TRIGGER ALL;
 -- Data for Name: otp_codes; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.otp_codes CASCADE;
 ALTER TABLE public.otp_codes DISABLE TRIGGER ALL;
 
 
@@ -228,7 +217,6 @@ ALTER TABLE public.otp_codes ENABLE TRIGGER ALL;
 -- Data for Name: permissions; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.permissions CASCADE;
 ALTER TABLE public.permissions DISABLE TRIGGER ALL;
 
 INSERT INTO public.permissions (id, code, name, type, sort_order, created_at, updated_at, parent_id) VALUES (1, 'ADMIN_G_DEPARTMENT', 'Department Group', 'Group', 0, '2026-06-11 08:32:00.446631', '2026-06-11 08:32:00.446631', NULL);
@@ -259,7 +247,6 @@ ALTER TABLE public.permissions ENABLE TRIGGER ALL;
 -- Data for Name: refresh_tokens; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.refresh_tokens CASCADE;
 ALTER TABLE public.refresh_tokens DISABLE TRIGGER ALL;
 
 
@@ -270,7 +257,6 @@ ALTER TABLE public.refresh_tokens ENABLE TRIGGER ALL;
 -- Data for Name: role_permissions; Type: TABLE DATA; Schema: public; Owner: vna_user
 --
 
-TRUNCATE TABLE public.role_permissions CASCADE;
 ALTER TABLE public.role_permissions DISABLE TRIGGER ALL;
 
 INSERT INTO public.role_permissions (role_id, permission_id) VALUES (4, 2);
@@ -412,5 +398,5 @@ SELECT pg_catalog.setval('public.user_avatars_id_seq', 4, true);
 -- PostgreSQL database dump complete
 --
 
-\unrestrict P9pk4NwGC2aihM81dei1n7nhgrBtkgeJJBUGKRY0QmGENdrqJYeDpQeThMJgarc
+\unrestrict WQ8ICw83XR5Fwt1wB6vRvNy00LstdChV7RMuwoKsVig5CbYiI2lGX10NBAWccRB
 
