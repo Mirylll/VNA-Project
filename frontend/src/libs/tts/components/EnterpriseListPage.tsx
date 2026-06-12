@@ -114,6 +114,15 @@ export default function EnterpriseListPage() {
   async function handleToggleStatus(item: any) {
     const token = getAuthToken();
     if (!token) return;
+
+    // Optimistic update: cập nhật ngay trong state local, không re-fetch
+    const newIsActive = !item.isActive;
+    setItems((prev: any[]) =>
+      prev.map((i: any) =>
+        i.id === item.id ? { ...i, isActive: newIsActive } : i,
+      ),
+    );
+
     try {
       await fetch(`${baseUrl}/enterprises/${item.id}`, {
         method: 'PUT',
@@ -121,10 +130,15 @@ export default function EnterpriseListPage() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ isActive: !item.isActive }),
+        body: JSON.stringify({ isActive: newIsActive }),
       });
-      fetchItems();
     } catch {
+      // Rollback nếu API lỗi
+      setItems((prev: any[]) =>
+        prev.map((i: any) =>
+          i.id === item.id ? { ...i, isActive: item.isActive } : i,
+        ),
+      );
       setError('Lỗi cập nhật trạng thái');
     }
   }
@@ -215,7 +229,7 @@ export default function EnterpriseListPage() {
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Ngành nghề kinh doanh
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[200px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </th>
             </tr>
@@ -225,7 +239,7 @@ export default function EnterpriseListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tên doanh nghiệp..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -233,7 +247,7 @@ export default function EnterpriseListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo mã số thuế..."
                   value={filterTaxCode}
                   onChange={(e) => setFilterTaxCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -241,7 +255,7 @@ export default function EnterpriseListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo loại hình..."
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -249,7 +263,7 @@ export default function EnterpriseListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo ngành nghề..."
                   value={filterIndustry}
                   onChange={(e) => setFilterIndustry(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -262,7 +276,7 @@ export default function EnterpriseListPage() {
                     onChange={(e) => setFilterStatus(e.target.value)}
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
-                    <option value="" />
+                    <option value="">Lọc theo trạng thái</option>
                     <option value="active">Hoạt động</option>
                     <option value="inactive">Ngừng</option>
                   </select>

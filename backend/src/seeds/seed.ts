@@ -301,81 +301,52 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
   // ---- Industries ----
   const industryRepo = dataSource.getRepository(Industry);
-  const indCount = await industryRepo.count();
-  if (indCount === 0) {
-    // Level 1
-    const l1 = await industryRepo.save([
-      { code: 'A', name: 'Nông nghiệp, lâm nghiệp và thuỷ sản', level: 1 },
-      { code: 'B', name: 'Khai khoáng', level: 1 },
-      { code: 'C', name: 'Công nghiệp chế biến, chế tạo', level: 1 },
-      { code: 'F', name: 'Xây dựng', level: 1 },
-      { code: 'G', name: 'Bán buôn và bán lẻ; sửa chữa ô tô, mô tô, xe máy', level: 1 },
-      { code: 'I', name: 'Dịch vụ lưu trú và ăn uống', level: 1 },
-      { code: 'J', name: 'Thông tin và truyền thông', level: 1 },
-      { code: 'M', name: 'Hoạt động chuyên môn, khoa học và công nghệ', level: 1 },
-      { code: 'N', name: 'Dịch vụ hành chính và hỗ trợ', level: 1 },
-      { code: 'P', name: 'Giáo dục và đào tạo', level: 1 },
-      { code: 'Q', name: 'Y tế và hoạt động trợ giúp xã hội', level: 1 },
-      { code: 'R', name: 'Nghệ thuật, vui chơi và giải trí', level: 1 },
-      { code: 'S', name: 'Hoạt động dịch vụ khác', level: 1 },
-    ]);
-    const A = l1[0], B = l1[1], C = l1[2], F = l1[3], G = l1[4], I = l1[5], J = l1[6],
-          M = l1[7], N = l1[8], P = l1[9], Q = l1[10], R = l1[11], S = l1[12];
 
-    // Level 2
-    const l2 = await industryRepo.save([
-      { code: 'A01', name: 'Nông nghiệp và hoạt động dịch vụ có liên quan', parent: A, level: 2 },
-      { code: 'A02', name: 'Lâm nghiệp và hoạt động dịch vụ có liên quan', parent: A, level: 2 },
-      { code: 'A03', name: 'Khai thác, nuôi trồng thuỷ sản', parent: A, level: 2 },
-      { code: 'C10', name: 'Sản xuất chế biến thực phẩm', parent: C, level: 2 },
-      { code: 'C11', name: 'Sản xuất đồ uống', parent: C, level: 2 },
-      { code: 'C13', name: 'Sản xuất dệt', parent: C, level: 2 },
-      { code: 'C14', name: 'Sản xuất trang phục', parent: C, level: 2 },
-      { code: 'C15', name: 'Sản xuất da và các sản phẩm có liên quan', parent: C, level: 2 },
-      { code: 'C26', name: 'Sản xuất sản phẩm điện tử, máy vi tính và sản phẩm quang học', parent: C, level: 2 },
-      { code: 'C27', name: 'Sản xuất thiết bị điện', parent: C, level: 2 },
-      { code: 'C28', name: 'Sản xuất máy móc, thiết bị chưa được phân vào đâu', parent: C, level: 2 },
-      { code: 'C29', name: 'Sản xuất ô tô và xe có động cơ khác', parent: C, level: 2 },
-      { code: 'C30', name: 'Sản xuất phương tiện vận tải khác', parent: C, level: 2 },
-      { code: 'F41', name: 'Xây dựng nhà các loại', parent: F, level: 2 },
-      { code: 'F42', name: 'Xây dựng công trình kỹ thuật dân dụng', parent: F, level: 2 },
-      { code: 'F43', name: 'Hoạt động xây dựng chuyên dụng', parent: F, level: 2 },
-      { code: 'G46', name: 'Bán buôn (trừ ô tô, mô tô, xe máy)', parent: G, level: 2 },
-      { code: 'G47', name: 'Bán lẻ (trừ ô tô, mô tô, xe máy)', parent: G, level: 2 },
-      { code: 'I55', name: 'Dịch vụ lưu trú', parent: I, level: 2 },
-      { code: 'I56', name: 'Dịch vụ ăn uống', parent: I, level: 2 },
-      { code: 'J58', name: 'Hoạt động xuất bản', parent: J, level: 2 },
-      { code: 'J59', name: 'Hoạt động điện ảnh, sản xuất chương trình truyền hình', parent: J, level: 2 },
-      { code: 'J61', name: 'Viễn thông', parent: J, level: 2 },
-      { code: 'J62', name: 'Lập trình máy vi tính, dịch vụ tư vấn và hoạt động liên quan', parent: J, level: 2 },
-      { code: 'J63', name: 'Hoạt động dịch vụ thông tin', parent: J, level: 2 },
-      { code: 'M70', name: 'Hoạt động của các trụ sở văn phòng; tư vấn quản lý', parent: M, level: 2 },
-      { code: 'M71', name: 'Hoạt động kiến trúc; kiểm tra và phân tích kỹ thuật', parent: M, level: 2 },
-      { code: 'M72', name: 'Nghiên cứu khoa học và phát triển', parent: M, level: 2 },
-      { code: 'M73', name: 'Quảng cáo và nghiên cứu thị trường', parent: M, level: 2 },
-      { code: 'N78', name: 'Hoạt động dịch vụ lao động và việc làm', parent: N, level: 2 },
-      { code: 'N80', name: 'Dịch vụ bảo vệ và điều tra', parent: N, level: 2 },
-      { code: 'N81', name: 'Dịch vụ vệ sinh nhà cửa, công trình và cảnh quan', parent: N, level: 2 },
-      { code: 'P85', name: 'Giáo dục', parent: P, level: 2 },
-      { code: 'Q86', name: 'Hoạt động y tế', parent: Q, level: 2 },
-      { code: 'R90', name: 'Hoạt động sáng tác, nghệ thuật và giải trí', parent: R, level: 2 },
-      { code: 'R93', name: 'Hoạt động thể thao, vui chơi và giải trí', parent: R, level: 2 },
-      { code: 'S95', name: 'Sửa chữa máy vi tính, đồ dùng cá nhân và gia đình', parent: S, level: 2 },
-      { code: 'S96', name: 'Hoạt động dịch vụ cá nhân khác', parent: S, level: 2 },
-    ]);
-    const C10 = l2[3], J62 = l2[23];
-
-    // Level 3
-    await industryRepo.save([
-      { code: 'C101', name: 'Chế biến, bảo quản thịt và các sản phẩm từ thịt', parent: C10, level: 3 },
-      { code: 'C102', name: 'Chế biến, bảo quản thuỷ sản và các sản phẩm từ thuỷ sản', parent: C10, level: 3 },
-      { code: 'C103', name: 'Chế biến, bảo quản rau quả', parent: C10, level: 3 },
-      { code: 'J620', name: 'Lập trình máy vi tính', parent: J62, level: 3 },
-      { code: 'J621', name: 'Tư vấn về máy vi tính và quản trị hệ thống máy vi tính', parent: J62, level: 3 },
-      { code: 'J622', name: 'Hoạt động dịch vụ công nghệ thông tin khác', parent: J62, level: 3 },
-    ]);
-    console.log('✅ Seeded industries (multi-level)');
+  // Luôn reset industries: xóa enterprises trước, rồi industries
+  const existingEnts = await dataSource.getRepository(Enterprise).count();
+  if (existingEnts > 0) {
+    await dataSource.query('DELETE FROM enterprises');
+    console.log('🗑️  Cleared existing enterprises before re-seeding industries');
   }
+  await dataSource.query('DELETE FROM industries');
+  console.log('🗑️  Cleared existing industries, re-seeding...');
+
+  // Level 1 (4 mục)
+  const l1 = await industryRepo.save([
+    { code: 'LV1-1', name: 'Nông nghiệp, lâm nghiệp và thủy sản', level: 1 },
+    { code: 'LV1-2', name: 'Công nghiệp khai khoáng', level: 1 },
+    { code: 'LV1-3', name: 'Công nghiệp chế biến, chế tạo', level: 1 },
+    { code: 'LV1-4', name: 'Thương mại và dịch vụ', level: 1 },
+  ]);
+
+  // Level 2 (5 mục)
+  const l2 = await industryRepo.save([
+    { code: 'LV2-1', name: 'Trồng trọt và chăn nuôi', parent: l1[0], level: 2 },
+    { code: 'LV2-2', name: 'Khai thác dầu thô và khí đốt', parent: l1[1], level: 2 },
+    { code: 'LV2-3', name: 'Sản xuất thực phẩm và đồ uống', parent: l1[2], level: 2 },
+    { code: 'LV2-4', name: 'Dệt may và da giày', parent: l1[2], level: 2 },
+    { code: 'LV2-5', name: 'Bán buôn và bán lẻ', parent: l1[3], level: 2 },
+  ]);
+
+  // Level 3 (6 mục)
+  const l3 = await industryRepo.save([
+    { code: 'LV3-1', name: 'Trồng cây hàng năm', parent: l2[0], level: 3 },
+    { code: 'LV3-2', name: 'Chăn nuôi gia súc, gia cầm', parent: l2[0], level: 3 },
+    { code: 'LV3-3', name: 'Chế biến và bảo quản thủy sản', parent: l2[2], level: 3 },
+    { code: 'LV3-4', name: 'Sản xuất đồ uống không cồn', parent: l2[2], level: 3 },
+    { code: 'LV3-5', name: 'May trang phục', parent: l2[3], level: 3 },
+    { code: 'LV3-6', name: 'Siêu thị và cửa hàng tiện lợi', parent: l2[4], level: 3 },
+  ]);
+
+  // Level 4 (5 mục) — giữ lại LV4-1, LV4-2, LV4-3 cho enterprise seed
+  await industryRepo.save([
+    { code: 'LV4-1', name: 'Trồng lúa', parent: l3[0], level: 4 },
+    { code: 'LV4-2', name: 'Trồng rau, củ, quả', parent: l3[0], level: 4 },
+    { code: 'LV4-3', name: 'Chế biến cá tra, cá basa', parent: l3[2], level: 4 },
+    { code: 'LV4-4', name: 'Sản xuất nước giải khát', parent: l3[3], level: 4 },
+    { code: 'LV4-5', name: 'May áo sơ mi, veston', parent: l3[4], level: 4 },
+  ]);
+  console.log('✅ Seeded industries (4+5+6+5 = 20 mục)');
 
   // ---- Enterprises ----
   const enterpriseRepo = dataSource.getRepository(Enterprise);
@@ -388,45 +359,59 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
     const enterprises = [
       {
-        name: 'Công ty Cổ phần Công nghệ Quốc tế VNA',
-        taxCode: '910000888292',
-        enterpriseType: types.find((t) => t.code === 'CP'),
-        industry: industries.find((i) => i.code === 'J620'),
-        email: 'info@vna.com',
-        phone: '02838282888',
-        address: '162 đường số 2, khu đô thị Vạn Phúc',
+        name: 'Công ty TNHH Thương mại ABC',
+        taxCode: '910000888295',
+        enterpriseType: types.find((t) => t.code === 'TNHH'),
+        industry: industries.find((i) => i.code === 'LV4-1'),
+        email: 'abc@thuongmai.vn',
+        phone: '02838282891',
+        address: '45 Lý Tự Trọng, Quận 1',
         province,
         ward: wards[0],
-        username: 'vna_admin',
-        password: 'Vna@2024',
+        username: '910000888295',
+        password: '12345678',
         isActive: true,
       },
       {
-        name: 'Công ty TNHH Xây dựng An Phát',
-        taxCode: '910000888293',
-        enterpriseType: types.find((t) => t.code === 'TNHH'),
-        industry: industries.find((i) => i.code === 'F41'),
-        email: 'contact@anphat.vn',
-        phone: '02838282889',
-        address: '25 Nguyễn Huệ, Quận 1',
+        name: 'Công ty CP Đầu tư Bình Minh',
+        taxCode: '910000888296',
+        enterpriseType: types.find((t) => t.code === 'CP'),
+        industry: industries.find((i) => i.code === 'LV4-2'),
+        email: 'info@binhminh.vn',
+        phone: '02838282892',
+        address: '88 Nguyễn Đình Chiểu, Quận 3',
         province,
         ward: wards[1],
-        username: 'anphat_admin',
-        password: 'AnPhat@2024',
+        username: '910000888296',
+        password: '12345678',
         isActive: true,
       },
       {
-        name: 'Doanh nghiệp tư nhân Thương mại Sài Gòn',
-        taxCode: '910000888294',
+        name: 'Doanh nghiệp tư nhân Hoàng Anh',
+        taxCode: '910000888297',
         enterpriseType: types.find((t) => t.code === 'DNTN'),
-        industry: industries.find((i) => i.code === 'G47'),
-        email: 'saigon@dntn.vn',
-        phone: '02838282890',
-        address: '120 Lê Lợi, Quận 3',
+        industry: industries.find((i) => i.code === 'LV4-3'),
+        email: 'hoanganh@dntn.vn',
+        phone: '02838282893',
+        address: '12 Pasteur, Quận 1',
         province,
         ward: wards[2],
-        username: 'saigon_dntn',
-        password: 'SaiGon@2024',
+        username: '910000888297',
+        password: 'HoangAnh@2024',
+        isActive: true,
+      },
+      {
+        name: 'Công ty TNHH Sản xuất Thực phẩm Xanh',
+        taxCode: '910000888298',
+        enterpriseType: types.find((t) => t.code === 'TNHH'),
+        industry: industries.find((i) => i.code === 'LV4-4'),
+        email: 'xanh@thucpham.vn',
+        phone: '02838282894',
+        address: '67 Võ Văn Tần, Quận 3',
+        province,
+        ward: wards[3],
+        username: '910000888298',
+        password: 'Xanh@123',
         isActive: true,
       },
     ];
@@ -434,5 +419,23 @@ export async function seed(dataSource: DataSource): Promise<void> {
       await enterpriseRepo.save(enterpriseRepo.create(e as any));
     }
     console.log('✅ Seeded enterprises');
+
+    // Also create User records so enterprises can log in
+    const userCount = await userRepo.count();
+    if (userCount < 5) {
+      for (const e of enterprises) {
+        const exists = await userRepo.findOne({ where: { username: e.username } });
+        if (exists) continue;
+        const user = userRepo.create({
+          username: e.username,
+          passwordHash: await bcrypt.hash(e.password, 10),
+          fullName: e.name,
+          email: e.email,
+          isActive: true,
+        });
+        await userRepo.save(user);
+      }
+      console.log('✅ Seeded enterprise user accounts');
+    }
   }
 }

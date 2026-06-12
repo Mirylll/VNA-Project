@@ -44,7 +44,7 @@ export class UsersService {
 
   async create(dto: CreateUserDto): Promise<User> {
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const { roleId, titleId, provinceId, districtId, ...rest } = dto;
+    const { roleId, titleId, titleName, provinceId, districtId, ...rest } = dto;
     const user = this.userRepo.create({ ...rest, passwordHash });
 
     if (roleId) {
@@ -54,6 +54,13 @@ export class UsersService {
     if (titleId) {
       const title = await this.titleRepo.findOne({ where: { id: titleId as any } });
       if (title) user.title = title;
+    } else if (titleName) {
+      let title = await this.titleRepo.findOne({ where: { name: titleName } });
+      if (!title) {
+        title = this.titleRepo.create({ name: titleName });
+        title = await this.titleRepo.save(title);
+      }
+      user.title = title;
     }
     if (provinceId) {
       const province = await this.provinceRepo.findOne({ where: { id: provinceId as any } });
@@ -69,7 +76,7 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
-    const { roleId, titleId, provinceId, districtId, password, ...rest } = dto;
+    const { roleId, titleId, titleName, provinceId, districtId, password, ...rest } = dto;
 
     Object.assign(user, rest);
 
@@ -95,6 +102,17 @@ export class UsersService {
       } else {
         const title = await this.titleRepo.findOne({ where: { id: titleId as any } });
         if (title) user.title = title;
+      }
+    } else if (titleName !== undefined) {
+      if (titleName === null) {
+        user.title = undefined;
+      } else {
+        let title = await this.titleRepo.findOne({ where: { name: titleName } });
+        if (!title) {
+          title = this.titleRepo.create({ name: titleName });
+          title = await this.titleRepo.save(title);
+        }
+        user.title = title;
       }
     }
 

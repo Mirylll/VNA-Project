@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, RefreshCw, ChevronDown } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import IndustryModal from '@/libs/tts/components/IndustryModal';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
@@ -43,6 +43,7 @@ export default function IndustryListPage() {
   const [filterCode, setFilterCode] = useState('');
   const [filterName, setFilterName] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -82,6 +83,8 @@ export default function IndustryListPage() {
     if (c && !item.code.toLowerCase().includes(c)) return false;
     if (n && !item.name.toLowerCase().includes(n)) return false;
     if (l && String(item.level) !== l) return false;
+    if (filterStatus === 'active' && !item.isActive) return false;
+    if (filterStatus === 'inactive' && item.isActive) return false;
     return true;
   });
 
@@ -131,6 +134,14 @@ export default function IndustryListPage() {
     const token = getAuthToken();
     if (!token) return;
 
+    // Optimistic update: cập nhật ngay trong state local, không re-fetch
+    const newIsActive = !item.isActive;
+    setItems((prev: any[]) =>
+      prev.map((i: any) =>
+        i.id === item.id ? { ...i, isActive: newIsActive } : i,
+      ),
+    );
+
     try {
       await fetch(`${baseUrl}/industries/${item.id}`, {
         method: 'PUT',
@@ -138,10 +149,15 @@ export default function IndustryListPage() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ isActive: !item.isActive }),
+        body: JSON.stringify({ isActive: newIsActive }),
       });
-      fetchItems();
     } catch {
+      // Rollback nếu API lỗi
+      setItems((prev: any[]) =>
+        prev.map((i: any) =>
+          i.id === item.id ? { ...i, isActive: item.isActive } : i,
+        ),
+      );
       setError('Lỗi cập nhật trạng thái');
     }
   }
@@ -220,7 +236,7 @@ export default function IndustryListPage() {
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Cấp
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[160px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </th>
             </tr>
@@ -230,7 +246,7 @@ export default function IndustryListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo mã ngành..."
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -238,7 +254,7 @@ export default function IndustryListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tên ngành..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -246,13 +262,26 @@ export default function IndustryListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo cấp..."
                   value={filterLevel}
                   onChange={(e) => setFilterLevel(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
-              <td className="px-3 py-2" />
+              <td className="px-3 py-2">
+                <div className="relative">
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="">Lọc theo trạng thái</option>
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Không sử dụng</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                </div>
+              </td>
             </tr>
           </thead>
           <tbody>
