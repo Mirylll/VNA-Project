@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from '../dto/login.dto';
 import { OtpService } from './otp.service';
+import { getEffectivePermissions } from '../../../libs/core/utils/effective-permissions';
 
 @Injectable()
 export class AuthService {
@@ -34,7 +35,10 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const { username, password } = dto;
-    const user = await this.userRepository.findOne({ where: { username } });
+    const user = await this.userRepository.findOne({
+      where: { username },
+      relations: ['role', 'role.permissions', 'title'],
+    });
     if (!user) {
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại');
     }
@@ -45,10 +49,12 @@ export class AuthService {
     if (!matched) {
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại');
     }
-    await this.userRepository.save(user);
-    const payload = { sub: user.id, username: user.username };
+    const payload = { sub: user.id, username: user.username, role: user.role?.code };
     const accessToken = this.jwtService.sign(payload);
-    return { accessToken, user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName } };
+    return {
+      accessToken,
+      user: this.toAuthUser(user),
+    };
   }
 
   async requestChangeEmailOtp(userId: string, newEmail: string) {
@@ -83,23 +89,42 @@ export class AuthService {
     if (data.fullName !== undefined) user.fullName = data.fullName;
     if (data.email !== undefined) user.email = data.email;
     await this.userRepository.save(user);
-    return { message: 'Cập nhật thông tin thành công', user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl, titleName: user.title?.name || null, roleName: user.role?.name || null } };
+    return { message: 'Cập nhật thông tin thành công', user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName } };
   }
 
   async getProfile(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['title', 'role'],
+      relations: ['role', 'role.permissions', 'title'],
     });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
+    return this.toAuthUser(user);
+  }
+
+  private toAuthUser(user: User) {
     return {
       id: user.id,
       username: user.username,
       email: user.email,
       fullName: user.fullName,
-      avatarUrl: user.avatarUrl,
-      titleName: user.title?.name || null,
-      roleName: user.role?.name || null,
+      role: user.role
+        ? {
+            id: user.role.id,
+            code: user.role.code,
+            name: user.role.name,
+          }
+        : null,
+      title: user.title
+        ? {
+            id: user.title.id,
+            name: user.title.name,
+          }
+        : null,
+      permissions: getEffectivePermissions(user).map((permission) => ({
+        id: permission.id,
+        code: permission.code,
+        name: permission.name,
+      })) || [],
     };
   }
 
@@ -127,14 +152,12 @@ export class AuthService {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     console.log(`[DEV] Generated OTP for ${email}: ${otp}`);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-    
     const context = user
       ? { fullName: user.fullName, username: user.username, isRegister: false }
       : { fullName: 'Quý đối tác', username: email, isRegister: true };
-
+    
     try {
       await this.otpService.sendOtpViaEmail(email, otp, context);
-      // Lưu OTP vào bộ nhớ tạm (global store)
       const otpStore = (global as any).otpStore || {};
       otpStore[email] = { code: otp, expiresAt };
       (global as any).otpStore = otpStore;
@@ -163,6 +186,9 @@ export class AuthService {
     if (otpData.code !== otp) {
       throw new BadRequestException('Mã OTP không đúng');
     }
+    
+    delete otpStore[email];
+    (global as any).otpStore = otpStore;
     
     return { success: true, message: 'Xác minh thành công' };
   }
@@ -197,7 +223,6 @@ export class AuthService {
     return { success: true, message: 'Mật khẩu đã được đặt lại thành công' };
   }
 
-  // ── Đăng ký tài khoản doanh nghiệp ────────────────────────────────────────────
   async registerEnterprise(data: {
     mst: string;
     tenDN: string;
@@ -213,7 +238,6 @@ export class AuthService {
     phuongXaTen?: string;
     diaDiemKD?: string;
   }) {
-    // 1. Kiểm tra OTP hợp lệ
     const otpStore = (global as any).otpStore || {};
     const otpData = otpStore[data.email];
 
@@ -229,33 +253,28 @@ export class AuthService {
       throw new BadRequestException('Mã OTP không đúng');
     }
 
-    // 2. Kiểm tra MST đã tồn tại chưa
     const existingByUsername = await this.userRepository.findOne({ where: { username: data.mst } });
     if (existingByUsername) {
       throw new BadRequestException('Mã số thuế này đã được đăng ký tài khoản');
     }
 
-    // 3. Kiểm tra email đã tồn tại chưa
     const existingByEmail = await this.userRepository.findOne({ where: { email: data.email } });
     if (existingByEmail) {
       throw new BadRequestException('Email này đã được đăng ký tài khoản');
     }
 
-    // 4. Tạo tài khoản với mật khẩu mặc định 12345678
-    const DEFAULT_PASSWORD = '12345678';
-    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+    const defaultPassword = '12345678';
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
-    const fullName = data.tenDN || data.mst;
     const user = this.userRepository.create({
       username: data.mst,
       passwordHash,
-      fullName,
+      fullName: data.tenDN || data.mst,
       email: data.email,
       isActive: true,
     });
     await this.userRepository.save(user);
 
-    // 5. Xóa OTP khỏi store
     delete otpStore[data.email];
     (global as any).otpStore = otpStore;
 
@@ -264,7 +283,7 @@ export class AuthService {
       message: 'Tài khoản doanh nghiệp đã được tạo thành công',
       account: {
         username: data.mst,
-        defaultPassword: DEFAULT_PASSWORD,
+        defaultPassword,
       },
     };
   }

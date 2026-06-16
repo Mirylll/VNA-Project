@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings, ChevronDown } from 'lucide-react';
-import { clearAuthToken, getAuthToken } from '@/libs/core/utils/auth-token';
+import { clearAuthToken, getAuthToken, getAuthUser, type AuthUser } from '@/libs/core/utils/auth-token';
 
 interface SubMenuItem {
   label: string;
   id: string;
   route: string;
+  permission?: string;
 }
 
 interface MenuGroup {
@@ -17,22 +18,17 @@ interface MenuGroup {
   items: SubMenuItem[];
 }
 
-const baseUrl =
-  typeof window !== 'undefined'
-    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    : '';
-
 const menuGroups: MenuGroup[] = [
   {
     label: 'Quản trị phần mềm',
     id: 'quan-tri-phan-mem',
     items: [
-      { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions' },
-      { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles' },
-      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung', route: '/admin/users' },
+      { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions', permission: 'ADMIN_C_PERMISSION_VIEW' },
+      { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles', permission: 'ADMIN_C_ROLE_VIEW' },
+      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung', route: '/admin/users', permission: 'ADMIN_C_USER_VIEW' },
       { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep', route: '/admin/enterprise-types' },
       { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh', route: '/admin/industries' },
-      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep', route: '/admin/enterprises' },
+      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep', route: '/admin/enterprises', permission: 'ADMIN_C_ENTERPRISE_VIEW' },
       { label: 'Kỳ báo cáo', id: 'ky-bao-cao', route: '/admin/report-periods' },
     ],
   },
@@ -65,16 +61,6 @@ function getIdFromPath(path: string): string {
   return reverse[path] || '';
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
-
 export default function Sidebar() {
   const router = useRouter();
   const [openMenu, setOpenMenu] = useState(false);
@@ -83,41 +69,17 @@ export default function Sidebar() {
   ]);
   const [activeItem, setActiveItem] = useState('');
   const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [pathname, setPathname] = useState<string>('');
-  const [user, setUser] = useState<{
-    id: string;
-    fullName: string;
-    avatarUrl?: string;
-    titleName?: string;
-  } | null>(null);
-  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const t = getAuthToken();
-      setToken(t);
+      setToken(getAuthToken());
+      setUser(getAuthUser());
       const p = window.location.pathname;
       setPathname(p);
       const id = getIdFromPath(p);
       if (id) setActiveItem(id);
-
-      if (t) {
-        fetch(`${baseUrl}/auth/me`, {
-          headers: { authorization: `Bearer ${t}` },
-        }).then((res) => {
-          if (res.status === 401) {
-            clearAuthToken();
-            window.location.href = '/login';
-            return null;
-          }
-          return res.ok ? res.json() : null;
-        }).then((data) => {
-          if (data) {
-            setAvatarError(false);
-            setUser(data);
-          }
-        }).catch(() => {});
-      }
     }
   }, []);
 
@@ -136,9 +98,13 @@ export default function Sidebar() {
 
   if (!token || pathname === '/' || pathname.startsWith('/login')) return null;
 
-  const initials = user ? getInitials(user.fullName) : '??';
-  const displayName = user?.fullName || '...';
-  const displayTitle = user?.titleName || '...';
+  const permissionCodes = new Set(user?.permissions?.map((permission) => permission.code) || []);
+  const visibleMenuGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || permissionCodes.has(item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 text-white shadow-lg bg-[#112D75]">
@@ -160,7 +126,7 @@ export default function Sidebar() {
 
         {/* MAIN MENU */}
         <nav className="flex-1 overflow-auto py-4 text-sm">
-          {menuGroups.map((group) => (
+          {visibleMenuGroups.map((group) => (
             <div key={group.id} className="mb-2">
               {/* Parent button */}
               <button
@@ -210,24 +176,15 @@ export default function Sidebar() {
         {/* BOTTOM USER SECTION */}
         <div className="px-4 py-3 border-t border-white/10">
           <div className="flex items-center gap-3 relative">
-            {user?.avatarUrl && !avatarError ? (
-              <img
-                src={`${baseUrl}${user.avatarUrl}`}
-                alt="Avatar"
-                onError={() => setAvatarError(true)}
-                className="h-10 w-10 rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {initials}
-              </div>
-            )}
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              PT
+            </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm truncate text-white">
-                {displayName}
+                {user?.fullName || user?.username || 'Người dùng'}
               </div>
               <div className="text-xs text-blue-200 truncate">
-                {displayTitle}
+                {user?.role?.name || 'Tài khoản'}
               </div>
             </div>
             <button
@@ -251,7 +208,7 @@ export default function Sidebar() {
                       router.push('/admin/account');
                     }}
                   >
-                    <img src="/icons/profile.svg" alt="" className="w-4 h-4" />
+                    <span>👤</span>
                     <span className="text-sm">Thông tin tài khoản</span>
                   </button>
                   <button
@@ -261,7 +218,7 @@ export default function Sidebar() {
                       setOpenMenu(false);
                     }}
                   >
-                    <img src="/icons/key.svg" alt="" className="w-4 h-4" />
+                    <span>🔑</span>
                     <span className="text-sm">Đổi mật khẩu</span>
                   </button>
                   <button
@@ -271,7 +228,7 @@ export default function Sidebar() {
                       location.href = '/login';
                     }}
                   >
-                    <img src="/icons/log-out.svg" alt="" className="w-4 h-4" />
+                    <span>🚪</span>
                     <span className="text-sm">Đăng xuất</span>
                   </button>
                 </div>

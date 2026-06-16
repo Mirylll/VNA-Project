@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, RefreshCw } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import RoleModal from './RoleModal';
 import SelectionBar from './SelectionBar';
-import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -30,7 +29,10 @@ export default function RoleListPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const canCreate = hasPermission('ADMIN_C_ROLE_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_ROLE_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_ROLE_DELETE');
+  const canAssignPermissions = hasPermission('ADMIN_C_PERMISSION_ASSIGN');
 
   function fetchRoles() {
     setLoading(true);
@@ -68,11 +70,13 @@ export default function RoleListPage() {
     : roles;
 
   function handleAddNew() {
+    if (!canCreate) return;
     setEditingRole(null);
     setShowModal(true);
   }
 
   function handleEdit(role: any) {
+    if (!canUpdate && !canAssignPermissions) return;
     setEditingRole({
       id: role.id,
       code: role.code,
@@ -89,11 +93,13 @@ export default function RoleListPage() {
   }) {
     const token = getAuthToken();
     if (!token) return;
+    if (editingRole?.id && !canUpdate && !canAssignPermissions) return;
+    if (!editingRole?.id && !canCreate) return;
 
     try {
       let roleId = editingRole?.id;
 
-      if (roleId) {
+      if (roleId && canUpdate) {
         await fetch(`${baseUrl}/roles/${roleId}`, {
           method: 'PUT',
           headers: {
@@ -115,14 +121,16 @@ export default function RoleListPage() {
         roleId = created.id;
       }
 
-      await fetch(`${baseUrl}/roles/${roleId}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ permissionIds: data.permissionIds }),
-      });
+      if (canAssignPermissions) {
+        await fetch(`${baseUrl}/roles/${roleId}/permissions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ permissionIds: data.permissionIds }),
+        });
+      }
 
       setShowModal(false);
       fetchRoles();
@@ -132,9 +140,13 @@ export default function RoleListPage() {
   }
 
   async function handleDeleteSelected() {
-    setDeleteConfirm(false);
     const token = getAuthToken();
     if (!token) return;
+    if (!canDelete) return;
+
+    const count = selectedIds.length;
+    if (!window.confirm(`Bạn có chắc chắn muốn xoá ${count} vai trò đã chọn?`))
+      return;
 
     const results = await Promise.allSettled(
       selectedIds.map((id) =>
@@ -147,7 +159,6 @@ export default function RoleListPage() {
 
     const succeeded = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.filter((r) => r.status === 'rejected').length;
-    const count = selectedIds.length;
 
     setSelectedIds([]);
     fetchRoles();
@@ -170,13 +181,15 @@ export default function RoleListPage() {
           Danh sách vai trò
         </h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -192,12 +205,14 @@ export default function RoleListPage() {
                     selectedIds.length === filteredRoles.length
                   }
                   onChange={(e) => {
+                    if (!canDelete) return;
                     if (e.target.checked) {
                       setSelectedIds(filteredRoles.map((r: any) => r.id));
                     } else {
                       setSelectedIds([]);
                     }
                   }}
+                  disabled={!canDelete}
                   className="accent-blue-600"
                 />
               </th>
@@ -215,7 +230,7 @@ export default function RoleListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder="Tìm theo mã vai trò..."
+                  placeholder=""
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -223,7 +238,7 @@ export default function RoleListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder="Tìm theo tên vai trò..."
+                  placeholder=""
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -276,22 +291,26 @@ export default function RoleListPage() {
                       type="checkbox"
                       checked={selectedIds.includes(role.id)}
                       onChange={() => {
+                        if (!canDelete) return;
                         setSelectedIds((prev) =>
                           prev.includes(role.id)
                             ? prev.filter((id) => id !== role.id)
                             : [...prev, role.id],
                         );
                       }}
+                      disabled={!canDelete}
                       className="accent-blue-600"
                     />
                   </td>
                   <td className="px-2 py-3">
-                    <button
-                      onClick={() => handleEdit(role)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Pencil size={15} />
-                    </button>
+                    {(canUpdate || canAssignPermissions) && (
+                      <button
+                        onClick={() => handleEdit(role)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    )}
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-700 font-mono">
                     {role.code}
@@ -306,24 +325,19 @@ export default function RoleListPage() {
         </table>
       </div>
 
-      <SelectionBar
-        selectedCount={selectedIds.length}
-        onClear={() => setSelectedIds([])}
-        onDelete={() => setDeleteConfirm(true)}
-      />
+      {canDelete && (
+        <SelectionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onDelete={handleDeleteSelected}
+        />
+      )}
 
       <RoleModal
         open={showModal}
         onClose={() => setShowModal(false)}
         onSave={handleSave}
         initialData={editingRole}
-      />
-
-      <ConfirmDeleteDialog
-        open={deleteConfirm}
-        message={`Xoá ${selectedIds.length} vai trò đã chọn?`}
-        onConfirm={handleDeleteSelected}
-        onCancel={() => setDeleteConfirm(false)}
       />
     </div>
   );

@@ -13,11 +13,12 @@ import {
   Settings,
   UserRound,
 } from 'lucide-react';
-import { clearAuthToken } from '@/libs/core/utils/auth-token';
+import { clearAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
 
 export default function EnterpriseSidebar() {
   const router = useRouter();
   const [openUserMenu, setOpenUserMenu] = useState(false);
+  const user = getAuthUser();
 
   function openProfile(action?: string) {
     window.dispatchEvent(new CustomEvent('open-user-popup', { detail: { action } }));
@@ -91,7 +92,7 @@ export default function EnterpriseSidebar() {
             className="h-9 w-9 rounded-full border border-white/30 bg-white object-cover"
           />
           <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            Phan Thanh Tùng
+            {user?.fullName || user?.username || 'Doanh nghiệp'}
           </span>
           <button
             type="button"
@@ -117,7 +118,7 @@ export default function EnterpriseSidebar() {
                   className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50"
                   onClick={() => {
                     setOpenUserMenu(false);
-                    router.push('/admin/account');
+                    router.push('/enterprise/company-info');
                   }}
                 >
                   <UserRound size={17} className="text-slate-500" />
