@@ -24,8 +24,8 @@ const baseUrl =
 
 const menuGroups: MenuGroup[] = [
   {
-    label: 'Quản trị phần mềm',
-    id: 'quan-tri-phan-mem',
+    label: 'Hệ thống',
+    id: 'he-thong',
     items: [
       { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions' },
       { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles' },
@@ -79,7 +79,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [openMenu, setOpenMenu] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
-    'quan-tri-phan-mem',
+    'he-thong',
   ]);
   const [activeItem, setActiveItem] = useState('');
   const [token, setToken] = useState<string | null>(null);
