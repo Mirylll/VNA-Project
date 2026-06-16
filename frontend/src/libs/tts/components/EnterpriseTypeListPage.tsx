@@ -131,6 +131,14 @@ export default function EnterpriseTypeListPage() {
     const token = getAuthToken();
     if (!token) return;
 
+    // Optimistic update: cập nhật ngay trong state local, không re-fetch
+    const newIsActive = !item.isActive;
+    setItems((prev: any[]) =>
+      prev.map((i: any) =>
+        i.id === item.id ? { ...i, isActive: newIsActive } : i,
+      ),
+    );
+
     try {
       await fetch(`${baseUrl}/enterprise-types/${item.id}`, {
         method: 'PUT',
@@ -138,10 +146,15 @@ export default function EnterpriseTypeListPage() {
           'Content-Type': 'application/json',
           authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ isActive: !item.isActive }),
+        body: JSON.stringify({ isActive: newIsActive }),
       });
-      fetchItems();
     } catch {
+      // Rollback nếu API lỗi
+      setItems((prev: any[]) =>
+        prev.map((i: any) =>
+          i.id === item.id ? { ...i, isActive: item.isActive } : i,
+        ),
+      );
       setError('Lỗi cập nhật trạng thái');
     }
   }
@@ -217,7 +230,7 @@ export default function EnterpriseTypeListPage() {
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Tên loại hình
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[160px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </th>
             </tr>
@@ -227,7 +240,7 @@ export default function EnterpriseTypeListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo mã loại hình..."
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -235,7 +248,7 @@ export default function EnterpriseTypeListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tên loại hình..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -248,8 +261,8 @@ export default function EnterpriseTypeListPage() {
                     onChange={(e) => setFilterStatus(e.target.value)}
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
-                    <option value="" />
-                    <option value="active">Sử dụng</option>
+                    <option value="">Lọc theo trạng thái</option>
+                    <option value="active">Hoạt động</option>
                     <option value="inactive">Không sử dụng</option>
                   </select>
                 </div>

@@ -253,7 +253,44 @@ export default function EnterpriseStep2({
         </div>
       </div>
 
-
+      <div className="mt-5 mb-6">
+        <h3 className="text-base font-bold text-gray-800 mb-4">File đính kèm</h3>
+        <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Tên file</th>
+              <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Thông tin file</th>
+              <th className="text-right px-4 py-2.5 text-gray-600 font-medium">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {["Giấy phép kinh doanh", "Giấy tờ khác"].map((label, i) => {
+              const f = formData.attachments.find(a => a.name === label);
+              const hasFile = !!(f?.file || f?.fileName);
+              return (
+                <tr key={i} className="border-t border-gray-200 bg-white">
+                  <td className="px-4 py-3 text-gray-700">{label}</td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {hasFile ? (f?.fileName || f?.file?.name) : <span className="italic text-gray-300">Chưa có file</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {hasFile && (
+                      <button
+                        type="button"
+                        onClick={() => f?.url && window.open(f.url, '_blank')}
+                        title="Xem file"
+                        className="text-gray-400 hover:text-blue-600 transition p-1 inline-flex"
+                      >
+                        <EyeIcon />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
         <button
@@ -282,5 +319,14 @@ export default function EnterpriseStep2({
         </button>
       </div>
     </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
   );
 }

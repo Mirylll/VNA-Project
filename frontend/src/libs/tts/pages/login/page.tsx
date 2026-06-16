@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { getAuthToken } from "@/libs/core/utils/auth-token";
 import BusinessRegistrationModal from "@/libs/tts/components/BusinessRegistrationModal";
-import SuccessDialog from "@/libs/tts/components/SuccessDialog";
+import SuccessToast from "@/libs/tts/components/SuccessToast";
 
 const baseUrl =
   typeof window !== "undefined"
@@ -37,13 +37,15 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(300);
   const [canResend, setCanResend] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const resendTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [loading, setLoading] = useState(false);
 
-  const [successDialog, setSuccessDialog] = useState({ open: false, message: "" });
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
 
   // ===== CHECK LOGIN =====
   useEffect(() => {
@@ -95,9 +97,11 @@ export default function LoginPage() {
         sessionStorage.setItem("token", data.accessToken);
       }
 
-      setMessage("Đăng nhập thành công");
-
-      router.push("/admin/permissions");
+      setToastMsg("Đăng nhập thành công");
+      setToastVisible(true);
+      setTimeout(() => {
+        router.push("/admin/permissions");
+      }, 1500);
     } catch (error) {
       setMessage("Lỗi kết nối backend");
     } finally {
@@ -147,19 +151,22 @@ export default function LoginPage() {
   };
 
   const startCountdown = () => {
-    setCountdown(60);
+    setCountdown(300);
     setCanResend(false);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (resendTimerRef.current) clearInterval(resendTimerRef.current);
     timerRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(timerRef.current!);
-          setCanResend(true);
           return 0;
         }
         return c - 1;
       });
     }, 1000);
+    resendTimerRef.current = setTimeout(() => {
+      setCanResend(true);
+    }, 30000);
   };
 
   const isValidEmail = (email: string) =>
@@ -188,7 +195,8 @@ export default function LoginPage() {
       await sendForgotPasswordOtp(email);
 
       startCountdown();
-      setSuccessDialog({ open: true, message: "Mã OTP đã được gửi đến email của bạn" });
+      setToastMsg("Mã OTP đã được gửi đến email của bạn");
+      setToastVisible(true);
 
       setOtp("");
       setNewPassword("");
@@ -232,7 +240,14 @@ export default function LoginPage() {
 
       await resetPasswordApi();
 
-      setSuccessDialog({ open: true, message: "Mật khẩu đã được đặt lại thành công" });
+      setToastMsg("Mật khẩu đã được đặt lại thành công");
+      setToastVisible(true);
+      setTimeout(() => {
+        setFormView("login");
+        setOtp("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }, 2500);
 
     } catch (e: any) {
       setResetError(e?.message || "Lỗi khôi phục mật khẩu");
@@ -241,15 +256,8 @@ export default function LoginPage() {
     }
   };
 
-  const handleCloseSuccessDialog = () => {
-    const wasReset = successDialog.message === "Mật khẩu đã được đặt lại thành công";
-    setSuccessDialog({ open: false, message: "" });
-    if (wasReset) {
-      setFormView("login");
-      setOtp("");
-      setNewPassword("");
-      setConfirmPassword("");
-    }
+  const handleCloseToast = () => {
+    setToastVisible(false);
   };
 
   return (
@@ -268,12 +276,12 @@ export default function LoginPage() {
       </div>
 
       <div className="flex w-full items-center justify-center bg-white p-4 lg:w-1/2">
-        <div className="w-full max-w-md rounded-xl bg-white px-8 pb-8 pt-6 shadow-sm">
-          <div className="mb-4 flex justify-center">
-            <img src="/emblemofvietnam.png" alt="Emblem of Vietnam" width={72} height={72} className="h-auto w-auto" />
+        <div className="w-full max-w-md rounded-xl bg-white px-8 pb-8 pt-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="mb-3 flex justify-center">
+            <img src="/emblemofvietnam.png" alt="Emblem of Vietnam" width={108} height={108} />
           </div>
 
-          <h1 className="mb-6 text-center text-base font-bold leading-relaxed text-slate-800 md:text-lg">
+          <h1 className="mb-6 text-center text-sm font-medium leading-relaxed text-slate-600 md:text-base">
             Phần Mềm Quản Lý - Tạo Lập Cơ Sở Dữ Liệu An Toàn Vệ Sinh Lao Động
           </h1>
 
@@ -305,9 +313,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <img src={showPassword ? '/icons/eye-off.svg' : '/icons/eye.svg'} alt="toggle" />
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 
@@ -339,7 +347,7 @@ export default function LoginPage() {
               >
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
-              {message ? (
+              {message && !toastVisible ? (
                 <p className="mb-3 text-sm text-center text-red-600">{message}</p>
               ) : null}
 
@@ -452,10 +460,9 @@ export default function LoginPage() {
               </div>
 
               <div className="relative mb-4">
-                <input
-                  type="text"
-                  placeholder="122456"
-                  value={otp}
+                  <input
+                    type="text"
+                    value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   maxLength={6}
                   inputMode="numeric"
@@ -467,7 +474,7 @@ export default function LoginPage() {
               </div>
 
               <p className="mb-1 text-center text-sm font-semibold text-blue-600">
-                00:{String(countdown).padStart(2, "0")}
+                {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
               </p>
               <p className="mb-6 text-center text-xs text-slate-400">
                 Chưa nhận được mã?{" "}
@@ -513,11 +520,11 @@ export default function LoginPage() {
         <BusinessRegistrationModal onClose={() => setShowRegModal(false)} />
       )}
 
-      {/* Success Dialog */}
-      <SuccessDialog
-        open={successDialog.open}
-        message={successDialog.message}
-        onClose={handleCloseSuccessDialog}
+      {/* Success Toast */}
+      <SuccessToast
+        message={toastMsg}
+        visible={toastVisible}
+        onClose={handleCloseToast}
       />
     </div>
   );
