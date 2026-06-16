@@ -187,7 +187,7 @@ export default function PermissionListPage({
               </td>
               <td className="px-4 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo mã quyền..."
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -195,7 +195,7 @@ export default function PermissionListPage({
               </td>
               <td className="px-4 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tên quyền..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"

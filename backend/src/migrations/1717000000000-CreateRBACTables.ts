@@ -106,9 +106,7 @@ export class CreateRBACTables1717000000000 implements MigrationInterface {
       true,
     );
 
-    // 5. users (re-create with UUID PK)
-    await queryRunner.dropTable('users');
-
+    // 5. users (UUID PK)
     await queryRunner.createTable(
       new Table({
         name: 'users',

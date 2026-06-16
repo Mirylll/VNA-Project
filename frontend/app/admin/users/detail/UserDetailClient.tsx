@@ -2,32 +2,52 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { Eye, EyeOff, User } from 'lucide-react';
+import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
+import DatePicker from '@/libs/tts/components/DatePicker';
+
+interface TitleItem {
+  id: number;
+  name: string;
+}
+
+interface RoleItem {
+  id: number;
+  name: string;
+}
+
+interface DistrictItem {
+  id: number;
+  name: string;
+}
 
 interface UserFormData {
   username: string;
+  password: string;
   fullName: string;
   dateOfBirth: string;
   gender: string;
-  position: string;
-  role: string;
+  titleName: string;
+  roleId: number | '';
   email: string;
-  province: string;
-  ward: string;
+  provinceId: number;
+  districtId: number | '';
   address: string;
   isActive: boolean;
 }
 
 const emptyForm: UserFormData = {
   username: '',
+  password: '',
   fullName: '',
   dateOfBirth: '',
   gender: 'Nam',
-  position: '',
-  role: 'Quản trị viên',
+  titleName: '',
+  roleId: '',
   email: '',
-  province: 'Thành phố Hồ Chí Minh',
-  ward: 'Phường Gò Vấp',
+  provinceId: 1,
+  districtId: '',
   address: '',
   isActive: true,
 };
@@ -47,44 +67,89 @@ export default function UserDetailClient({
   const [formData, setFormData] = useState<UserFormData>(emptyForm);
   const [showSuccess, setShowSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState('');
+
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [districts, setDistricts] = useState<DistrictItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const t = getAuthToken();
-      setToken(t);
-      if (!t) {
-        router.push('/login');
-        return;
-      }
+    return () => {
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    };
+  }, [pendingPreview]);
 
-      if (!isAdd) {
-        fetch(`${baseUrl}/users/${searchParams.id}`, {
-          headers: { authorization: `Bearer ${t}` },
-        })
-          .then((res) => (res.ok ? res.json() : null))
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const t = getAuthToken();
+    if (!t) {
+      router.push('/login');
+      return;
+    }
+    setToken(t);
+
+    const headers = { authorization: `Bearer ${t}` };
+
+    const promises: Promise<void>[] = [
+      fetch(`${baseUrl}/roles`, { headers })
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setRoles),
+      fetch(`${baseUrl}/districts?provinceId=1`, { headers })
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setDistricts),
+    ];
+
+    if (!isAdd) {
+      promises.push(
+        fetch(`${baseUrl}/users/${searchParams.id}`, { headers })
+          .then((r) => (r.ok ? r.json() : null))
           .then((user) => {
             if (!user) return;
+            setAvatarUrl(user.avatarUrl || null);
             setFormData({
               username: user.username || '',
+              password: '',
               fullName: user.fullName || '',
               dateOfBirth: user.dateOfBirth || '',
               gender: user.gender || 'Nam',
-              position: user.position || '',
-              role: user.role || 'Quản trị viên',
+              titleName: user.title?.name || '',
+              roleId: user.role?.id ?? '',
               email: user.email || '',
-              province: user.province || 'Thành phố Hồ Chí Minh',
-              ward: user.ward || 'Phường Gò Vấp',
+              provinceId: user.province?.id ?? 1,
+              districtId: user.district?.id ?? '',
               address: user.address || '',
               isActive: user.isActive ?? true,
             });
-          })
-          .catch(() => undefined);
-      }
+          }),
+      );
     }
+
+    Promise.all(promises)
+      .catch(() => setFetchError(true))
+      .finally(() => setLoading(false));
   }, [router, isAdd, searchParams.id]);
 
   if (!token) return null;
+  if (loading) {
+    return <div className="p-6 text-gray-500 text-sm">Đang tải...</div>;
+  }
+  if (fetchError) {
+    return (
+      <div className="p-6 text-red-500 text-sm">
+        Không thể tải dữ liệu. Vui lòng thử lại.
+      </div>
+    );
+  }
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -95,19 +160,55 @@ export default function UserDetailClient({
       [name]:
         type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+  };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!formData.username.trim()) errs.username = 'Tên đăng nhập không được để trống';
+    else if (formData.username.length > 50) errs.username = 'Tên đăng nhập tối đa 50 ký tự';
+    if (!formData.fullName.trim()) errs.fullName = 'Họ và tên không được để trống';
+    else if (formData.fullName.length > 150) errs.fullName = 'Họ và tên tối đa 150 ký tự';
+    if (isAdd) {
+      if (!formData.password) errs.password = 'Mật khẩu không được để trống';
+      else if (formData.password.length < 6) errs.password = 'Mật khẩu tối thiểu 6 ký tự';
+      else if (formData.password.length > 100) errs.password = 'Mật khẩu tối đa 100 ký tự';
+    }
+    if (!formData.email.trim()) {
+      errs.email = 'Email không được để trống';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errs.email = 'Email không hợp lệ';
+    }
+    if (formData.dateOfBirth && new Date(formData.dateOfBirth) > new Date()) {
+      errs.dateOfBirth = 'Ngày tháng năm sinh không được là ngày tương lai';
+    }
+    if (!formData.titleName.trim()) errs.titleName = 'Vui lòng nhập chức danh';
+    if (formData.roleId === '') errs.roleId = 'Vui lòng chọn vai trò';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     try {
-      const body = {
+      const body: Record<string, any> = {
         username: formData.username,
         fullName: formData.fullName,
         email: formData.email,
         isActive: formData.isActive,
+        dateOfBirth: formData.dateOfBirth || null,
+        gender: formData.gender,
+        address: formData.address || null,
       };
 
+      if (formData.roleId !== '') body.roleId = Number(formData.roleId);
+      if (formData.titleName.trim()) body.titleName = formData.titleName.trim();
+      if (formData.provinceId) body.provinceId = Number(formData.provinceId);
+      if (formData.districtId !== '') body.districtId = Number(formData.districtId);
+
       if (isAdd) {
+        body.password = formData.password;
         const res = await fetch(`${baseUrl}/users`, {
           method: 'POST',
           headers: {
@@ -117,6 +218,18 @@ export default function UserDetailClient({
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error('Lỗi tạo người dùng');
+
+        const created = await res.json();
+
+        if (pendingFile) {
+          const fd = new FormData();
+          fd.append('file', pendingFile);
+          await fetch(`${baseUrl}/users/${created.id}/avatar`, {
+            method: 'PATCH',
+            headers: { authorization: `Bearer ${token}` },
+            body: fd,
+          });
+        }
       } else {
         await fetch(`${baseUrl}/users/${searchParams.id}`, {
           method: 'PUT',
@@ -140,6 +253,75 @@ export default function UserDetailClient({
     }
   };
 
+  const fieldClass = (field: string, extra = '') =>
+    `w-full rounded-lg border px-3 py-2 text-sm text-slate-700 outline-none transition focus:ring-2 ${
+      errors[field]
+        ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+        : 'border-slate-200 focus:border-blue-500 focus:ring-blue-200'
+    } ${extra}`;
+
+  const labelClass = 'absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400';
+
+  const errMsg = (field: string) =>
+    errors[field] ? <p className="text-red-500 text-xs mt-1">{errors[field]}</p> : null;
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      setAvatarError('Chỉ chấp nhận file .jpeg, .jpg, .png');
+      return;
+    }
+    if (file.size > 5_242_880) {
+      setAvatarError('Kích thước file tối đa là 5MB');
+      return;
+    }
+
+    setAvatarError('');
+
+    if (isAdd) {
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+      setPendingFile(file);
+      setPendingPreview(URL.createObjectURL(file));
+      e.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const res = await fetch(`${baseUrl}/users/${searchParams.id}/avatar`, {
+        method: 'PATCH',
+        headers: { authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      if (res.status === 401) {
+        clearAuthToken();
+        router.push('/login');
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Tải ảnh thất bại');
+      }
+
+      const updated = await res.json();
+      setAvatarUrl(updated.avatarUrl);
+    } catch (err: any) {
+      setAvatarError(err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
   const handleCancel = () => {
     router.push('/admin/users');
   };
@@ -149,7 +331,7 @@ export default function UserDetailClient({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-semibold text-gray-900">
-          Chi tiết người dùng
+          {isAdd ? 'Thêm người dùng' : 'Sửa người dùng'}
         </h1>
         <div className="flex items-center gap-3">
           <button
@@ -184,8 +366,26 @@ export default function UserDetailClient({
         <div className="flex gap-8">
           {/* LEFT - Avatar */}
           <div className="flex-shrink-0 w-56">
-            <div className="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center mb-3 mx-auto text-3xl">
-              📷
+            <div className="relative w-28 h-28 mx-auto mb-3">
+              <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-slate-200 bg-gray-100 flex items-center justify-center">
+                {pendingPreview ? (
+                  <img src={pendingPreview} alt="avatar" className="w-full h-full object-cover" />
+                ) : avatarUrl ? (
+                  <img src={`${baseUrl}${avatarUrl}`} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={40} className="text-slate-400" />
+                )}
+              </div>
+              <label className="absolute bottom-0 right-0 w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors shadow-md border-2 border-white">
+                <img src="/icons/camera.svg" alt="upload" className="w-4 h-4 brightness-0 invert" />
+                <input
+                  type="file"
+                  accept=".jpeg,.jpg,.png"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  disabled={uploading}
+                />
+              </label>
             </div>
             <p className="text-center text-sm text-gray-800 font-medium mb-2">
               Tải ảnh đại diện
@@ -196,6 +396,12 @@ export default function UserDetailClient({
             <p className="text-center text-xs text-gray-500 mb-4">
               Kích thước tối đa 5 MB
             </p>
+            {uploading && (
+              <p className="text-xs text-blue-600 text-center mb-2">Đang tải...</p>
+            )}
+            {avatarError && (
+              <p className="text-xs text-red-500 text-center mb-2">{avatarError}</p>
+            )}
 
             <div className="flex items-center justify-between">
               <label className="text-sm text-gray-700 font-medium">
@@ -217,111 +423,245 @@ export default function UserDetailClient({
           {/* RIGHT - Form Fields */}
           <div className="flex-1">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Tên đăng nhập (*) {!isAdd && '🔒'}
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  disabled={!isAdd}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-                />
-              </div>
+              {/* EDIT MODE */}
+              {!isAdd ? (
+                <>
+                  {/* Row 1: Tên đăng nhập (readonly) | Họ và tên */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      readOnly
+                      placeholder="Tên đăng nhập"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 bg-gray-50 cursor-not-allowed outline-none"
+                    />
+                    <label className={labelClass}>
+                      Tên đăng nhập <span className="text-red-500">*</span>
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      maxLength={150}
+                      placeholder="Họ và tên"
+                      className={fieldClass('fullName')}
+                    />
+                    <label className={labelClass}>
+                      Họ và tên <span className="text-red-500">*</span>
+                    </label>
+                    {errMsg('fullName')}
+                  </div>
 
-              <div>
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Họ và tên (*)
-                </label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+                  {/* Row 2: Ngày tháng năm sinh | Giới tính */}
+                  <div className="relative">
+                    <DatePicker
+                      value={formData.dateOfBirth}
+                      onChange={(iso) =>
+                        setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
+                      }
+                      placeholder="dd/mm/yyyy"
+                      className={errors.dateOfBirth ? 'border-red-500' : ''}
+                    />
+                    <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
+                    {errMsg('dateOfBirth')}
+                  </div>
+                  <div className="relative">
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleInputChange}
+                      className={fieldClass('gender')}
+                    >
+                      <option value="Nam">Nam</option>
+                      <option value="Nữ">Nữ</option>
+                      <option value="Khác">Khác</option>
+                    </select>
+                    <label className={labelClass}>Giới tính</label>
+                  </div>
 
-              <div>
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Ngày tháng năm sinh
-                </label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+                  {/* Row 3: Chức danh | Vai trò */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="titleName"
+                      value={formData.titleName}
+                      onChange={handleInputChange}
+                      placeholder="Chức danh"
+                      className={fieldClass('titleName')}
+                    />
+                    <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
+                    {errMsg('titleName')}
+                  </div>
+                  <div className="relative">
+                    <select
+                      name="roleId"
+                      value={formData.roleId}
+                      onChange={handleInputChange}
+                      className={fieldClass('roleId')}
+                    >
+                      <option value="">-- Chọn vai trò --</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                    <label className={labelClass}>
+                      Vai trò <span className="text-red-500">*</span>
+                    </label>
+                    {errMsg('roleId')}
+                  </div>
 
-              <div>
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Giới tính
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option>Nam</option>
-                  <option>Nữ</option>
-                  <option>Khác</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Chức danh
-                </label>
-                <input
-                  type="text"
-                  name="position"
-                  value={formData.position}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Vai trò (*)
-                </label>
-                <select
-                  name="role"
-                  value={formData.role}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option>Quản trị viên</option>
-                  <option>Người dùng</option>
-                  <option>Nhân viên</option>
-                </select>
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-xs text-gray-600 font-medium mb-2">
-                  Email
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    disabled={!isAdd}
-                    onChange={handleInputChange}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-600"
-                  />
-                  {!isAdd && (
-                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap">
-                      Thay đổi
+                  {/* Row 4: Email — full width */}
+                  <div className="col-span-2 relative">
+                    <input
+                      type="text"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Email"
+                      className={fieldClass('email')}
+                    />
+                    <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+                    {errMsg('email')}
+                  </div>
+                </>
+              ) : (
+                /* CREATE MODE */
+                <>
+                  {/* Row 1: Tên đăng nhập | Mật khẩu */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      maxLength={50}
+                      placeholder="Tên đăng nhập"
+                      className={fieldClass('username')}
+                    />
+                    <label className={labelClass}>
+                      Tên đăng nhập <span className="text-red-500">*</span>
+                    </label>
+                    {errMsg('username')}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      maxLength={100}
+                      placeholder="Mật khẩu"
+                      className={`${fieldClass('password')} pr-10`}
+                    />
+                    <label className={labelClass}>
+                      Mật khẩu <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
-                  )}
-                </div>
-              </div>
+                    {errMsg('password')}
+                  </div>
+
+                  {/* Row 2: Họ và tên | Ngày tháng năm sinh */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      maxLength={150}
+                      placeholder="Họ và tên"
+                      className={fieldClass('fullName')}
+                    />
+                    <label className={labelClass}>
+                      Họ và tên <span className="text-red-500">*</span>
+                    </label>
+                    {errMsg('fullName')}
+                  </div>
+                  <div className="relative">
+                    <DatePicker
+                      value={formData.dateOfBirth}
+                      onChange={(iso) =>
+                        setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
+                      }
+                      placeholder="dd/mm/yyyy"
+                      className={errors.dateOfBirth ? 'border-red-500' : ''}
+                    />
+                    <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
+                    {errMsg('dateOfBirth')}
+                  </div>
+
+                  {/* Row 3: Giới tính | Chức danh */}
+                  <div className="relative">
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleInputChange}
+                      className={fieldClass('gender')}
+                    >
+                      <option value="Nam">Nam</option>
+                      <option value="Nữ">Nữ</option>
+                      <option value="Khác">Khác</option>
+                    </select>
+                    <label className={labelClass}>Giới tính</label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="titleName"
+                      value={formData.titleName}
+                      onChange={handleInputChange}
+                      placeholder="Chức danh"
+                      className={fieldClass('titleName')}
+                    />
+                    <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
+                    {errMsg('titleName')}
+                  </div>
+
+                  {/* Row 4: Vai trò | Email */}
+                  <div className="relative">
+                    <select
+                      name="roleId"
+                      value={formData.roleId}
+                      onChange={handleInputChange}
+                      className={fieldClass('roleId')}
+                    >
+                      <option value="">-- Chọn vai trò --</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                    <label className={labelClass}>
+                      Vai trò <span className="text-red-500">*</span>
+                    </label>
+                    {errMsg('roleId')}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Email"
+                      className={fieldClass('email')}
+                    />
+                    <label className={labelClass}>Email <span className="text-red-500">*</span></label>
+                    {errMsg('email')}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -334,49 +674,44 @@ export default function UserDetailClient({
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-600 font-medium mb-2">
-              Tỉnh/thành phố
-            </label>
+          <div className="relative">
             <select
-              name="province"
-              value={formData.province}
+              name="provinceId"
+              value={formData.provinceId}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={fieldClass('provinceId')}
             >
-              <option>Thành phố Hồ Chí Minh</option>
-              <option>Hà Nội</option>
-              <option>Đà Nẵng</option>
+              <option value={1}>Thành phố Hồ Chí Minh</option>
             </select>
+            <label className={labelClass}>Tỉnh/thành phố</label>
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-600 font-medium mb-2">
-              Phường/xã
-            </label>
-            <select
-              name="ward"
-              value={formData.ward}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option>Phường Gò Vấp</option>
-              <option>Phường 1</option>
-              <option>Phường 2</option>
-            </select>
+          <div className="relative">
+            <Autocomplete
+              value={formData.districtId}
+              options={districts}
+              placeholder="-- Chọn phường/xã --"
+              onSelect={(val) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  districtId: val === '' ? '' : Number(val),
+                }))
+              }
+              className={errors.districtId ? 'border-red-500' : ''}
+            />
+            <label className={labelClass}>Phường/xã</label>
           </div>
 
-          <div className="col-span-2">
-            <label className="block text-xs text-gray-600 font-medium mb-2">
-              Địa chỉ
-            </label>
+          <div className="col-span-2 relative">
             <input
               type="text"
               name="address"
               value={formData.address}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Địa chỉ"
+              className={fieldClass('address')}
             />
+            <label className={labelClass}>Địa chỉ</label>
           </div>
         </div>
       </div>

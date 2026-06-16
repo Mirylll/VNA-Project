@@ -1,7 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from '../../libs/core/guards/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -32,5 +34,16 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string) {
     return this.usersService.softRemove(id);
+  }
+
+  @Patch(':id/avatar')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async updateAvatar(
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+    @Req() req: any,
+  ) {
+    return this.usersService.updateAvatar(id, file, req.user.id);
   }
 }

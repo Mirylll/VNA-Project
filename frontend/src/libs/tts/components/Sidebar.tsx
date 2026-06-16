@@ -17,6 +17,11 @@ interface MenuGroup {
   items: SubMenuItem[];
 }
 
+const baseUrl =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    : '';
+
 const menuGroups: MenuGroup[] = [
   {
     label: 'Quản trị phần mềm',
@@ -60,6 +65,16 @@ function getIdFromPath(path: string): string {
   return reverse[path] || '';
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export default function Sidebar() {
   const router = useRouter();
   const [openMenu, setOpenMenu] = useState(false);
@@ -69,14 +84,40 @@ export default function Sidebar() {
   const [activeItem, setActiveItem] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [pathname, setPathname] = useState<string>('');
+  const [user, setUser] = useState<{
+    id: string;
+    fullName: string;
+    avatarUrl?: string;
+    titleName?: string;
+  } | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setToken(getAuthToken());
+      const t = getAuthToken();
+      setToken(t);
       const p = window.location.pathname;
       setPathname(p);
       const id = getIdFromPath(p);
       if (id) setActiveItem(id);
+
+      if (t) {
+        fetch(`${baseUrl}/auth/me`, {
+          headers: { authorization: `Bearer ${t}` },
+        }).then((res) => {
+          if (res.status === 401) {
+            clearAuthToken();
+            window.location.href = '/login';
+            return null;
+          }
+          return res.ok ? res.json() : null;
+        }).then((data) => {
+          if (data) {
+            setAvatarError(false);
+            setUser(data);
+          }
+        }).catch(() => {});
+      }
     }
   }, []);
 
@@ -94,6 +135,10 @@ export default function Sidebar() {
   }
 
   if (!token || pathname === '/' || pathname.startsWith('/login')) return null;
+
+  const initials = user ? getInitials(user.fullName) : '??';
+  const displayName = user?.fullName || '...';
+  const displayTitle = user?.titleName || '...';
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 text-white shadow-lg bg-[#112D75]">
@@ -165,15 +210,24 @@ export default function Sidebar() {
         {/* BOTTOM USER SECTION */}
         <div className="px-4 py-3 border-t border-white/10">
           <div className="flex items-center gap-3 relative">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-              PT
-            </div>
+            {user?.avatarUrl && !avatarError ? (
+              <img
+                src={`${baseUrl}${user.avatarUrl}`}
+                alt="Avatar"
+                onError={() => setAvatarError(true)}
+                className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {initials}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm truncate text-white">
-                Phan Thanh Tùng
+                {displayName}
               </div>
               <div className="text-xs text-blue-200 truncate">
-                Quản trị viên
+                {displayTitle}
               </div>
             </div>
             <button
@@ -197,7 +251,7 @@ export default function Sidebar() {
                       router.push('/admin/account');
                     }}
                   >
-                    <span>👤</span>
+                    <img src="/icons/profile.svg" alt="" className="w-4 h-4" />
                     <span className="text-sm">Thông tin tài khoản</span>
                   </button>
                   <button
@@ -207,7 +261,7 @@ export default function Sidebar() {
                       setOpenMenu(false);
                     }}
                   >
-                    <span>🔑</span>
+                    <img src="/icons/key.svg" alt="" className="w-4 h-4" />
                     <span className="text-sm">Đổi mật khẩu</span>
                   </button>
                   <button
@@ -217,7 +271,7 @@ export default function Sidebar() {
                       location.href = '/login';
                     }}
                   >
-                    <span>🚪</span>
+                    <img src="/icons/log-out.svg" alt="" className="w-4 h-4" />
                     <span className="text-sm">Đăng xuất</span>
                   </button>
                 </div>

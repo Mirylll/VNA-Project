@@ -1,73 +1,72 @@
 # ⚡ Quick Start Guide
 
-## 🐳 Using Docker (Recommended - 1 command)
+## 🐳 Docker (Recommended)
 
 ```bash
 docker-compose up
 ```
 
-**Done!** Open:
+**Open:**
 - Frontend: http://localhost:3000/login
 - Backend: http://localhost:3001
 
-Login with: `demo` / `Demo@1234`
+> Use `docker-compose up --build` to rebuild after code changes.
 
 ---
 
-## 💻 Manual Setup (Local Node.js)
+## 💻 Manual Setup
 
 ### Backend
 ```bash
 cd backend
-npm install
 cp .env.example .env
+npm install
 npm run start:dev
 ```
 
-### Frontend (new terminal)
+### Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
----
+## 📂 Database Sharing
 
-## 🧪 Test Features
+The project uses `dump-data.sql` (data-only) to synchronize database state:
 
-1. **Login** → Use `demo / Demo@1234`
-2. **Profile** → Click user button (bottom-left)
-3. **Change Email** → Click "Thay đổi email" → Enter new email → Get OTP from logs
-4. **Profile Update** → Edit "Họ và tên" → Click "Lưu"
-
----
-
-## 📋 Default Credentials
-
-- **Username**: demo
-- **Password**: Demo@1234
-- **Email**: newmail@example.com
-
----
-
-## 🔍 Get OTP for Email Change
-
-When testing email change, OTP is logged to console:
-
+### Dump (before push — automatic)
+Pre-push hook auto-dumps the database:
 ```bash
-docker logs vna-backend | grep "Change-email"
+git config core.hooksPath .githooks    # already set
+# Just push normally — hook runs automatically
 ```
 
-Look for: `Change-email OTP for user 1: XXXXXX`
+### Restore (after pull)
+```bash
+bash scripts/restore-db.sh
+```
+Or manually:
+```bash
+docker exec -i vna-postgres psql -U vna_user vna_db < dump-data.sql
+```
 
 ---
 
-## 🛑 Stop Services
+## 🔍 OTP Logs
+
+OTP codes appear in the backend console:
+```bash
+docker logs vna-backend | grep "\[DEV\]"
+```
+Look for: `[DEV] Generated OTP for ...: XXXXXX`
+
+---
+
+## 🛑 Stop
 
 ```bash
 docker-compose down
 ```
-
----
 
 For full documentation, see **README.md**

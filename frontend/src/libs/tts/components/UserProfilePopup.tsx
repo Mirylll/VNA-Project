@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ChangePasswordModal from './ChangePasswordModal';
 import ChangeEmailModal from './ChangeEmailModal';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 
 type User = { id: string; username: string; email?: string; fullName?: string };
 
@@ -31,12 +31,16 @@ export default function UserProfilePopup() {
 
     fetch(`${baseUrl}/auth/me`, {
       headers: { authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setUser(data);
-      })
-      .catch(() => setUser(null));
+    }).then((res) => {
+      if (res.status === 401) {
+        clearAuthToken();
+        window.location.href = '/login';
+        return null;
+      }
+      return res.ok ? res.json() : null;
+    }).then((data) => {
+      if (data) setUser(data);
+    }).catch(() => setUser(null));
   }, [baseUrl, token]);
 
   useEffect(() => {
@@ -203,10 +207,16 @@ export default function UserProfilePopup() {
       {/* Change Email Modal */}
       <ChangeEmailModal
         open={showChangeEmail}
-        onClose={() => setShowChangeEmail(false)}
         currentEmail={user?.email || ''}
-        token={token}
-        onSave={changeEmail}
+        userId={user?.id || ''}
+        onClose={() => setShowChangeEmail(false)}
+        onSuccess={(newEmail: string) => {
+          setUser((prev) => (prev ? { ...prev, email: newEmail } : prev));
+          window.dispatchEvent(new CustomEvent('user-email-changed', { detail: { email: newEmail } }));
+          setMessage('Email đã được cập nhật thành công');
+          setShowChangeEmail(false);
+          setTimeout(() => setMessage(''), 3000);
+        }}
       />
 
       {/* Global Message */}
