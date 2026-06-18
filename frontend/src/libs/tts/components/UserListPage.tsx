@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Plus, ChevronDown, Pencil, KeyRound, RefreshCw } from 'lucide-react';
+import { Upload, Plus, ChevronDown, Pencil, KeyRound, RefreshCw, Download } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import SelectionBar from './SelectionBar';
 import ResetPasswordModal from './ResetPasswordModal';
@@ -230,9 +230,38 @@ export default function UserListPage() {
     }
   }
 
+  function handleExportCSV() {
+    let csvContent = "\uFEFF"; // UTF-8 BOM
+    csvContent += "Họ và tên,Tài khoản,Email,Vai trò,Chức danh,Trạng thái\n";
+    filteredUsers.forEach((u) => {
+      const fullName = (u.fullName || '').replace(/"/g, '""');
+      const username = (u.username || '').replace(/"/g, '""');
+      const email = (u.email || '').replace(/"/g, '""');
+      const roleName = (u.role?.name || '').replace(/"/g, '""');
+      const titleName = (u.title?.name || '').replace(/"/g, '""');
+      const status = u.isActive ? 'Hoạt động' : 'Ngừng';
+      csvContent += `"${fullName}","${username}","${email}","${roleName}","${titleName}","${status}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Danh_sach_nguoi_dung.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function handleImportCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size < 10 || file.size > 2097152) {
+      alert(`Dung lượng file phải từ 10 bytes đến 2 MB (Dung lượng file của bạn: ${file.size} bytes).`);
+      e.target.value = '';
+      return;
+    }
 
     const token = getAuthToken();
     if (!token) {
@@ -355,6 +384,13 @@ export default function UserListPage() {
           Danh sách người dùng
         </h1>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors"
+          >
+            <Download size={16} />
+            Xuất danh sách
+          </button>
           <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
             <Upload size={16} />
             Import

@@ -413,17 +413,17 @@ export default function TnldCategoriesPage() {
     let csvContent = "\uFEFF"; // UTF-8 BOM
     if (activeCategory === 'factor') {
       csvContent += "Mã yếu tố,Yếu tố gây chấn thương,Trạng thái\n";
-      factors.forEach(f => {
+      filteredFactors.forEach(f => {
         csvContent += `"${f.id}","${f.name}","${f.isActive ? 'Sử dụng' : 'Ngừng hoạt động'}"\n`;
       });
     } else if (activeCategory === 'type') {
       csvContent += "Mã số,Tên loại chấn thương,Cấp,Mã cha\n";
-      types.forEach(t => {
+      filteredTypes.forEach(t => {
         csvContent += `"${t.code}","${t.name}","${t.level}","${t.parentCode || ''}"\n`;
       });
     } else {
       csvContent += "Mã ngành,Tên ngành,Cấp,Mã cha\n";
-      occupations.forEach(o => {
+      filteredOccupations.forEach(o => {
         csvContent += `"${o.code}","${o.name}","${o.level}","${o.parentCode || ''}"\n`;
       });
     }
@@ -450,6 +450,13 @@ export default function TnldCategoriesPage() {
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size < 10 || file.size > 2097152) {
+      alert(`Dung lượng file phải từ 10 bytes đến 2 MB (Dung lượng file của bạn: ${file.size} bytes).`);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       const text = evt.target?.result as string;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Plus, Eye, Pencil, KeyRound, RefreshCw, ChevronDown } from 'lucide-react';
+import { Upload, Plus, Eye, Pencil, KeyRound, RefreshCw, ChevronDown, Download } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
 import AccountInfoModal from '@/libs/tts/components/AccountInfoModal';
@@ -212,9 +212,37 @@ export default function EnterpriseListPage() {
     }
   }
 
+  function handleExportCSV() {
+    let csvContent = "\uFEFF"; // UTF-8 BOM
+    csvContent += "Tên doanh nghiệp,Mã số thuế,Loại hình kinh doanh,Ngành nghề kinh doanh,Trạng thái\n";
+    filteredItems.forEach((item: any) => {
+      const name = (item.name || '').replace(/"/g, '""');
+      const taxCode = (item.taxCode || '').replace(/"/g, '""');
+      const typeName = (item.enterpriseType?.name || '').replace(/"/g, '""');
+      const indName = (item.industry?.name || '').replace(/"/g, '""');
+      const status = item.isActive ? 'Hoạt động' : 'Ngừng';
+      csvContent += `"${name}","${taxCode}","${typeName}","${indName}","${status}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Danh_sach_doanh_nghiep.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function handleImportCSV(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size < 10 || file.size > 2097152) {
+      alert(`Dung lượng file phải từ 10 bytes đến 2 MB (Dung lượng file của bạn: ${file.size} bytes).`);
+      e.target.value = '';
+      return;
+    }
 
     const token = getAuthToken();
     if (!token) {
@@ -380,6 +408,13 @@ export default function EnterpriseListPage() {
           Danh sách doanh nghiệp
         </h1>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors"
+          >
+            <Download size={16} />
+            Xuất danh sách
+          </button>
           <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
             <Upload size={16} />
             Thêm từ file

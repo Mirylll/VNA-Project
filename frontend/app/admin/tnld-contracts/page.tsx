@@ -468,7 +468,23 @@ export default function TnldContractsPage() {
 
   // Dynamic calculations for aggregate summary
   const summaryCalculations = useMemo(() => {
-    const submitted = reports.filter((r) => r.status === 'submitted' && String(r.year) === filterYear);
+    const submitted = reports.filter((r) => {
+      if (r.status !== 'submitted') return false;
+      if (filterYear && String(r.year) !== filterYear) return false;
+
+      // Top filter ward check
+      if (filterWard && filterWard !== 'Tất cả') {
+        const entWard = enterpriseWards[r.taxCode];
+        if (!entWard) return false;
+        
+        const selectedWardClean = filterWard.split('(')[0].trim();
+        const normEntWard = normalizeLocationName(entWard);
+        const normFilterWard = normalizeLocationName(selectedWardClean);
+        if (normEntWard !== normFilterWard) return false;
+      }
+
+      return true;
+    });
     const countSubmitted = submitted.length;
 
     const totals: ReportData = {
@@ -512,7 +528,7 @@ export default function TnldContractsPage() {
       countSubmitted,
       totals
     };
-  }, [reports, filterYear]);
+  }, [reports, filterYear, filterWard, enterpriseWards]);
 
   // Formatter for values
   const formatNumber = (num: number) => {
