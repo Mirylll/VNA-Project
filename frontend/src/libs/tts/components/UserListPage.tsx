@@ -57,6 +57,7 @@ function matches(item: UserData, filters: Record<string, string>) {
     if (key === 'username' && !item.username.toLowerCase().includes(v)) return false;
     if (key === 'email' && !(item.email || '').toLowerCase().includes(v)) return false;
     if (key === 'role' && !(item.role?.name || '').toLowerCase().includes(v)) return false;
+    if (key === 'title' && !(item.title?.name || '').toLowerCase().includes(v)) return false;
     if (key === 'status') {
       const active = v === 'hoạt động' || v === 'active';
       const inactive = v === 'ngừng' || v === 'inactive';

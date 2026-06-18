@@ -182,7 +182,7 @@ export default function RoleModal({
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder=""
+              placeholder="Nhập mã vai trò"
               className="w-full border-none outline-none text-sm py-0.5"
             />
           </div>
@@ -193,7 +193,7 @@ export default function RoleModal({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder=""
+              placeholder="Nhập tên vai trò"
               className="w-full border-none outline-none text-sm py-0.5"
             />
           </div>

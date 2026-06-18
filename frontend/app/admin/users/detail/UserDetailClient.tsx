@@ -690,7 +690,7 @@ export default function UserDetailClient({
             <Autocomplete
               value={formData.districtId}
               options={districts}
-              placeholder="-- Chọn phường/xã --"
+              placeholder=""
               onSelect={(val) =>
                 setFormData((prev) => ({
                   ...prev,
@@ -708,7 +708,6 @@ export default function UserDetailClient({
               name="address"
               value={formData.address}
               onChange={handleInputChange}
-              placeholder="Địa chỉ"
               className={fieldClass('address')}
             />
             <label className={labelClass}>Địa chỉ</label>
