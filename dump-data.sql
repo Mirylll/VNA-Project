@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Q14PSpWzGR3TPlwimjcTYhbdtynaADkxX0ZdaOurVJODXNLkbmEDuptymtSTblT
+\restrict PIen1KnWSnG3ptRMbk3VT1q5Q5MjIuM1gxtI1dHxdwDLUxbEbBOcOjrV5OV9MGv
 
 -- Dumped from database version 15.18 (Debian 15.18-1.pgdg13+1)
 -- Dumped by pg_dump version 15.18 (Debian 15.18-1.pgdg13+1)
@@ -230,24 +230,24 @@ ALTER TABLE public.otp_codes ENABLE TRIGGER ALL;
 ALTER TABLE public.permissions DISABLE TRIGGER ALL;
 
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (1, 'ADMIN_G_DEPARTMENT', 'Department Group', 0, '2026-06-11 08:32:00.446631', '2026-06-11 08:32:00.446631', NULL, 'Group');
+INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (6, 'ADMIN_G_ROLE', 'Role Group', 1, '2026-06-11 08:32:00.504304', '2026-06-11 08:32:00.504304', NULL, 'Group');
+INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (11, 'ADMIN_G_USER', 'User Group', 2, '2026-06-11 08:32:00.536527', '2026-06-11 08:32:00.536527', NULL, 'Group');
+INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (16, 'ADMIN_G_PERMISSION', 'Permission Group', 3, '2026-06-11 08:32:00.555354', '2026-06-11 08:32:00.555354', NULL, 'Group');
+INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (19, 'ADMIN_G_REPORT', 'Report Group', 4, '2026-06-11 08:32:00.562953', '2026-06-11 08:32:00.562953', NULL, 'Group');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (2, 'ADMIN_C_DEPARTMENT_VIEW', 'View Department', 0, '2026-06-11 08:32:00.482791', '2026-06-11 08:32:00.482791', 1, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (3, 'ADMIN_C_DEPARTMENT_CREATE', 'Create Department', 1, '2026-06-11 08:32:00.489335', '2026-06-11 08:32:00.489335', 1, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (4, 'ADMIN_C_DEPARTMENT_UPDATE', 'Update Department', 2, '2026-06-11 08:32:00.494311', '2026-06-11 08:32:00.494311', 1, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (5, 'ADMIN_C_DEPARTMENT_DELETE', 'Delete Department', 3, '2026-06-11 08:32:00.499994', '2026-06-11 08:32:00.499994', 1, 'Component');
-INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (6, 'ADMIN_G_ROLE', 'Role Group', 1, '2026-06-11 08:32:00.504304', '2026-06-11 08:32:00.504304', NULL, 'Group');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (7, 'ADMIN_C_ROLE_VIEW', 'View Role', 0, '2026-06-11 08:32:00.508943', '2026-06-11 08:32:00.508943', 6, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (8, 'ADMIN_C_ROLE_CREATE', 'Create Role', 1, '2026-06-11 08:32:00.511911', '2026-06-11 08:32:00.511911', 6, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (9, 'ADMIN_C_ROLE_UPDATE', 'Update Role', 2, '2026-06-11 08:32:00.517131', '2026-06-11 08:32:00.517131', 6, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (10, 'ADMIN_C_ROLE_DELETE', 'Delete Role', 3, '2026-06-11 08:32:00.525745', '2026-06-11 08:32:00.525745', 6, 'Component');
-INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (11, 'ADMIN_G_USER', 'User Group', 2, '2026-06-11 08:32:00.536527', '2026-06-11 08:32:00.536527', NULL, 'Group');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (12, 'ADMIN_C_USER_VIEW', 'View User', 0, '2026-06-11 08:32:00.54042', '2026-06-11 08:32:00.54042', 11, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (13, 'ADMIN_C_USER_CREATE', 'Create User', 1, '2026-06-11 08:32:00.543816', '2026-06-11 08:32:00.543816', 11, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (14, 'ADMIN_C_USER_UPDATE', 'Update User', 2, '2026-06-11 08:32:00.547401', '2026-06-11 08:32:00.547401', 11, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (15, 'ADMIN_C_USER_DELETE', 'Delete User', 3, '2026-06-11 08:32:00.551879', '2026-06-11 08:32:00.551879', 11, 'Component');
-INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (16, 'ADMIN_G_PERMISSION', 'Permission Group', 3, '2026-06-11 08:32:00.555354', '2026-06-11 08:32:00.555354', NULL, 'Group');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (17, 'ADMIN_C_PERMISSION_VIEW', 'View Permission', 0, '2026-06-11 08:32:00.557855', '2026-06-11 08:32:00.557855', 16, 'Component');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (18, 'ADMIN_C_PERMISSION_ASSIGN', 'Assign Permission', 1, '2026-06-11 08:32:00.560092', '2026-06-11 08:32:00.560092', 16, 'Component');
-INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (19, 'ADMIN_G_REPORT', 'Report Group', 4, '2026-06-11 08:32:00.562953', '2026-06-11 08:32:00.562953', NULL, 'Group');
 INSERT INTO public.permissions (id, code, name, sort_order, created_at, updated_at, parent_id, type) VALUES (20, 'ADMIN_C_REPORT_VIEW', 'View Report', 0, '2026-06-11 08:32:00.565188', '2026-06-11 08:32:00.565188', 19, 'Component');
 
 
@@ -408,5 +408,5 @@ SELECT pg_catalog.setval('public.user_avatars_id_seq', 4, true);
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Q14PSpWzGR3TPlwimjcTYhbdtynaADkxX0ZdaOurVJODXNLkbmEDuptymtSTblT
+\unrestrict PIen1KnWSnG3ptRMbk3VT1q5Q5MjIuM1gxtI1dHxdwDLUxbEbBOcOjrV5OV9MGv
 
