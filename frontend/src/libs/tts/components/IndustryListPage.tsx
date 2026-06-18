@@ -5,6 +5,7 @@ import { Plus, Pencil, RefreshCw, ChevronDown } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import IndustryModal from '@/libs/tts/components/IndustryModal';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
+import Pagination from './Pagination';
 import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
 const baseUrl =
@@ -48,6 +49,8 @@ export default function IndustryListPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   function fetchItems() {
     setLoading(true);
@@ -76,6 +79,10 @@ export default function IndustryListPage() {
     fetchItems();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCode, filterName, filterLevel, filterStatus, itemsPerPage]);
+
   const filteredItems = items.filter((item: any) => {
     const c = filterCode.toLowerCase().trim();
     const n = filterName.toLowerCase().trim();
@@ -87,6 +94,11 @@ export default function IndustryListPage() {
     if (filterStatus === 'inactive' && item.isActive) return false;
     return true;
   });
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   function handleAddNew() {
     setEditingItem(null);
@@ -213,12 +225,12 @@ export default function IndustryListPage() {
                 <input
                   type="checkbox"
                   checked={
-                    filteredItems.length > 0 &&
-                    selectedIds.length === filteredItems.length
+                    paginatedItems.length > 0 &&
+                    selectedIds.length === paginatedItems.length
                   }
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedIds(filteredItems.map((r: any) => r.id));
+                      setSelectedIds(paginatedItems.map((r: any) => r.id));
                     } else {
                       setSelectedIds([]);
                     }
@@ -303,14 +315,14 @@ export default function IndustryListPage() {
                   </button>
                 </td>
               </tr>
-            ) : filteredItems.length === 0 ? (
+            ) : paginatedItems.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
                   Không tìm thấy ngành nghề
                 </td>
               </tr>
             ) : (
-              filteredItems.map((item: any) => (
+              paginatedItems.map((item: any) => (
                 <tr
                   key={item.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
@@ -358,6 +370,15 @@ export default function IndustryListPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredItems.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+      />
 
       <SelectionBar
         selectedCount={selectedIds.length}

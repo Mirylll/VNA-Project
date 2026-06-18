@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Upload, Plus, Eye, Pencil, KeyRound, RefreshCw, ChevronDown } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
+import Pagination from './Pagination';
 import AccountInfoModal from '@/libs/tts/components/AccountInfoModal';
 import EnterpriseResetPasswordModal from '@/libs/tts/components/EnterpriseResetPasswordModal';
 import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
@@ -92,6 +93,8 @@ export default function EnterpriseListPage() {
   const [filterIndustry, setFilterIndustry] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [acctModal, setAcctModal] = useState<{ open: boolean; item: any }>({ open: false, item: null });
   const [resetPwModal, setResetPwModal] = useState<{ open: boolean; enterprise: any }>({ open: false, enterprise: null });
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -123,6 +126,10 @@ export default function EnterpriseListPage() {
     fetchItems();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterName, filterTaxCode, filterType, filterIndustry, filterStatus, itemsPerPage]);
+
   const filteredItems = items.filter((item: any) => {
     const n = filterName.toLowerCase().trim();
     const tc = filterTaxCode.toLowerCase().trim();
@@ -137,6 +144,11 @@ export default function EnterpriseListPage() {
     if (filterStatus === 'inactive' && item.isActive) return false;
     return true;
   });
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   function handleAddNew() {
     router.push('/admin/enterprises/create');
@@ -403,12 +415,12 @@ export default function EnterpriseListPage() {
                 <input
                   type="checkbox"
                   checked={
-                    filteredItems.length > 0 &&
-                    selectedIds.length === filteredItems.length
+                    paginatedItems.length > 0 &&
+                    selectedIds.length === paginatedItems.length
                   }
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedIds(filteredItems.map((r: any) => r.id));
+                      setSelectedIds(paginatedItems.map((r: any) => r.id));
                     } else {
                       setSelectedIds([]);
                     }
@@ -506,14 +518,14 @@ export default function EnterpriseListPage() {
                   </button>
                 </td>
               </tr>
-            ) : filteredItems.length === 0 ? (
+            ) : paginatedItems.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
                   Không tìm thấy doanh nghiệp
                 </td>
               </tr>
             ) : (
-              filteredItems.map((item: any) => (
+              paginatedItems.map((item: any) => (
                 <tr
                   key={item.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
@@ -576,6 +588,15 @@ export default function EnterpriseListPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredItems.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+      />
 
       <SelectionBar
         selectedCount={selectedIds.length}
