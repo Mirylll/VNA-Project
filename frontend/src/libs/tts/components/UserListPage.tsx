@@ -66,6 +66,49 @@ function matches(item: UserData, filters: Record<string, string>) {
   return true;
 }
 
+function parseCSV(text: string): string[][] {
+  const lines: string[][] = [];
+  let row: string[] = [];
+  let inQuotes = false;
+  let currentVal = '';
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentVal += '"';
+        i++; // skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push(currentVal.trim());
+      currentVal = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      row.push(currentVal.trim());
+      currentVal = '';
+      if (row.some(val => val.length > 0)) {
+        lines.push(row);
+      }
+      row = [];
+      if (char === '\r' && nextChar === '\n') {
+        i++; // skip \n
+      }
+    } else {
+      currentVal += char;
+    }
+  }
+  if (currentVal || row.length > 0) {
+    row.push(currentVal.trim());
+    if (row.some(val => val.length > 0)) {
+      lines.push(row);
+    }
+  }
+  return lines;
+}
+
 export default function UserListPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
@@ -187,6 +230,124 @@ export default function UserListPage() {
     }
   }
 
+  async function handleImportCSV(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = getAuthToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const rows = parseCSV(text);
+        if (rows.length <= 1) {
+          alert('File CSV không có dữ liệu hoặc rỗng.');
+          return;
+        }
+
+        // Fetch roles to map names to IDs
+        const rolesRes = await fetch(`${baseUrl}/roles`, {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        const rolesList = rolesRes.ok ? await rolesRes.json() : [];
+        const roleMap: Record<string, number> = {};
+        if (Array.isArray(rolesList)) {
+          rolesList.forEach((r: any) => {
+            roleMap[r.name.toLowerCase().trim()] = r.id;
+          });
+        }
+
+        const headers = rows[0].map(h => h.toLowerCase().trim());
+        
+        const fullNameIdx = headers.findIndex(h => h.includes('họ và tên') || h.includes('fullname') || h.includes('name'));
+        const usernameIdx = headers.findIndex(h => h.includes('tài khoản') || h.includes('username') || h.includes('user'));
+        const emailIdx = headers.findIndex(h => h.includes('email'));
+        const roleIdx = headers.findIndex(h => h.includes('vai trò') || h.includes('role'));
+        const titleIdx = headers.findIndex(h => h.includes('chức danh') || h.includes('chức vụ') || h.includes('title'));
+        const passwordIdx = headers.findIndex(h => h.includes('mật khẩu') || h.includes('password'));
+
+        if (fullNameIdx === -1 || usernameIdx === -1) {
+          alert('File CSV phải chứa ít nhất cột "Họ và tên" và "Tài khoản".');
+          return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+        const errorsList: string[] = [];
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (row.length === 0 || !row[fullNameIdx]) continue;
+
+          const fullName = row[fullNameIdx];
+          const username = row[usernameIdx];
+          if (!fullName || !username) {
+            failCount++;
+            errorsList.push(`Dòng ${i + 1}: Thiếu Họ và tên hoặc Tài khoản.`);
+            continue;
+          }
+
+          const email = emailIdx !== -1 ? row[emailIdx] : undefined;
+          const roleName = roleIdx !== -1 ? row[roleIdx] : '';
+          const titleName = titleIdx !== -1 ? row[titleIdx] : undefined;
+          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : '123456';
+
+          const roleId = roleName ? roleMap[roleName.toLowerCase().trim()] : undefined;
+
+          try {
+            const res = await fetch(`${baseUrl}/users`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                username,
+                password,
+                fullName,
+                email: email || undefined,
+                roleId,
+                titleName: titleName || undefined,
+                isActive: true,
+              }),
+            });
+
+            if (res.ok) {
+              successCount++;
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              failCount++;
+              errorsList.push(`Dòng ${i + 1} (${username}): ${errData.message || 'Lỗi thêm mới.'}`);
+            }
+          } catch {
+            failCount++;
+            errorsList.push(`Dòng ${i + 1} (${username}): Lỗi kết nối mạng.`);
+          }
+        }
+
+        fetchUsers();
+        
+        let msg = `Đã thêm thành công ${successCount} người dùng.`;
+        if (failCount > 0) {
+          msg += ` ${failCount} người dùng bị lỗi.\nChi tiết lỗi:\n` + errorsList.slice(0, 5).join('\n');
+          if (errorsList.length > 5) msg += '\n... và các lỗi khác';
+          alert(msg);
+        } else {
+          setToastMessage(msg);
+        }
+      } catch (err: any) {
+        alert('Đã xảy ra lỗi khi đọc file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -194,10 +355,11 @@ export default function UserListPage() {
           Danh sách người dùng
         </h1>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors">
+          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
             <Upload size={16} />
             Import
-          </button>
+            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+          </label>
           <button
             onClick={handleAddNew}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"

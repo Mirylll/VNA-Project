@@ -1,7 +1,128 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, ChevronDown, Printer, FileText, ArrowLeft, Download, Upload, X } from 'lucide-react';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
+
+interface AutocompleteSelectProps {
+  options: string[];
+  value: string;
+  onChange: (val: string) => void;
+  label?: string;
+  placeholder?: string;
+}
+
+function AutocompleteSelect({ options, value, onChange, label, placeholder = 'Tìm kiếm...' }: AutocompleteSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = useMemo(() => {
+    const query = search.toLowerCase().trim();
+    if (!query) return options;
+    return options.filter((opt) => opt.toLowerCase().includes(query));
+  }, [options, search]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch('');
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      {label && (
+        <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500 z-10">
+          {label}
+        </label>
+      )}
+      
+      <div 
+        onClick={() => setIsOpen(true)}
+        className="w-full flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white cursor-pointer hover:border-slate-300 transition-colors"
+      >
+        {isOpen ? (
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={value || placeholder}
+            autoFocus
+            className="w-full text-sm outline-none border-none p-0 text-slate-800 focus:ring-0 focus:border-none"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className={`text-sm ${value ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+            {value || placeholder}
+          </span>
+        )}
+        <div className="flex items-center gap-1">
+          {value && value !== 'Tất cả' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('Tất cả');
+                setSearch('');
+              }}
+              className="p-0.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
+            >
+              <X size={12} />
+            </button>
+          )}
+          <ChevronDown size={14} className="text-slate-400" />
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-100">
+          {filteredOptions.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-slate-400 italic">
+              Không tìm thấy kết quả
+            </div>
+          ) : (
+            filteredOptions.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  onChange(opt);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${
+                  opt === value ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-700'
+                }`}
+              >
+                {opt}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function normalizeLocationName(name: string): string {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^(phuong|xa|thi tran|quan|huyen|tp\.?|thanh pho)\s+/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[()]/g, '');
+}
 
 interface ReportData {
   casesTotal: number;
@@ -121,6 +242,75 @@ const SEED_REPORTS: CompanyReport[] = [
       costCompensation: 3000000,
       propertyDamage: 30000000
     }
+  },
+  {
+    id: '5',
+    name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
+    taxCode: '0317118106',
+    period: '6 tháng',
+    year: 2023,
+    status: 'draft',
+    data: {
+      casesTotal: 1,
+      casesDeath: 0,
+      casesMultiple: 0,
+      peopleTotal: 2,
+      peopleFemale: 1,
+      peopleDeath: 0,
+      peopleSevere: 1,
+      daysOff: 6,
+      costTotal: 1800000,
+      costMedical: 600000,
+      costSalary: 600000,
+      costCompensation: 600000,
+      propertyDamage: 6000000
+    }
+  },
+  {
+    id: '6',
+    name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
+    taxCode: '0317118106',
+    period: 'Cả năm',
+    year: 2023,
+    status: 'submitted',
+    data: {
+      casesTotal: 2,
+      casesDeath: 0,
+      casesMultiple: 0,
+      peopleTotal: 4,
+      peopleFemale: 2,
+      peopleDeath: 0,
+      peopleSevere: 2,
+      daysOff: 10,
+      costTotal: 4000000,
+      costMedical: 1500000,
+      costSalary: 1500000,
+      costCompensation: 1000000,
+      propertyDamage: 10000000
+    }
+  },
+  {
+    id: '7',
+    name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN',
+    taxCode: '0317118107',
+    period: 'Cả năm',
+    year: 2023,
+    status: 'submitted',
+    data: {
+      casesTotal: 1,
+      casesDeath: 1,
+      casesMultiple: 0,
+      peopleTotal: 6,
+      peopleFemale: 3,
+      peopleDeath: 1,
+      peopleSevere: 5,
+      daysOff: 15,
+      costTotal: 5000000,
+      costMedical: 2000000,
+      costSalary: 1500000,
+      costCompensation: 1500000,
+      propertyDamage: 12000000
+    }
   }
 ];
 
@@ -147,7 +337,19 @@ export default function TnldContractsPage() {
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Load database
+  // Enterprise Wards state
+  const [enterpriseWards, setEnterpriseWards] = useState<Record<string, string>>({});
+
+  const baseUrl =
+    typeof window !== 'undefined'
+      ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      : '';
+
+  const wardOptions = useMemo(() => {
+    return ['Tất cả', ...HCM_WARDS.map((w) => `${w.name} (${w.district})`)];
+  }, []);
+
+  // Load database and fetch enterprise wards
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('vna_tnld_contracts');
@@ -170,6 +372,27 @@ export default function TnldContractsPage() {
         setReports(SEED_REPORTS);
         localStorage.setItem('vna_tnld_contracts', JSON.stringify(SEED_REPORTS));
       }
+
+      // Fetch enterprise wards mapping
+      const token = getAuthToken();
+      if (token) {
+        fetch(`${baseUrl}/enterprises`, {
+          headers: { authorization: `Bearer ${token}` },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (Array.isArray(data)) {
+              const map: Record<string, string> = {};
+              data.forEach((ent: any) => {
+                if (ent.taxCode && ent.ward?.name) {
+                  map[ent.taxCode] = ent.ward.name;
+                }
+              });
+              setEnterpriseWards(map);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, []);
 
@@ -179,6 +402,17 @@ export default function TnldContractsPage() {
       // Top filter year check
       if (filterYear && String(r.year) !== filterYear) return false;
 
+      // Top filter ward check
+      if (filterWard && filterWard !== 'Tất cả') {
+        const entWard = enterpriseWards[r.taxCode];
+        if (!entWard) return false;
+        
+        const selectedWardClean = filterWard.split('(')[0].trim();
+        const normEntWard = normalizeLocationName(entWard);
+        const normFilterWard = normalizeLocationName(selectedWardClean);
+        if (normEntWard !== normFilterWard) return false;
+      }
+
       // Table filters
       if (tableFilterName && !r.name.toLowerCase().includes(tableFilterName.toLowerCase())) return false;
       if (tableFilterTax && !r.taxCode.includes(tableFilterTax)) return false;
@@ -187,7 +421,7 @@ export default function TnldContractsPage() {
 
       return true;
     });
-  }, [reports, filterYear, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
+  }, [reports, filterYear, filterWard, enterpriseWards, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
 
   // Open detail view
   const handleOpenDetail = (report: CompanyReport) => {
@@ -378,19 +612,13 @@ export default function TnldContractsPage() {
 
             {/* Phường/ Xã */}
             <div className="relative">
-              <select
+              <AutocompleteSelect
+                options={wardOptions}
                 value={filterWard}
-                onChange={(e) => setFilterWard(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-slate-200 px-3 py-2 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-              >
-                <option value="Tất cả">Tất cả</option>
-                <option value="Phường Bến Nghé">Phường Bến Nghé</option>
-                <option value="Phường Bến Thành">Phường Bến Thành</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                Phường/ Xã
-              </label>
+                onChange={setFilterWard}
+                label="Phường/ Xã"
+                placeholder="Chọn phường/ xã..."
+              />
             </div>
           </div>
 

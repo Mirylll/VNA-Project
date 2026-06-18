@@ -530,20 +530,20 @@ export default function TnldCategoriesPage() {
         <div className="flex items-center gap-2.5">
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold bg-white hover:bg-slate-50 transition"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-medium bg-white hover:bg-blue-50 transition-colors"
           >
             Xuất danh sách
           </button>
-          <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold bg-white hover:bg-slate-50 transition cursor-pointer">
-            <Upload size={13} />
+          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-medium bg-white hover:bg-blue-50 transition-colors cursor-pointer">
+            <Upload size={16} />
             Thêm từ file
             <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
           </label>
           <button
             onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1D4ED8] text-white text-xs font-semibold hover:bg-blue-700 transition shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
           >
-            <Plus size={14} />
+            <Plus size={16} />
             Thêm mới
           </button>
         </div>
@@ -661,7 +661,10 @@ export default function TnldCategoriesPage() {
               <td className="px-2 py-2">
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder={
+                    activeCategory === 'factor' ? 'Lọc theo mã yếu tố...' :
+                    activeCategory === 'type' ? 'Lọc theo mã số...' : 'Lọc theo mã nghề...'
+                  }
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -670,7 +673,10 @@ export default function TnldCategoriesPage() {
               <td className="px-2 py-2">
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder={
+                    activeCategory === 'factor' ? 'Lọc theo tên yếu tố...' :
+                    activeCategory === 'type' ? 'Lọc theo tên loại...' : 'Lọc theo tên nghề...'
+                  }
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"

@@ -38,6 +38,49 @@ function ToggleSwitch({
   );
 }
 
+function parseCSV(text: string): string[][] {
+  const lines: string[][] = [];
+  let row: string[] = [];
+  let inQuotes = false;
+  let currentVal = '';
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentVal += '"';
+        i++; // skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push(currentVal.trim());
+      currentVal = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      row.push(currentVal.trim());
+      currentVal = '';
+      if (row.some(val => val.length > 0)) {
+        lines.push(row);
+      }
+      row = [];
+      if (char === '\r' && nextChar === '\n') {
+        i++; // skip \n
+      }
+    } else {
+      currentVal += char;
+    }
+  }
+  if (currentVal || row.length > 0) {
+    row.push(currentVal.trim());
+    if (row.some(val => val.length > 0)) {
+      lines.push(row);
+    }
+  }
+  return lines;
+}
+
 export default function EnterpriseListPage() {
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
@@ -169,6 +212,167 @@ export default function EnterpriseListPage() {
     }
   }
 
+  async function handleImportCSV(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = getAuthToken();
+    if (!token) {
+      setError('Bạn cần đăng nhập');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const rows = parseCSV(text);
+        if (rows.length <= 1) {
+          alert('File CSV không có dữ liệu hoặc rỗng.');
+          return;
+        }
+
+        // Fetch enterprise types, industries, and wards to map names to IDs
+        const [typesRes, indRes, wardRes] = await Promise.all([
+          fetch(`${baseUrl}/enterprise-types`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${baseUrl}/industries`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${baseUrl}/districts?provinceId=1`, { headers: { authorization: `Bearer ${token}` } }),
+        ]);
+
+        const typesList = typesRes.ok ? await typesRes.json() : [];
+        const indList = indRes.ok ? await indRes.json() : [];
+        const wardList = wardRes.ok ? await wardRes.json() : [];
+
+        const typeMap: Record<string, number> = {};
+        if (Array.isArray(typesList)) {
+          typesList.forEach((t: any) => {
+            typeMap[t.name.toLowerCase().trim()] = t.id;
+          });
+        }
+
+        const indMap: Record<string, number> = {};
+        if (Array.isArray(indList)) {
+          indList.forEach((i: any) => {
+            indMap[i.name.toLowerCase().trim()] = i.id;
+          });
+        }
+
+        const wardMap: Record<string, number> = {};
+        if (Array.isArray(wardList)) {
+          wardList.forEach((w: any) => {
+            const nameClean = w.name.toLowerCase().replace(/^(phường|xã|thị trấn)\s+/i, '').trim();
+            wardMap[nameClean] = w.id;
+            wardMap[w.name.toLowerCase().trim()] = w.id;
+          });
+        }
+
+        const headers = rows[0].map(h => h.toLowerCase().trim());
+
+        const nameIdx = headers.findIndex(h => h.includes('tên doanh nghiệp') || h.includes('name'));
+        const taxIdx = headers.findIndex(h => h.includes('mã số thuế') || h.includes('taxcode') || h.includes('mst'));
+        const typeIdx = headers.findIndex(h => h.includes('loại hình') || h.includes('type'));
+        const indIdx = headers.findIndex(h => h.includes('ngành nghề') || h.includes('industry'));
+        const addressIdx = headers.findIndex(h => h.includes('địa chỉ') || h.includes('address'));
+        const wardIdx = headers.findIndex(h => h.includes('phường') || h.includes('xã') || h.includes('ward'));
+        const phoneIdx = headers.findIndex(h => h.includes('điện thoại') || h.includes('phone') || h.includes('sdt'));
+        const emailIdx = headers.findIndex(h => h.includes('email'));
+        const foreignNameIdx = headers.findIndex(h => h.includes('tên nước ngoài') || h.includes('foreign name'));
+        const leaderNameIdx = headers.findIndex(h => h.includes('người đứng đầu') || h.includes('leader'));
+        const leaderPhoneIdx = headers.findIndex(h => h.includes('sđt người đứng đầu') || h.includes('leader phone'));
+        const passwordIdx = headers.findIndex(h => h.includes('mật khẩu') || h.includes('password'));
+
+        if (nameIdx === -1) {
+          alert('File CSV phải chứa cột "Tên doanh nghiệp" hoặc "name".');
+          return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+        const errorsList: string[] = [];
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (row.length === 0 || !row[nameIdx]) continue;
+
+          const name = row[nameIdx];
+          const taxCode = taxIdx !== -1 ? row[taxIdx] : '';
+          const typeName = typeIdx !== -1 ? row[typeIdx] : '';
+          const indName = indIdx !== -1 ? row[indIdx] : '';
+          const address = addressIdx !== -1 ? row[addressIdx] : '';
+          const wardName = wardIdx !== -1 ? row[wardIdx] : '';
+          const phone = phoneIdx !== -1 ? row[phoneIdx] : '';
+          const email = emailIdx !== -1 ? row[emailIdx] : '';
+          const foreignName = foreignNameIdx !== -1 ? row[foreignNameIdx] : '';
+          const leaderName = leaderNameIdx !== -1 ? row[leaderNameIdx] : '';
+          const leaderPhone = leaderPhoneIdx !== -1 ? row[leaderPhoneIdx] : '';
+          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : '12345678';
+
+          const enterpriseTypeId = typeName ? typeMap[typeName.toLowerCase().trim()] : undefined;
+          const industryId = indName ? indMap[indName.toLowerCase().trim()] : undefined;
+
+          let wardId = undefined;
+          if (wardName) {
+            const cleanName = wardName.toLowerCase().replace(/^(phường|xã|thị trấn)\s+/i, '').trim();
+            wardId = wardMap[cleanName] || wardMap[wardName.toLowerCase().trim()];
+          }
+
+          try {
+            const res = await fetch(`${baseUrl}/enterprises`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                name,
+                taxCode: taxCode || undefined,
+                enterpriseTypeId,
+                industryId,
+                provinceId: 1, // Default HCMC
+                wardId,
+                address: address || undefined,
+                foreignName: foreignName || undefined,
+                email: email || undefined,
+                phone: phone || undefined,
+                leaderName: leaderName || undefined,
+                leaderPhone: leaderPhone || undefined,
+                username: taxCode || undefined,
+                password,
+                isActive: true,
+              }),
+            });
+
+            if (res.ok) {
+              successCount++;
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              failCount++;
+              errorsList.push(`Dòng ${i + 1} (${name}): ${errData.message || 'Lỗi thêm mới.'}`);
+            }
+          } catch {
+            failCount++;
+            errorsList.push(`Dòng ${i + 1} (${name}): Lỗi kết nối mạng.`);
+          }
+        }
+
+        fetchItems();
+
+        let msg = `Đã thêm thành công ${successCount} doanh nghiệp.`;
+        if (failCount > 0) {
+          msg += ` ${failCount} doanh nghiệp bị lỗi.\nChi tiết lỗi:\n` + errorsList.slice(0, 5).join('\n');
+          if (errorsList.length > 5) msg += '\n... và các lỗi khác';
+          alert(msg);
+        } else {
+          alert(msg);
+        }
+      } catch (err: any) {
+        alert('Đã xảy ra lỗi khi đọc file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -176,13 +380,11 @@ export default function EnterpriseListPage() {
           Danh sách doanh nghiệp
         </h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => {}}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors"
-          >
+          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
             <Upload size={16} />
             Thêm từ file
-          </button>
+            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+          </label>
           <button
             onClick={handleAddNew}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
