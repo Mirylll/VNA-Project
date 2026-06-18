@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, RefreshCw } from 'lucide-react';
-import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
 import RoleModal from './RoleModal';
+import Pagination from './Pagination';
 import SelectionBar from './SelectionBar';
+import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -29,10 +31,9 @@ export default function RoleListPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const canCreate = hasPermission('ADMIN_C_ROLE_CREATE');
-  const canUpdate = hasPermission('ADMIN_C_ROLE_UPDATE');
-  const canDelete = hasPermission('ADMIN_C_ROLE_DELETE');
-  const canAssignPermissions = hasPermission('ADMIN_C_PERMISSION_ASSIGN');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   function fetchRoles() {
     setLoading(true);
@@ -65,18 +66,25 @@ export default function RoleListPage() {
     fetchRoles();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCode, filterName, itemsPerPage]);
+
   const filteredRoles = filterCode || filterName
     ? roles.filter((r) => matches(r, filterCode, filterName))
     : roles;
+  const totalPages = Math.ceil(filteredRoles.length / itemsPerPage);
+  const paginatedRoles = filteredRoles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   function handleAddNew() {
-    if (!canCreate) return;
     setEditingRole(null);
     setShowModal(true);
   }
 
   function handleEdit(role: any) {
-    if (!canUpdate && !canAssignPermissions) return;
     setEditingRole({
       id: role.id,
       code: role.code,
@@ -93,13 +101,11 @@ export default function RoleListPage() {
   }) {
     const token = getAuthToken();
     if (!token) return;
-    if (editingRole?.id && !canUpdate && !canAssignPermissions) return;
-    if (!editingRole?.id && !canCreate) return;
 
     try {
       let roleId = editingRole?.id;
 
-      if (roleId && canUpdate) {
+      if (roleId) {
         await fetch(`${baseUrl}/roles/${roleId}`, {
           method: 'PUT',
           headers: {
@@ -121,16 +127,14 @@ export default function RoleListPage() {
         roleId = created.id;
       }
 
-      if (canAssignPermissions) {
-        await fetch(`${baseUrl}/roles/${roleId}/permissions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ permissionIds: data.permissionIds }),
-        });
-      }
+      await fetch(`${baseUrl}/roles/${roleId}/permissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ permissionIds: data.permissionIds }),
+      });
 
       setShowModal(false);
       fetchRoles();
@@ -140,13 +144,9 @@ export default function RoleListPage() {
   }
 
   async function handleDeleteSelected() {
+    setDeleteConfirm(false);
     const token = getAuthToken();
     if (!token) return;
-    if (!canDelete) return;
-
-    const count = selectedIds.length;
-    if (!window.confirm(`Bạn có chắc chắn muốn xoá ${count} vai trò đã chọn?`))
-      return;
 
     const results = await Promise.allSettled(
       selectedIds.map((id) =>
@@ -159,6 +159,7 @@ export default function RoleListPage() {
 
     const succeeded = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.filter((r) => r.status === 'rejected').length;
+    const count = selectedIds.length;
 
     setSelectedIds([]);
     fetchRoles();
@@ -181,15 +182,13 @@ export default function RoleListPage() {
           Danh sách vai trò
         </h1>
         <div className="flex items-center gap-3">
-          {canCreate && (
-            <button
-              onClick={handleAddNew}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-            >
-              <Plus size={16} />
-              Thêm mới
-            </button>
-          )}
+          <button
+            onClick={handleAddNew}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+          >
+            <Plus size={16} />
+            Thêm mới
+          </button>
         </div>
       </div>
 
@@ -201,18 +200,16 @@ export default function RoleListPage() {
                 <input
                   type="checkbox"
                   checked={
-                    filteredRoles.length > 0 &&
-                    selectedIds.length === filteredRoles.length
+                    paginatedRoles.length > 0 &&
+                    selectedIds.length === paginatedRoles.length
                   }
                   onChange={(e) => {
-                    if (!canDelete) return;
                     if (e.target.checked) {
-                      setSelectedIds(filteredRoles.map((r: any) => r.id));
+                      setSelectedIds(paginatedRoles.map((r: any) => r.id));
                     } else {
                       setSelectedIds([]);
                     }
                   }}
-                  disabled={!canDelete}
                   className="accent-blue-600"
                 />
               </th>
@@ -230,7 +227,7 @@ export default function RoleListPage() {
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo mã vai trò..."
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -238,7 +235,7 @@ export default function RoleListPage() {
               </td>
               <td className="px-3 py-2">
                 <input
-                  placeholder=""
+                  placeholder="Tìm theo tên vai trò..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -271,17 +268,17 @@ export default function RoleListPage() {
                   </button>
                 </td>
               </tr>
-            ) : filteredRoles.length === 0 ? (
+            ) : paginatedRoles.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={3}
                   className="px-4 py-10 text-center text-sm text-gray-400"
                 >
-                  Không tìm thấy vai trò
+                  Không tìm thấy vai trò phù hợp
                 </td>
               </tr>
             ) : (
-              filteredRoles.map((role: any) => (
+              paginatedRoles.map((role: any) => (
                 <tr
                   key={role.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
@@ -291,26 +288,22 @@ export default function RoleListPage() {
                       type="checkbox"
                       checked={selectedIds.includes(role.id)}
                       onChange={() => {
-                        if (!canDelete) return;
                         setSelectedIds((prev) =>
                           prev.includes(role.id)
                             ? prev.filter((id) => id !== role.id)
                             : [...prev, role.id],
                         );
                       }}
-                      disabled={!canDelete}
                       className="accent-blue-600"
                     />
                   </td>
                   <td className="px-2 py-3">
-                    {(canUpdate || canAssignPermissions) && (
-                      <button
-                        onClick={() => handleEdit(role)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleEdit(role)}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                      <Pencil size={15} />
+                    </button>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-700 font-mono">
                     {role.code}
@@ -325,19 +318,33 @@ export default function RoleListPage() {
         </table>
       </div>
 
-      {canDelete && (
-        <SelectionBar
-          selectedCount={selectedIds.length}
-          onClear={() => setSelectedIds([])}
-          onDelete={handleDeleteSelected}
-        />
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredRoles.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+      />
+
+      <SelectionBar
+        selectedCount={selectedIds.length}
+        onClear={() => setSelectedIds([])}
+        onDelete={() => setDeleteConfirm(true)}
+      />
 
       <RoleModal
         open={showModal}
         onClose={() => setShowModal(false)}
         onSave={handleSave}
         initialData={editingRole}
+      />
+
+      <ConfirmDeleteDialog
+        open={deleteConfirm}
+        message={`Xoá ${selectedIds.length} vai trò đã chọn?`}
+        onConfirm={handleDeleteSelected}
+        onCancel={() => setDeleteConfirm(false)}
       />
     </div>
   );

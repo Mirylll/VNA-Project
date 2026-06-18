@@ -14,6 +14,7 @@ interface AutocompleteProps {
   onSelect: (value: string) => void;
   className?: string;
   error?: boolean;
+  plain?: boolean;
 }
 
 function removeAccents(str: string) {
@@ -31,6 +32,7 @@ export default function Autocomplete({
   onSelect,
   className = "",
   error,
+  plain,
 }: AutocompleteProps) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
@@ -126,10 +128,16 @@ export default function Autocomplete({
         onBlur={handleBlur}
         placeholder={placeholder}
         autoComplete="off"
-        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 ${
-          error
-            ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-            : "border-slate-200 focus:border-blue-500 focus:ring-blue-200"
+        className={`${
+          plain
+            ? ""
+            : "w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
+        } ${
+          plain
+            ? ""
+            : error
+              ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+              : "border-slate-200 focus:border-blue-500 focus:ring-blue-200"
         } ${className}`}
       />
       {open && filtered.length > 0 && (

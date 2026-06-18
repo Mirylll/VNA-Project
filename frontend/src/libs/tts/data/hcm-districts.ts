@@ -315,7 +315,7 @@ export const HCM_WARDS: Ward[] = [
   { code: "27676", name: "Xã Phước Kiển", district: "Huyện Nhà Bè" },
   { code: "27679", name: "Xã Phước Lộc", district: "Huyện Nhà Bè" },
   // Thành phố Thủ Đức
-  { code: "26869", name: "Phường An Khánh", district: "TP. Thủ Đức" },
+  { code: "27681", name: "Phường An Khánh", district: "TP. Thủ Đức" },
   { code: "27682", name: "Phường An Lợi Đông", district: "TP. Thủ Đức" },
   { code: "27685", name: "Phường An Phú", district: "TP. Thủ Đức" },
   { code: "27688", name: "Phường Bình Chiểu", district: "TP. Thủ Đức" },
