@@ -99,6 +99,16 @@ export default function EnterpriseModal({
       return;
     }
 
+    const taxDigits = taxCode.replace(/-/g, '');
+    if (taxCode.trim() && taxDigits.length < 10) {
+      setError('Mã số thuế phải có ít nhất 10 ký tự (không tính dấu gạch ngang)');
+      return;
+    }
+    if (taxDigits.length > 15) {
+      setError('Mã số thuế tối đa 15 ký tự (không tính dấu gạch ngang)');
+      return;
+    }
+
     const token = getAuthToken();
     if (!token) {
       setError('Bạn cần đăng nhập');
