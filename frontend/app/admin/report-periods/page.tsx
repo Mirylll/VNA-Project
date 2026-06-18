@@ -273,7 +273,7 @@ export default function ReportPeriodsPage() {
               <td className="px-2 py-2">
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder="Lọc năm..."
                   value={filterYear}
                   onChange={(e) => setFilterYear(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
