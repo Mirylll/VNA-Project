@@ -24,7 +24,7 @@ export class PermissionsService {
 
   async getTree(): Promise<Permission[]> {
     const all = await this.permissionRepo.find({ relations: ['children'], order: { sortOrder: 'ASC' } });
-    return all.filter((p) => p.type === 'Group' && !p.parent);
+    return all.filter((p) => p.type === 'Group');
   }
 
   async getPermissionCodesForRole(roleId: string): Promise<string[]> {
