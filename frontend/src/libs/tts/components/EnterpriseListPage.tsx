@@ -317,7 +317,7 @@ export default function EnterpriseListPage() {
           const foreignName = foreignNameIdx !== -1 ? row[foreignNameIdx] : '';
           const leaderName = leaderNameIdx !== -1 ? row[leaderNameIdx] : '';
           const leaderPhone = leaderPhoneIdx !== -1 ? row[leaderPhoneIdx] : '';
-          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : '12345678';
+          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : 'Default@123';
 
           const enterpriseTypeId = typeName ? typeMap[typeName.toLowerCase().trim()] : undefined;
           const industryId = indName ? indMap[indName.toLowerCase().trim()] : undefined;

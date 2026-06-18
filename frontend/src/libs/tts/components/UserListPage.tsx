@@ -308,7 +308,7 @@ export default function UserListPage() {
           const email = emailIdx !== -1 ? row[emailIdx] : undefined;
           const roleName = roleIdx !== -1 ? row[roleIdx] : '';
           const titleName = titleIdx !== -1 ? row[titleIdx] : undefined;
-          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : '123456';
+          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : 'Default@123';
 
           const roleId = roleName ? roleMap[roleName.toLowerCase().trim()] : undefined;
 
