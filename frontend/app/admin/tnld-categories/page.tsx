@@ -1156,11 +1156,40 @@ export default function TnldCategoriesPage() {
                       <option value="">
                         {activeCategory === 'type' ? 'Không có (Cấp 1)' : 'Không có (Ngành cấp 1)'}
                       </option>
-                      {parentOptions.map((opt) => (
-                        <option key={opt.code} value={opt.code}>
-                          {opt.code} - {opt.name}
-                        </option>
-                      ))}
+                      {activeCategory === 'type' ? (
+                        // Group injury types: Level-1 as optgroup labels, Level-2+ as options
+                        (() => {
+                          const level1 = parentOptions.filter(t => t.level === 1);
+                          const level2plus = parentOptions.filter(t => t.level >= 2);
+                          return level1.map(grp => (
+                            <optgroup key={grp.code} label={`${grp.code} – ${grp.name}`}>
+                              {/* also allow selecting the level-1 group itself */}
+                              <option value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
+                              {level2plus.filter(t => t.parentCode === grp.code).map(opt => (
+                                <option key={opt.code} value={opt.code}>
+                                  {'\u00A0\u00A0'}{opt.code} - {opt.name} (Cấp {opt.level})
+                                </option>
+                              ))}
+                            </optgroup>
+                          ));
+                        })()
+                      ) : (
+                        // Group occupations: Level-1 as optgroup labels, rest as nested options
+                        (() => {
+                          const level1 = parentOptions.filter(o => o.level === 1);
+                          const restOpts = parentOptions.filter(o => o.level >= 2);
+                          return level1.map(grp => (
+                            <optgroup key={grp.code} label={`${grp.code} – ${grp.name}`}>
+                              <option value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
+                              {restOpts.filter(o => o.parentCode === grp.code).map(opt => (
+                                <option key={opt.code} value={opt.code}>
+                                  {'\u00A0\u00A0'}{opt.code} - {opt.name} (Cấp {opt.level})
+                                </option>
+                              ))}
+                            </optgroup>
+                          ));
+                        })()
+                      )}
                     </select>
                     <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                   </div>

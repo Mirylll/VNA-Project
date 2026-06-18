@@ -9,6 +9,8 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   error?: string;
+  minYear?: number;  // defaults to 1900 (allow past years for birth date)
+  maxYear?: number;  // defaults to current year + 10
 }
 
 function parseParts(iso: string) {
@@ -46,15 +48,7 @@ function clampDateParts(d: string, m: string, y: string) {
     cleanM = String(monthNum).padStart(2, '0');
   }
 
-  // Validate and clamp year (only clamp when 4 digits are typed)
-  if (cleanY.length === 4) {
-    let yearNum = parseInt(cleanY, 10);
-    const currentYear = new Date().getFullYear();
-    if (yearNum < currentYear) {
-      yearNum = currentYear;
-    }
-    cleanY = String(yearNum);
-  }
+  // No automatic clamping of year here — let the caller's minYear/maxYear handle it
 
   // Validate and clamp day based on max days of month/year
   if (cleanD.length === 2) {
@@ -75,7 +69,10 @@ export default function DatePicker({
   onChange,
   className = '',
   error,
+  minYear = 1900,
+  maxYear,
 }: DatePickerProps) {
+  const _maxYear = maxYear ?? new Date().getFullYear() + 10;
   const hiddenRef = useRef<HTMLInputElement>(null);
   const dRef = useRef<HTMLInputElement>(null);
   const mRef = useRef<HTMLInputElement>(null);
@@ -87,11 +84,23 @@ export default function DatePicker({
   const [localY, setLocalY] = useState(initialParts.y);
 
   // Synchronize state when value changes externally (e.g. native calendar pick)
+  // But skip resetting when value is '' while the user is actively typing segments
   useEffect(() => {
+    if (!value) {
+      // Only reset if local segments are also empty to avoid clearing mid-typing
+      const localIso = toIso(localD, localM, localY);
+      if (!localIso) {
+        setLocalD('');
+        setLocalM('');
+        setLocalY('');
+      }
+      return;
+    }
     const p = parseParts(value);
     setLocalD(p.d);
     setLocalM(p.m);
     setLocalY(p.y);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   function triggerChange(d: string, m: string, y: string) {
@@ -100,12 +109,20 @@ export default function DatePicker({
       const monthNum = parseInt(m, 10);
       const yearNum = parseInt(y, 10);
       const maxDays = getMaxDays(monthNum, yearNum);
-      if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= maxDays && yearNum >= new Date().getFullYear()) {
+      if (
+        monthNum >= 1 && monthNum <= 12 &&
+        dayNum >= 1 && dayNum <= maxDays &&
+        yearNum >= minYear && yearNum <= _maxYear
+      ) {
         onChange(toIso(d, m, y));
         return;
       }
     }
-    onChange('');
+    // Don't call onChange('') while the user is still actively typing segments
+    // Only clear if no segments have been started yet
+    if (!d && !m && !y) {
+      onChange('');
+    }
   }
 
   function handleSegmentChange(segment: 'd' | 'm' | 'y', raw: string) {
