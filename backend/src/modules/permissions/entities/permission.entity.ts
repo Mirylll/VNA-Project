@@ -11,8 +11,8 @@ export class Permission {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ type: 'enum', enum: ['Group', 'Component'] })
-  type: 'Group' | 'Component';
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  type?: 'Group' | 'Component';
 
   @ManyToOne(() => Permission, { nullable: true })
   @JoinColumn({ name: 'parent_id' })
