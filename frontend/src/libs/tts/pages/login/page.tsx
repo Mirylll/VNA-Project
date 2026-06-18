@@ -231,6 +231,18 @@ export default function LoginPage() {
       setResetError("Mật khẩu mới phải có ít nhất 8 ký tự");
       return;
     }
+    if (!/[A-Z]/.test(newPassword)) {
+      setResetError("Mật khẩu phải có ít nhất 1 chữ hoa");
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      setResetError("Mật khẩu phải có ít nhất 1 chữ thường");
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      setResetError("Mật khẩu phải có ít nhất 1 chữ số");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setResetError("Mật khẩu không khớp");
       return;
