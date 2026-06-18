@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Pencil, Plus, ChevronDown, X, Save, FileText, Upload } from 'lucide-react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
+import { Pencil, Plus, ChevronDown, ChevronRight, X, Save, FileText, Upload } from 'lucide-react';
 
 // Interfaces for our 3 category types
 interface InjuryFactor {
@@ -74,6 +74,18 @@ export default function TnldCategoriesPage() {
   const [filterLevel, setFilterLevel] = useState('');
   const [filterStatus, setFilterStatus] = useState(''); // Only for factors
 
+  // Expanded groups for collapsible type/occupation table rows
+  const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
+
+  function toggleExpand(code: string) {
+    setExpandedCodes(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  }
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null); // holds the item being edited
@@ -94,6 +106,12 @@ export default function TnldCategoriesPage() {
     setFilterLevel('');
     setFilterStatus('');
     setSelectedIds([]);
+    // Reset expanded state to all level-1 items when switching tabs
+    if (activeCategory === 'type') {
+      setExpandedCodes(new Set(types.filter(t => t.level === 1).map(t => t.code)));
+    } else if (activeCategory === 'occupation') {
+      setExpandedCodes(new Set(occupations.filter(o => o.level === 1).map(o => o.code)));
+    }
   }, [activeCategory]);
 
   // Load / Save to LocalStorage
@@ -115,9 +133,13 @@ export default function TnldCategoriesPage() {
         localStorage.setItem('vna_tnld_types', JSON.stringify(DEFAULT_INJURY_TYPES));
       }
 
-      if (storedOccs) setOccupations(JSON.parse(storedOccs));
-      else {
+      if (storedOccs) {
+        const occs = JSON.parse(storedOccs) as Occupation[];
+        setOccupations(occs);
+        setExpandedCodes(new Set(occs.filter(o => o.level === 1).map(o => o.code)));
+      } else {
         setOccupations(DEFAULT_OCCUPATIONS);
+        setExpandedCodes(new Set(DEFAULT_OCCUPATIONS.filter(o => o.level === 1).map(o => o.code)));
         localStorage.setItem('vna_tnld_occs', JSON.stringify(DEFAULT_OCCUPATIONS));
       }
     }
@@ -773,7 +795,7 @@ export default function TnldCategoriesPage() {
               )
             )}
 
-            {/* Types list */}
+            {/* Types list - grouped collapsible like PermissionListPage */}
             {activeCategory === 'type' && (
               filteredTypes.length === 0 ? (
                 <tr>
@@ -782,46 +804,88 @@ export default function TnldCategoriesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredTypes.map((item) => (
-                  <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item.code)}
-                        onChange={() => {
-                          setSelectedIds((prev) =>
-                            prev.includes(item.code) ? prev.filter((c) => c !== item.code) : [...prev, item.code]
-                          );
-                        }}
-                        className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                      />
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-slate-400 hover:text-[#1D4ED8] transition"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-700 font-mono">
-                      {item.code}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-700 font-medium">
-                      <span className="text-slate-400 font-mono select-none">
-                        {renderDashes(item.level)}
-                      </span>
-                      {item.name}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-500 text-center">
-                      Cấp {item.level}
-                    </td>
-                  </tr>
-                ))
+                (() => {
+                  // Separate level-1 (group) from children
+                  const level1Items = filteredTypes.filter(t => t.level === 1);
+                  const childItems = filteredTypes.filter(t => t.level > 1);
+
+                  // If filtering is active, show flat list
+                  if (filterCode || filterName || filterLevel) {
+                    return filteredTypes.map(item => (
+                      <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox" checked={selectedIds.includes(item.code)}
+                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-700 font-mono">{item.code}</td>
+                        <td className="px-3 py-3 text-sm text-slate-700 font-medium">
+                          <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-500 text-center">Cấp {item.level}</td>
+                      </tr>
+                    ));
+                  }
+
+                  // Grouped view: level-1 rows are collapsible group headers
+                  return level1Items.map(group => {
+                    const isOpen = expandedCodes.has(group.code);
+                    const children = childItems.filter(t => t.parentCode === group.code);
+                    return (
+                      <Fragment key={group.code}>
+                        {/* Group (Cấp 1) row */}
+                        <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
+                          <td className="px-4 py-3.5 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(group.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
+                          <td className="px-2 py-3.5 text-center">
+                            <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                          </td>
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => toggleExpand(group.code)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                              >
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
+                              <span className="text-sm font-semibold text-blue-600 font-mono">{group.code}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3.5 text-sm font-semibold text-blue-600">{group.name}</td>
+                          <td className="px-3 py-3.5 text-sm text-blue-500 text-center font-medium">Cấp 1</td>
+                        </tr>
+                        {/* Children rows */}
+                        {isOpen && children.map(child => (
+                          <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
+                            <td className="px-2 py-3 text-center">
+                              <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                            </td>
+                            <td className="px-3 py-3 text-sm text-slate-600 font-mono pl-8">{child.code}</td>
+                            <td className="px-3 py-3 text-sm text-slate-700 font-medium pl-4">
+                              <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
+                            </td>
+                            <td className="px-3 py-3 text-sm text-slate-400 text-center">Cấp {child.level}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  });
+                })()
               )
             )}
 
-            {/* Occupations list */}
+            {/* Occupations list - grouped collapsible */}
             {activeCategory === 'occupation' && (
               filteredOccupations.length === 0 ? (
                 <tr>
@@ -830,42 +894,83 @@ export default function TnldCategoriesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredOccupations.map((item) => (
-                  <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item.code)}
-                        onChange={() => {
-                          setSelectedIds((prev) =>
-                            prev.includes(item.code) ? prev.filter((c) => c !== item.code) : [...prev, item.code]
-                          );
-                        }}
-                        className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                      />
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-slate-400 hover:text-[#1D4ED8] transition"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-700 font-mono">
-                      {item.code}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-700 font-medium">
-                      <span className="text-slate-400 font-mono select-none">
-                        {renderDashes(item.level)}
-                      </span>
-                      {item.name}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-slate-500 text-center">
-                      Cấp {item.level}
-                    </td>
-                  </tr>
-                ))
+                (() => {
+                  const level1Items = filteredOccupations.filter(o => o.level === 1);
+                  const childItems = filteredOccupations.filter(o => o.level > 1);
+
+                  // If filtering is active, show flat list
+                  if (filterCode || filterName || filterLevel) {
+                    return filteredOccupations.map(item => (
+                      <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox" checked={selectedIds.includes(item.code)}
+                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-700 font-mono">{item.code}</td>
+                        <td className="px-3 py-3 text-sm text-slate-700 font-medium">
+                          <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-500 text-center">Cấp {item.level}</td>
+                      </tr>
+                    ));
+                  }
+
+                  // Grouped view: level-1 rows are collapsible
+                  return level1Items.map(group => {
+                    const isOpen = expandedCodes.has(group.code);
+                    const children = childItems.filter(o => o.parentCode === group.code);
+                    return (
+                      <Fragment key={group.code}>
+                        {/* Group (Cấp 1) row */}
+                        <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
+                          <td className="px-4 py-3.5 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(group.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
+                          <td className="px-2 py-3.5 text-center">
+                            <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                          </td>
+                          <td className="px-3 py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => toggleExpand(group.code)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                              >
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
+                              <span className="text-sm font-semibold text-blue-600 font-mono">{group.code}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3.5 text-sm font-semibold text-blue-600">{group.name}</td>
+                          <td className="px-3 py-3.5 text-sm text-blue-500 text-center font-medium">Cấp 1</td>
+                        </tr>
+                        {/* Children rows */}
+                        {isOpen && children.map(child => (
+                          <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
+                            <td className="px-2 py-3 text-center">
+                              <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                            </td>
+                            <td className="px-3 py-3 text-sm text-slate-600 font-mono pl-8">{child.code}</td>
+                            <td className="px-3 py-3 text-sm text-slate-700 font-medium pl-4">
+                              <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
+                            </td>
+                            <td className="px-3 py-3 text-sm text-slate-400 text-center">Cấp {child.level}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  });
+                })()
               )
             )}
           </tbody>

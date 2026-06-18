@@ -18,8 +18,9 @@ interface RoleItem {
   name: string;
 }
 
-// Dummy role names to exclude from the dropdown
-const DUMMY_ROLES = ['role1', 'role2', 'role3', 'Role1', 'Role2', 'Role3'];
+// Filter out dummy/test roles: any role whose name starts with role1/role2/role3 (case-insensitive)
+const isDummyRole = (name: string) =>
+  /^role[123]/i.test(name);
 
 // Build ward options from HCM_WARDS for the Autocomplete component
 // Autocomplete expects { id: number, name: string } but we adapt with numeric id from code
@@ -110,7 +111,7 @@ export default function UserDetailClient({
     const promises: Promise<void>[] = [
       fetch(`${baseUrl}/roles`, { headers })
         .then((r) => (r.ok ? r.json() : []))
-        .then((data: RoleItem[]) => setRoles(data.filter(r => !DUMMY_ROLES.includes(r.name)))),
+        .then((data: RoleItem[]) => setRoles(data.filter(r => !isDummyRole(r.name)))),
     ];
 
     if (!isAdd) {
