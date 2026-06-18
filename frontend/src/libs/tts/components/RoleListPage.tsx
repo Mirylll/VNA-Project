@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Pencil, RefreshCw } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import RoleModal from './RoleModal';
+import Pagination from './Pagination';
 import SelectionBar from './SelectionBar';
 import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
@@ -31,6 +32,8 @@ export default function RoleListPage() {
   const [editingRole, setEditingRole] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   function fetchRoles() {
     setLoading(true);
@@ -63,9 +66,18 @@ export default function RoleListPage() {
     fetchRoles();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCode, filterName, itemsPerPage]);
+
   const filteredRoles = filterCode || filterName
     ? roles.filter((r) => matches(r, filterCode, filterName))
     : roles;
+  const totalPages = Math.ceil(filteredRoles.length / itemsPerPage);
+  const paginatedRoles = filteredRoles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   function handleAddNew() {
     setEditingRole(null);
@@ -188,12 +200,12 @@ export default function RoleListPage() {
                 <input
                   type="checkbox"
                   checked={
-                    filteredRoles.length > 0 &&
-                    selectedIds.length === filteredRoles.length
+                    paginatedRoles.length > 0 &&
+                    selectedIds.length === paginatedRoles.length
                   }
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedIds(filteredRoles.map((r: any) => r.id));
+                      setSelectedIds(paginatedRoles.map((r: any) => r.id));
                     } else {
                       setSelectedIds([]);
                     }
@@ -256,17 +268,17 @@ export default function RoleListPage() {
                   </button>
                 </td>
               </tr>
-            ) : filteredRoles.length === 0 ? (
+            ) : paginatedRoles.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={3}
                   className="px-4 py-10 text-center text-sm text-gray-400"
                 >
-                  Không tìm thấy vai trò
+                  Không tìm thấy vai trò phù hợp
                 </td>
               </tr>
             ) : (
-              filteredRoles.map((role: any) => (
+              paginatedRoles.map((role: any) => (
                 <tr
                   key={role.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
@@ -305,6 +317,15 @@ export default function RoleListPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredRoles.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+      />
 
       <SelectionBar
         selectedCount={selectedIds.length}

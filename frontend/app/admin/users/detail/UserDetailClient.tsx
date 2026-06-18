@@ -176,8 +176,11 @@ export default function UserDetailClient({
     else if (formData.fullName.length > 150) errs.fullName = 'Họ và tên tối đa 150 ký tự';
     if (isAdd) {
       if (!formData.password) errs.password = 'Mật khẩu không được để trống';
-      else if (formData.password.length < 6) errs.password = 'Mật khẩu tối thiểu 6 ký tự';
+      else if (formData.password.length < 8) errs.password = 'Mật khẩu phải có ít nhất 8 ký tự';
       else if (formData.password.length > 100) errs.password = 'Mật khẩu tối đa 100 ký tự';
+      else if (!/[A-Z]/.test(formData.password)) errs.password = 'Mật khẩu phải có ít nhất 1 chữ hoa';
+      else if (!/[a-z]/.test(formData.password)) errs.password = 'Mật khẩu phải có ít nhất 1 chữ thường';
+      else if (!/\d/.test(formData.password)) errs.password = 'Mật khẩu phải có ít nhất 1 chữ số';
     }
     if (!formData.email.trim()) {
       errs.email = 'Email không được để trống';
@@ -530,6 +533,7 @@ export default function UserDetailClient({
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
+                      maxLength={200}
                       placeholder="Email"
                       className={fieldClass('email')}
                     />
@@ -662,6 +666,7 @@ export default function UserDetailClient({
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
+                      maxLength={200}
                       placeholder="Email"
                       className={fieldClass('email')}
                     />
@@ -717,7 +722,7 @@ export default function UserDetailClient({
               name="address"
               value={formData.address}
               onChange={handleInputChange}
-              placeholder="Địa chỉ"
+              maxLength={500}
               className={fieldClass('address')}
             />
             <label className={labelClass}>Địa chỉ</label>

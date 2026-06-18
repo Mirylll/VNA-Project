@@ -53,6 +53,7 @@ export default function RoleModal({
   const [permFilterCode, setPermFilterCode] = useState('');
   const [permFilterName, setPermFilterName] = useState('');
   const [page, setPage] = useState(1);
+  const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -73,6 +74,7 @@ export default function RoleModal({
       setPage(1);
       setPermFilterCode('');
       setPermFilterName('');
+      setErrors({});
       fetchPermissions();
     }
   }, [open]);
@@ -175,27 +177,37 @@ export default function RoleModal({
 
         {/* Form fields */}
         <div className="grid grid-cols-2 gap-4 px-6 pt-6">
-          <div className="relative border border-slate-300 rounded-lg px-3 pt-3 pb-2">
+          <div className={`relative border rounded-lg px-3 pt-3 pb-2 ${errors.code ? 'border-red-500' : 'border-slate-300'}`}>
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
               Mã vai trò <span className="text-red-500">*</span>
             </label>
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder=""
+              onChange={(e) => {
+                setCode(e.target.value);
+                if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
+              }}
+              placeholder="Nhập mã vai trò"
+              maxLength={50}
               className="w-full border-none outline-none text-sm py-0.5"
             />
+            {errors.code && <p className="text-xs text-red-500 mt-0.5">{errors.code}</p>}
           </div>
-          <div className="relative border border-slate-300 rounded-lg px-3 pt-3 pb-2">
+          <div className={`relative border rounded-lg px-3 pt-3 pb-2 ${errors.name ? 'border-red-500' : 'border-slate-300'}`}>
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
               Tên vai trò <span className="text-red-500">*</span>
             </label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder=""
+              onChange={(e) => {
+                setName(e.target.value);
+                if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
+              }}
+              placeholder="Nhập tên vai trò"
+              maxLength={100}
               className="w-full border-none outline-none text-sm py-0.5"
             />
+            {errors.name && <p className="text-xs text-red-500 mt-0.5">{errors.name}</p>}
           </div>
         </div>
 
@@ -395,6 +407,13 @@ export default function RoleModal({
         <div className="px-6 py-4 flex items-center justify-end border-t border-slate-200">
           <button
             onClick={async () => {
+              const errs: { code?: string; name?: string } = {};
+              if (!code.trim()) errs.code = 'Mã vai trò không được để trống';
+              else if (code.trim().length > 50) errs.code = 'Mã vai trò tối đa 50 ký tự';
+              if (!name.trim()) errs.name = 'Tên vai trò không được để trống';
+              else if (name.trim().length > 100) errs.name = 'Tên vai trò tối đa 100 ký tự';
+              setErrors(errs);
+              if (Object.keys(errs).length > 0) return;
               setSaving(true);
               await onSave({ code, name, permissionIds: selectedIds });
               setSaving(false);

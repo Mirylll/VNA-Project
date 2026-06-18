@@ -19,7 +19,7 @@ export class EnterprisesService {
 
   async findAll(): Promise<Enterprise[]> {
     return this.repo.find({
-      relations: ['enterpriseType', 'industry', 'province', 'ward'],
+      relations: ['enterpriseType', 'industry', 'province', 'ward', 'operationProvince', 'operationWard'],
       order: { createdAt: 'DESC' },
     });
   }

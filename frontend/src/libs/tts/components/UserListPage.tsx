@@ -7,6 +7,7 @@ import { getAuthToken } from '@/libs/core/utils/auth-token';
 import SelectionBar from './SelectionBar';
 import ResetPasswordModal from './ResetPasswordModal';
 import SuccessToast from './SuccessToast';
+import Pagination from './Pagination';
 import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
 interface UserData {
@@ -56,6 +57,7 @@ function matches(item: UserData, filters: Record<string, string>) {
     if (key === 'username' && !item.username.toLowerCase().includes(v)) return false;
     if (key === 'email' && !(item.email || '').toLowerCase().includes(v)) return false;
     if (key === 'role' && !(item.role?.name || '').toLowerCase().includes(v)) return false;
+    if (key === 'title' && !(item.title?.name || '').toLowerCase().includes(v)) return false;
     if (key === 'status') {
       const active = v === 'hoạt động' || v === 'active';
       const inactive = v === 'ngừng' || v === 'inactive';
@@ -118,6 +120,8 @@ export default function UserListPage() {
   const [resetPasswordUser, setResetPasswordUser] = useState<UserData | null>(null);
   const [toastMessage, setToastMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filters, setFilters] = useState<Record<string, string>>({
     fullName: '',
     username: '',
@@ -150,10 +154,19 @@ export default function UserListPage() {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, itemsPerPage]);
+
   const hasFilters = Object.values(filters).some((v) => v.trim());
   const filteredUsers = hasFilters
     ? users.filter((u) => matches(u, filters))
     : users;
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   function handleAddNew() {
     router.push('/admin/users/detail');
@@ -324,7 +337,7 @@ export default function UserListPage() {
           const email = emailIdx !== -1 ? row[emailIdx] : undefined;
           const roleName = roleIdx !== -1 ? row[roleIdx] : '';
           const titleName = titleIdx !== -1 ? row[titleIdx] : undefined;
-          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : '123456';
+          const password = (passwordIdx !== -1 && row[passwordIdx]) ? row[passwordIdx] : 'Default@123';
 
           const roleId = roleName ? roleMap[roleName.toLowerCase().trim()] : undefined;
 
@@ -414,12 +427,12 @@ export default function UserListPage() {
                 <input
                   type="checkbox"
                   checked={
-                    filteredUsers.length > 0 &&
-                    selectedIds.length === filteredUsers.length
+                    paginatedUsers.length > 0 &&
+                    selectedIds.length === paginatedUsers.length
                   }
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedIds(filteredUsers.map((u) => u.id));
+                      setSelectedIds(paginatedUsers.map((u) => u.id));
                     } else {
                       setSelectedIds([]);
                     }
@@ -548,14 +561,14 @@ export default function UserListPage() {
                   </button>
                 </td>
               </tr>
-            ) : filteredUsers.length === 0 ? (
+            ) : paginatedUsers.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
                   {hasFilters ? 'Không tìm thấy người dùng' : 'Chưa có người dùng nào'}
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((user) => (
+              paginatedUsers.map((user) => (
                 <tr
                   key={user.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
@@ -617,6 +630,15 @@ export default function UserListPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredUsers.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+      />
 
       <SelectionBar
         selectedCount={selectedIds.length}

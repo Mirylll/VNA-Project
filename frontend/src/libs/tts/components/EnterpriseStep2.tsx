@@ -94,6 +94,17 @@ export default function EnterpriseStep2({
       return;
     }
 
+    if (!formData.name.trim()) { setError('Tên doanh nghiệp không được để trống'); return; }
+    if (!formData.taxCode.trim()) { setError('Mã số thuế không được để trống'); return; }
+    if (!formData.enterpriseTypeId) { setError('Loại hình kinh doanh không được để trống'); return; }
+    if (!formData.industryId) { setError('Ngành nghề kinh doanh không được để trống'); return; }
+    if (!formData.provinceId) { setError('Tỉnh/Thành phố ĐKKD không được để trống'); return; }
+    if (!formData.wardId) { setError('Phường/Xã ĐKKD không được để trống'); return; }
+    if (!formData.email.trim()) { setError('Email không được để trống'); return; }
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setError('Email không đúng định dạng'); return;
+    }
+
     setSaving(true);
     setError('');
 
@@ -115,7 +126,7 @@ export default function EnterpriseStep2({
       leaderName: formData.leaderName || undefined,
       leaderPhone: formData.leaderPhone || undefined,
       username: formData.taxCode.trim(),
-      password: '12345678',
+      password: 'Default@123',
       isActive: true,
     };
 

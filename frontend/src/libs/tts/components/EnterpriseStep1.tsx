@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEnterpriseForm } from '@/libs/tts/contexts/EnterpriseFormContext';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 import DatePicker from '@/libs/tts/components/DatePicker';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -49,11 +50,17 @@ export default function EnterpriseStep1({
     };
   });
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const handleFileChange = (label: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.type !== "application/pdf") {
       alert("Chỉ chấp nhận file PDF");
+      return;
+    }
+    if (f.size > MAX_FILE_SIZE) {
+      alert(`Dung lượng file tối đa là 10MB`);
       return;
     }
     const newAtt = {
@@ -134,14 +141,6 @@ export default function EnterpriseStep1({
               : undefined,
           })),
         });
-        if (data.province?.id && data.province?.id !== 1) {
-          try {
-            const wardRes = await fetch(`${baseUrl}/districts?provinceId=${data.province.id}`, {
-              headers: { authorization: `Bearer ${token}` },
-            });
-            if (wardRes.ok) setWards(await wardRes.json());
-          } catch {}
-        }
       } catch (err) {
         console.error('Failed to load enterprise for edit', err);
       }
@@ -166,6 +165,18 @@ export default function EnterpriseStep1({
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!formData.provinceId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    fetch(`${baseUrl}/districts?provinceId=${formData.provinceId}`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setWards(data))
+      .catch(() => {});
+  }, [formData.provinceId]);
+
   const handleContinue = () => {
     const newErrors: Record<string, string> = {};
     for (const field of requiredFields) {
@@ -174,6 +185,18 @@ export default function EnterpriseStep1({
         newErrors[field.key] = `${field.label} không được để trống`;
       }
     }
+
+    const taxDigits = formData.taxCode.replace(/-/g, '');
+    if (formData.taxCode.trim() && taxDigits.length < 10) {
+      newErrors.taxCode = 'Mã số thuế phải có ít nhất 10 ký tự (không tính dấu gạch ngang)';
+    } else if (taxDigits.length > 15) {
+      newErrors.taxCode = 'Mã số thuế tối đa 15 ký tự (không tính dấu gạch ngang)';
+    }
+
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = 'Email không đúng định dạng';
+    }
+
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) return;
@@ -238,6 +261,7 @@ export default function EnterpriseStep1({
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Công ty cổ phần công nghệ quốc tế VNA"
+                maxLength={100}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
             </>
@@ -253,6 +277,7 @@ export default function EnterpriseStep1({
                 value={formData.taxCode}
                 onChange={handleInputChange}
                 placeholder="910000888292"
+                maxLength={50}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
             </>
@@ -344,42 +369,38 @@ export default function EnterpriseStep1({
             </>
           )}
 
-          {renderField('wardId',
-            <>
-              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                Phường/Xã ĐKKD <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  name="wardId"
-                  value={formData.wardId}
-                  onChange={handleInputChange}
-                  className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-                >
-                  <option value="" disabled>Chọn phường/xã</option>
-                  <option value="1">Phường Hiệp Bình Phước</option>
-                  <option value="2">Phường 1</option>
-                  <option value="3">Phường 2</option>
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-                />
-              </div>
-            </>
-          )}
+          <div className={`relative border rounded-lg h-11 px-3 pt-3 pb-2 ${errors.wardId ? 'border-red-400' : 'border-slate-200'}`}>
+            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
+              Phường/Xã ĐKKD <span className="text-red-500">*</span>
+            </label>
+            <Autocomplete
+              value={formData.wardId}
+              options={wards.map((w: any) => ({ id: w.id, name: w.name }))}
+              placeholder="Chọn phường/xã"
+              onSelect={(val) => {
+                updateField('wardId', val);
+                if (errors.wardId) {
+                  setErrors((prev) => { const n = { ...prev }; delete n.wardId; return n; });
+                }
+              }}
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              error={!!errors.wardId}
+              plain
+            />
+          </div>
 
           <div className="col-span-2 relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Địa chỉ
             </label>
-            <input
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              placeholder="162 đường số 2, khu đô thị Vạn Phúc"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                placeholder="162 đường số 2, khu đô thị Vạn Phúc"
+                maxLength={500}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
         </div>
       </div>
@@ -395,13 +416,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Tên viết bằng tiếng nước ngoài
             </label>
-            <input
-              name="foreignName"
-              value={formData.foreignName}
-              onChange={handleInputChange}
-              placeholder="VNA International"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="foreignName"
+                value={formData.foreignName}
+                onChange={handleInputChange}
+                placeholder="VNA International"
+                maxLength={255}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           {renderField('email',
@@ -414,6 +436,7 @@ export default function EnterpriseStep1({
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="vna@gmail.com"
+                maxLength={200}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
             </>
@@ -423,13 +446,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Số điện thoại cơ quan
             </label>
-            <input
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              placeholder="028 3828 2888"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="028 3828 2888"
+                maxLength={20}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
@@ -459,23 +483,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Phường/xã hoạt động KD
             </label>
-            <div className="relative">
-              <select
-                name="operationWardId"
-                value={formData.operationWardId}
-                onChange={handleInputChange}
-                className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-              >
-                <option value="" disabled>Chọn phường/xã</option>
-                <option value="1">Phường Gò Vấp</option>
-                <option value="2">Phường 1</option>
-                <option value="3">Phường 2</option>
-              </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-              />
-            </div>
+            <Autocomplete
+              value={formData.operationWardId}
+              options={wards.map((w: any) => ({ id: w.id, name: w.name }))}
+              placeholder="Chọn phường/xã"
+              onSelect={(val) => updateField('operationWardId', val)}
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              plain
+            />
           </div>
 
           <div />
@@ -484,38 +499,42 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Địa điểm kinh doanh
             </label>
-            <input
-              name="operationAddress"
-              value={formData.operationAddress}
-              onChange={handleInputChange}
-              className="w-full border-none outline-none text-sm py-0.5"
-            />
+              <input
+                name="operationAddress"
+                value={formData.operationAddress}
+                onChange={handleInputChange}
+                placeholder="162 đường số 2, khu đô thị Vạn Phúc"
+                maxLength={500}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Người đứng đầu doanh nghiệp
             </label>
-            <input
-              name="leaderName"
-              value={formData.leaderName}
-              onChange={handleInputChange}
-              placeholder="Nguyễn Văn A"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="leaderName"
+                value={formData.leaderName}
+                onChange={handleInputChange}
+                placeholder="Nguyễn Văn A"
+                maxLength={100}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               SĐT liên hệ người đứng đầu
             </label>
-            <input
-              name="leaderPhone"
-              value={formData.leaderPhone}
-              onChange={handleInputChange}
-              placeholder="090 123 4567"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="leaderPhone"
+                value={formData.leaderPhone}
+                onChange={handleInputChange}
+                placeholder="090 123 4567"
+                maxLength={20}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
         </div>
       </div>

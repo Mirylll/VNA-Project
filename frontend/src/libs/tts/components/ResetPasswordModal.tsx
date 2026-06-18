@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, X } from 'lucide-react';
+import { Save, X, Eye, EyeOff } from 'lucide-react';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 
 const baseUrl =
@@ -29,6 +29,7 @@ export default function ResetPasswordModal({
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!open || !user) return null;
   const currentUser = user;
@@ -38,8 +39,20 @@ export default function ResetPasswordModal({
       setError('Vui lòng nhập mật khẩu mới');
       return;
     }
-    if (password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+    if (password.length < 8) {
+      setError('Mật khẩu phải có ít nhất 8 ký tự');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError('Mật khẩu phải có ít nhất 1 chữ hoa');
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError('Mật khẩu phải có ít nhất 1 chữ thường');
+      return;
+    }
+    if (!/\d/.test(password)) {
+      setError('Mật khẩu phải có ít nhất 1 chữ số');
       return;
     }
 
@@ -105,16 +118,25 @@ export default function ResetPasswordModal({
             <span className="font-bold text-slate-800">{currentUser.username}</span>
           </p>
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (error) setError('');
-            }}
-            placeholder="Nhập mật khẩu mới mong muốn"
-            className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError('');
+              }}
+              placeholder="Nhập mật khẩu mới mong muốn"
+              className="w-full border border-slate-200 rounded-lg px-4 py-2.5 pr-10 text-sm text-slate-700 placeholder-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
           {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
         </div>

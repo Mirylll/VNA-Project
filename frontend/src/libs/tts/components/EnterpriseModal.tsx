@@ -99,6 +99,16 @@ export default function EnterpriseModal({
       return;
     }
 
+    const taxDigits = taxCode.replace(/-/g, '');
+    if (taxCode.trim() && taxDigits.length < 10) {
+      setError('Mã số thuế phải có ít nhất 10 ký tự (không tính dấu gạch ngang)');
+      return;
+    }
+    if (taxDigits.length > 15) {
+      setError('Mã số thuế tối đa 15 ký tự (không tính dấu gạch ngang)');
+      return;
+    }
+
     const token = getAuthToken();
     if (!token) {
       setError('Bạn cần đăng nhập');
@@ -115,7 +125,7 @@ export default function EnterpriseModal({
       industryId: Number(industryId),
       wardId: wardId ? Number(wardId) : undefined,
       username: taxCode.trim(),
-      password: '12345678',
+      password: 'Default@123',
       isActive,
     };
 
@@ -167,9 +177,10 @@ export default function EnterpriseModal({
               Tên doanh nghiệp <span className="text-red-500">*</span>
             </label>
             <input
-              placeholder=""
+              placeholder="Nhập tên doanh nghiệp"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={100}
               className="w-full border-none outline-none text-sm py-0.5"
             />
           </div>
@@ -179,9 +190,9 @@ export default function EnterpriseModal({
               Mã số thuế
             </label>
             <input
-              placeholder=""
               value={taxCode}
               onChange={(e) => setTaxCode(e.target.value)}
+              maxLength={50}
               className="w-full border-none outline-none text-sm py-0.5"
             />
           </div>

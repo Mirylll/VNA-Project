@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
+import Pagination from './Pagination';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -44,6 +45,8 @@ export default function PermissionListPage({
   const [error, setError] = useState('');
   const [filterCode, setFilterCode] = useState('');
   const [filterName, setFilterName] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   function fetchData() {
     setLoading(true);
@@ -85,6 +88,10 @@ export default function PermissionListPage({
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterCode, filterName, itemsPerPage]);
+
   const filteredPermissions = filterCode || filterName
     ? permissions
         .map((group) => {
@@ -99,6 +106,11 @@ export default function PermissionListPage({
         })
         .filter(Boolean)
     : permissions;
+  const totalPages = Math.ceil(filteredPermissions.length / itemsPerPage);
+  const paginatedPermissions = filteredPermissions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   function toggleGroup(code: string) {
     setExpandedGroups((prev) =>
@@ -204,7 +216,7 @@ export default function PermissionListPage({
             </tr>
           </thead>
           <tbody>
-            {filteredPermissions.length === 0 ? (
+            {paginatedPermissions.length === 0 ? (
               <tr>
                 <td
                   colSpan={4}
@@ -214,7 +226,7 @@ export default function PermissionListPage({
                 </td>
               </tr>
             ) : (
-              filteredPermissions.map((group: any) => {
+              paginatedPermissions.map((group: any) => {
               const isOpen = expandedGroups.includes(group.code);
 
               return (
@@ -280,6 +292,15 @@ export default function PermissionListPage({
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredPermissions.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+      />
     </div>
   );
 }
