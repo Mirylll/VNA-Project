@@ -150,50 +150,71 @@ export default function DatePicker({
     setTimeout(() => ref.current?.focus(), 0);
   }
 
-  const segClass =
-    `w-full rounded-lg border px-2 py-2 text-sm text-center outline-none transition focus:ring-2 ` +
+  const wrapperClass =
+    `flex items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none transition focus-within:ring-1 ` +
     (error
-      ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
-      : 'border-slate-200 focus:border-blue-500 focus:ring-blue-200');
+      ? 'border-red-500 focus-within:ring-red-500 focus-within:border-red-500 bg-white'
+      : 'border-slate-200 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white');
+
+  const inputStyle = {
+    width: '22px',
+    border: 'none',
+    outline: 'none',
+    boxShadow: 'none',
+    padding: 0,
+    background: 'transparent',
+  };
+  const yearInputStyle = {
+    width: '36px',
+    border: 'none',
+    outline: 'none',
+    boxShadow: 'none',
+    padding: 0,
+    background: 'transparent',
+  };
+
+  const inputClass = "text-center text-sm text-slate-800 focus:ring-0 focus:outline-none placeholder-gray-400";
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center gap-1">
-        <input
-          ref={dRef}
-          type="text"
-          inputMode="numeric"
-          value={localD}
-          onChange={(e) => handleSegmentChange('d', e.target.value)}
-          onKeyDown={(e) => handleKeyDown('d', e)}
-          placeholder="dd"
-          className={segClass}
-          style={{ maxWidth: 56 }}
-        />
-        <span className="text-gray-400 text-sm select-none">/</span>
-        <input
-          ref={mRef}
-          type="text"
-          inputMode="numeric"
-          value={localM}
-          onChange={(e) => handleSegmentChange('m', e.target.value)}
-          onKeyDown={(e) => handleKeyDown('m', e)}
-          placeholder="mm"
-          className={segClass}
-          style={{ maxWidth: 56 }}
-        />
-        <span className="text-gray-400 text-sm select-none">/</span>
-        <input
-          ref={yRef}
-          type="text"
-          inputMode="numeric"
-          value={localY}
-          onChange={(e) => handleSegmentChange('y', e.target.value)}
-          onKeyDown={(e) => handleKeyDown('y', e)}
-          placeholder="yyyy"
-          className={segClass}
-          style={{ maxWidth: 76 }}
-        />
+      <div className={wrapperClass}>
+        <div className="flex items-center">
+          <input
+            ref={dRef}
+            type="text"
+            inputMode="numeric"
+            value={localD}
+            onChange={(e) => handleSegmentChange('d', e.target.value)}
+            onKeyDown={(e) => handleKeyDown('d', e)}
+            placeholder="dd"
+            className={inputClass}
+            style={inputStyle}
+          />
+          <span className="text-gray-400 text-sm select-none mx-0.5">/</span>
+          <input
+            ref={mRef}
+            type="text"
+            inputMode="numeric"
+            value={localM}
+            onChange={(e) => handleSegmentChange('m', e.target.value)}
+            onKeyDown={(e) => handleKeyDown('m', e)}
+            placeholder="mm"
+            className={inputClass}
+            style={inputStyle}
+          />
+          <span className="text-gray-400 text-sm select-none mx-0.5">/</span>
+          <input
+            ref={yRef}
+            type="text"
+            inputMode="numeric"
+            value={localY}
+            onChange={(e) => handleSegmentChange('y', e.target.value)}
+            onKeyDown={(e) => handleKeyDown('y', e)}
+            placeholder="yyyy"
+            className={inputClass}
+            style={yearInputStyle}
+          />
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -201,7 +222,7 @@ export default function DatePicker({
             // focus segments after picker closes
             setTimeout(() => dRef.current?.focus(), 200);
           }}
-          className="ml-1 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0"
+          className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
         >
           <Calendar size={16} />
         </button>
