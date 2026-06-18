@@ -46,6 +46,19 @@ function matches(item: any, code: string, name: string) {
   );
 }
 
+function toRoman(n: number): string {
+  const val = [10, 9, 5, 4, 1];
+  const sym = ['X', 'IX', 'V', 'IV', 'I'];
+  let result = '';
+  for (let i = 0; i < val.length; i++) {
+    while (n >= val[i]) {
+      result += sym[i];
+      n -= val[i];
+    }
+  }
+  return result;
+}
+
 export default function IndustryListPage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +66,7 @@ export default function IndustryListPage() {
   const [filterCode, setFilterCode] = useState('');
   const [filterName, setFilterName] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterLevel, setFilterLevel] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -83,6 +97,7 @@ export default function IndustryListPage() {
         setItems(data);
         // Auto-expand all groups that have children
         const roots = data.filter((i: any) => !i.parent);
+        roots.forEach((r: any, i: number) => { r.stt = toRoman(i + 1); });
         setExpandedGroups(roots.filter((r: any) => r.children?.length > 0).map((r: any) => r.code));
       })
       .catch((err) => setError(err.message || 'Lỗi kết nối backend'))
@@ -95,42 +110,35 @@ export default function IndustryListPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterCode, filterName, filterStatus, itemsPerPage]);
+  }, [filterCode, filterName, filterStatus, filterLevel, itemsPerPage]);
 
-  // Build tree: children grouped by parent
-  const childrenByParentId: Record<number, any[]> = {};
-  items.forEach((item: any) => {
-    const pid = item.parent?.id;
-    if (pid) {
-      if (!childrenByParentId[pid]) childrenByParentId[pid] = [];
-      childrenByParentId[pid].push(item);
-    }
-  });
+  // Recursive filter: match items + their children, attach _filteredChildren
+  function filterTree(nodes: any[]): any[] {
+    return nodes
+      .map((node: any) => {
+        const matchNode = matches(node, filterCode, filterName) &&
+          (filterStatus === '' ||
+            (filterStatus === 'active' && node.isActive) ||
+            (filterStatus === 'inactive' && !node.isActive)) &&
+          (!filterLevel.trim() || String(node.level).includes(filterLevel.trim()));
+        const filteredChildren = filterTree(node.children || []);
+        if (matchNode) {
+          if (filteredChildren.length > 0) node = { ...node, _filteredChildren: filteredChildren };
+          return node;
+        }
+        if (filteredChildren.length > 0)
+          return { ...node, _filteredChildren: filteredChildren };
+        return null;
+      })
+      .filter(Boolean);
+  }
 
   // Roots = items with no parent
   const allRoots = items.filter((i: any) => !i.parent);
 
-  // Filter: match groups + children (like PermissionListPage)
+  // Filter: recursively
   const filteredGroups = filterCode || filterName || filterStatus
-    ? allRoots
-        .map((group: any) => {
-          const matchGroup = matches(group, filterCode, filterName) &&
-            (filterStatus === '' ||
-              (filterStatus === 'active' && group.isActive) ||
-              (filterStatus === 'inactive' && !group.isActive));
-          const filteredChildren = (childrenByParentId[group.id] || []).filter(
-            (child: any) =>
-              matches(child, filterCode, filterName) &&
-              (filterStatus === '' ||
-                (filterStatus === 'active' && child.isActive) ||
-                (filterStatus === 'inactive' && !child.isActive)),
-          );
-          if (matchGroup) return group;
-          if (filteredChildren.length > 0)
-            return { ...group, _filteredChildren: filteredChildren };
-          return null;
-        })
-        .filter(Boolean)
+    ? filterTree(allRoots)
     : allRoots;
 
   const totalPages = Math.ceil(filteredGroups.length / itemsPerPage);
@@ -245,30 +253,30 @@ export default function IndustryListPage() {
     }
   }
 
-  // compute all item IDs for the current page (groups + visible children)
-  function getPageItemIds(): number[] {
+  // Recursively collect visible IDs from expanded items
+  function collectVisibleIds(nodes: any[]): number[] {
     const ids: number[] = [];
-    paginatedGroups.forEach((group: any) => {
-      ids.push(group.id);
-      if (expandedGroups.includes(group.code)) {
-        const children = group._filteredChildren || childrenByParentId[group.id] || [];
-        children.forEach((c: any) => ids.push(c.id));
+    nodes.forEach((item: any) => {
+      ids.push(item.id);
+      if (expandedGroups.includes(item.code)) {
+        const children = item._filteredChildren || item.children || [];
+        ids.push(...collectVisibleIds(children));
       }
     });
     return ids;
   }
 
   const allPageSelected = paginatedGroups.length > 0 &&
-    getPageItemIds().every((id) => selectedIds.includes(id));
+    collectVisibleIds(paginatedGroups).every((id) => selectedIds.includes(id));
 
   function handleSelectAll(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.checked) {
       setSelectedIds((prev) => {
-        const all = getPageItemIds();
+        const all = collectVisibleIds(paginatedGroups);
         return [...new Set([...prev, ...all])];
       });
     } else {
-      const pageIds = new Set(getPageItemIds());
+      const pageIds = new Set(collectVisibleIds(paginatedGroups));
       setSelectedIds((prev) => prev.filter((id) => !pageIds.has(id)));
     }
   }
@@ -277,6 +285,89 @@ export default function IndustryListPage() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
+  }
+
+  // Recursive render
+  function renderTreeRows(nodes: any[], depth: number): React.ReactNode {
+    return nodes.map((item: any, idx: number) => {
+      const children = item._filteredChildren || item.children || [];
+      const hasChildren = children.length > 0;
+      const isOpen = expandedGroups.includes(item.code);
+      const isRoot = depth === 0;
+      const indent = depth * 20;
+
+      return (
+        <Fragment key={item.id}>
+          <tr className={`border-b ${depth === 0 ? 'border-slate-200' : 'border-slate-100'} hover:bg-gray-50 transition-colors`}>
+            {/* Checkbox */}
+            <td className="px-2 py-3 text-center">
+              <div className={`inline-flex items-center gap-0.5 ${depth > 0 ? 'ml-6' : ''}`}>
+                {hasChildren ? (
+                  <button
+                    onClick={() => toggleGroup(item.code)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </button>
+                ) : depth > 0 ? (
+                  <span className="w-[14px]" />
+                ) : null}
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  onChange={() => toggleSelect(item.id)}
+                  className="accent-blue-600 ml-0.5"
+                />
+              </div>
+            </td>
+            {/* STT */}
+            <td className="px-2 py-3 text-center">
+              {isRoot ? (
+                <span className="text-xs font-semibold text-blue-600">{item.stt}</span>
+              ) : (
+                <span className="text-xs text-slate-500">{idx + 1}</span>
+              )}
+            </td>
+            {/* Edit */}
+            <td className="px-2 py-3">
+              <button
+                onClick={() => handleEdit(item)}
+                className="text-gray-400 hover:text-blue-600 transition-colors"
+              >
+                <Pencil size={15} />
+              </button>
+            </td>
+            {/* Mã ngành */}
+            <td
+              className={`px-3 py-3 text-sm font-mono ${depth === 0 ? 'font-semibold text-blue-600 break-all' : 'text-slate-600'}`}
+              style={depth > 0 ? { paddingLeft: `${8 + indent}px` } : undefined}
+            >
+              {item.code}
+            </td>
+            {/* Tên ngành nghề */}
+            <td
+              className={`px-3 py-3 text-sm ${depth === 0 ? 'font-semibold text-blue-600' : 'text-slate-600'}`}
+              style={depth > 0 ? { paddingLeft: `${4 + indent}px` } : undefined}
+            >
+              {item.name}
+            </td>
+            {/* Cấp */}
+            <td className={`px-3 py-3 text-xs ${depth === 0 ? 'font-semibold text-blue-600 uppercase' : 'text-slate-500 uppercase'}`}>
+              Cấp {item.level}
+            </td>
+            {/* Trạng thái */}
+            <td className="px-3 py-3">
+              <ToggleSwitch
+                checked={item.isActive}
+                onChange={() => handleToggleStatus(item)}
+              />
+            </td>
+          </tr>
+          {/* Recursive children */}
+          {isOpen && hasChildren && renderTreeRows(children, depth + 1)}
+        </Fragment>
+      );
+    });
   }
 
   return (
@@ -308,15 +399,18 @@ export default function IndustryListPage() {
                   className="accent-blue-600"
                 />
               </th>
-              <th className="w-10 px-2 py-3" />
-              <th className="w-[10%] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Cấp
+              <th className="w-10 px-2 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                STT
               </th>
+              <th className="w-10 px-2 py-3" />
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Mã ngành
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Tên ngành nghề
+              </th>
+              <th className="w-[10%] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Cấp
               </th>
               <th className="min-w-[160px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Trạng thái
@@ -325,12 +419,12 @@ export default function IndustryListPage() {
 
             <tr className="border-b border-slate-200">
               <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
-              <td className="px-3 py-2">
+              <td className="px-2 py-2">
                 <div className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-gray-400 bg-gray-50">
-                  Cấp 1 / Cấp 2
+                  I / II
                 </div>
               </td>
+              <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
                   placeholder="Tìm theo mã ngành..."
@@ -344,6 +438,14 @@ export default function IndustryListPage() {
                   placeholder="Tìm theo tên ngành..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </td>
+              <td className="px-3 py-2">
+                <input
+                  placeholder="Lọc theo cấp..."
+                  value={filterLevel}
+                  onChange={(e) => setFilterLevel(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
@@ -366,13 +468,13 @@ export default function IndustryListPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
                   Đang tải...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-red-400">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-red-400">
                   <span>{error}</span>
                   <button
                     onClick={fetchItems}
@@ -384,107 +486,12 @@ export default function IndustryListPage() {
               </tr>
             ) : paginatedGroups.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
                   Không tìm thấy ngành nghề
                 </td>
               </tr>
             ) : (
-              paginatedGroups.map((group: any) => {
-                const groupChildren = group._filteredChildren || childrenByParentId[group.id] || [];
-                const isOpen = expandedGroups.includes(group.code);
-                const hasChildren = groupChildren.length > 0;
-
-                return (
-                  <Fragment key={group.id}>
-                    {/* Group row (parent / level 1) */}
-                    <tr className="border-b border-slate-200 hover:bg-gray-50 transition-colors">
-                      <td className="px-2 py-3 text-center">
-                        <div className="inline-flex items-center gap-0.5">
-                          {hasChildren ? (
-                            <button
-                              onClick={() => toggleGroup(group.code)}
-                              className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                              {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                            </button>
-                          ) : (
-                            <span className="w-[14px]" />
-                          )}
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(group.id)}
-                            onChange={() => toggleSelect(group.id)}
-                            className="accent-blue-600 ml-0.5"
-                          />
-                        </div>
-                      </td>
-                      <td className="px-2 py-3">
-                        <button
-                          onClick={() => handleEdit(group)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                      </td>
-                      <td className="px-3 py-3 text-xs font-semibold text-blue-600 uppercase">
-                        Cấp 1
-                      </td>
-                      <td className="px-3 py-3 text-sm font-semibold text-blue-600 font-mono break-all">
-                        {group.code}
-                      </td>
-                      <td className="px-3 py-3 text-sm font-semibold text-blue-600">
-                        {group.name}
-                      </td>
-                      <td className="px-3 py-3">
-                        <ToggleSwitch
-                          checked={group.isActive}
-                          onChange={() => handleToggleStatus(group)}
-                        />
-                      </td>
-                    </tr>
-
-                    {/* Child rows */}
-                    {isOpen && hasChildren && groupChildren.map((child: any) => (
-                      <tr
-                        key={child.id}
-                        className="border-b border-slate-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-2 py-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(child.id)}
-                            onChange={() => toggleSelect(child.id)}
-                            className="accent-blue-600 ml-6"
-                          />
-                        </td>
-                        <td className="px-2 py-3">
-                          <button
-                            onClick={() => handleEdit(child)}
-                            className="text-gray-400 hover:text-blue-600 transition-colors"
-                          >
-                            <Pencil size={15} />
-                          </button>
-                        </td>
-                        <td className="px-3 py-3 text-xs text-slate-500 uppercase">
-                          Cấp {child.level || 2}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-slate-600 font-mono pl-8">
-                          {child.code}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-slate-600 pl-4">
-                          {child.name}
-                        </td>
-                        <td className="px-3 py-3">
-                          <ToggleSwitch
-                            checked={child.isActive}
-                            onChange={() => handleToggleStatus(child)}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </Fragment>
-                );
-              })
+              renderTreeRows(paginatedGroups, 0)
             )}
           </tbody>
         </table>
