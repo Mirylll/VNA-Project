@@ -97,7 +97,7 @@ export default function IndustryListPage() {
         setItems(data);
         // Auto-expand all groups that have children
         const roots = data.filter((i: any) => !i.parent);
-        roots.forEach((r: any, i: number) => { r.stt = toRoman(i + 1); });
+        roots.forEach((r: any, i: number) => { r.stt = String(i + 1); });
         setExpandedGroups(roots.filter((r: any) => r.children?.length > 0).map((r: any) => r.code));
       })
       .catch((err) => setError(err.message || 'Lỗi kết nối backend'))
@@ -288,13 +288,14 @@ export default function IndustryListPage() {
   }
 
   // Recursive render
-  function renderTreeRows(nodes: any[], depth: number): React.ReactNode {
+  function renderTreeRows(nodes: any[], depth: number, parentStt?: string): React.ReactNode {
     return nodes.map((item: any, idx: number) => {
       const children = item._filteredChildren || item.children || [];
       const hasChildren = children.length > 0;
       const isOpen = expandedGroups.includes(item.code);
       const isRoot = depth === 0;
       const indent = depth * 20;
+      const currentStt = isRoot ? item.stt : `${parentStt}.${idx + 1}`;
 
       return (
         <Fragment key={item.id}>
@@ -322,11 +323,9 @@ export default function IndustryListPage() {
             </td>
             {/* STT */}
             <td className="px-2 py-3 text-center">
-              {isRoot ? (
-                <span className="text-xs font-semibold text-blue-600">{item.stt}</span>
-              ) : (
-                <span className="text-xs text-slate-500">{idx + 1}</span>
-              )}
+              <span className={`text-xs ${isRoot ? 'font-semibold text-blue-600' : 'text-slate-500'}`}>
+                {currentStt}
+              </span>
             </td>
             {/* Edit */}
             <td className="px-2 py-3">
@@ -364,7 +363,7 @@ export default function IndustryListPage() {
             </td>
           </tr>
           {/* Recursive children */}
-          {isOpen && hasChildren && renderTreeRows(children, depth + 1)}
+          {isOpen && hasChildren && renderTreeRows(children, depth + 1, currentStt)}
         </Fragment>
       );
     });
@@ -419,11 +418,7 @@ export default function IndustryListPage() {
 
             <tr className="border-b border-slate-200">
               <td className="px-2 py-2" />
-              <td className="px-2 py-2">
-                <div className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-gray-400 bg-gray-50">
-                  I / II
-                </div>
-              </td>
+              <td className="px-2 py-2" />
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
