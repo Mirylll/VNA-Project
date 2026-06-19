@@ -36,15 +36,12 @@ const DEFAULT_REPORT_PERIODS: ReportPeriod[] = [
 ];
 
 const REPORT_NAME_OPTIONS = [
-  'Báo cáo tai nạn lao động',
-  'Báo cáo TNLĐ',
-  'Báo cáo tai nạn lao động định kỳ'
+  'Báo cáo tai nạn lao động'
 ];
 
 const PERIOD_OPTIONS = [
-  'Cả năm',
   '6 tháng đầu năm',
-  '6 tháng cuối năm'
+  'Cả năm'
 ];
 
 function formatDateForDisplay(isoString: string): string {
@@ -77,6 +74,18 @@ export default function ReportPeriodsPage() {
 
   // Form errors
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const autoFillDates = (year: string, period: string) => {
+    if (!year || year.length !== 4 || !period) return;
+    if (period === '6 tháng đầu năm') {
+      setFormStart(`${year}-01-01`);
+      setFormEnd(`${year}-06-30`);
+    } else if (period === 'Cả năm') {
+      setFormStart(`${year}-01-01`);
+      setFormEnd(`${year}-12-31`);
+    }
+    setFormErrors((p) => ({ ...p, startDate: '', endDate: '' }));
+  };
 
   // Load from localStorage
   useEffect(() => {
@@ -136,7 +145,7 @@ export default function ReportPeriodsPage() {
   // Open Add modal
   const handleAddNew = () => {
     setEditingItem(null);
-    setFormName('');
+    setFormName('Báo cáo tai nạn lao động');
     setFormYear(new Date().getFullYear().toString());
     setFormPeriod('');
     setFormStart('');
@@ -489,6 +498,7 @@ export default function ReportPeriodsPage() {
                         const cleaned = e.target.value.replace(/\D/g, '').slice(0, 4);
                         setFormYear(cleaned);
                         if (formErrors.year) setFormErrors((p) => ({ ...p, year: '' }));
+                        autoFillDates(cleaned, formPeriod);
                       }}
                       placeholder="Năm *"
                       disabled={!!editingItem}
@@ -518,8 +528,10 @@ export default function ReportPeriodsPage() {
                     <select
                       value={formPeriod}
                       onChange={(e) => {
-                        setFormPeriod(e.target.value);
+                        const period = e.target.value;
+                        setFormPeriod(period);
                         if (formErrors.period) setFormErrors((p) => ({ ...p, period: '' }));
+                        autoFillDates(formYear, period);
                       }}
                       disabled={!!editingItem}
                       className={`w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm outline-none transition bg-white ${
@@ -611,16 +623,10 @@ export default function ReportPeriodsPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/50">
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-slate-500 hover:text-slate-700 font-semibold transition text-sm px-4 py-2"
-              >
-                Huỷ
-              </button>
+            <div className="px-6 pb-6 pt-2 flex items-center justify-end">
               <button
                 onClick={handleSave}
-                className="flex items-center gap-1.5 bg-[#1D4ED8] text-white font-semibold px-5 py-2 rounded-lg hover:bg-blue-700 transition text-sm shadow-sm"
+                className="flex items-center gap-1.5 bg-[#1D4ED8] text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition text-sm shadow-sm"
               >
                 <Save size={15} />
                 Lưu
