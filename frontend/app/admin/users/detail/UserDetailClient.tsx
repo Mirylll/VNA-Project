@@ -6,6 +6,7 @@ import { Eye, EyeOff, User } from 'lucide-react';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 import Autocomplete from '@/libs/tts/components/Autocomplete';
 import DatePicker from '@/libs/tts/components/DatePicker';
+import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
 
 interface TitleItem {
   id: number;
@@ -17,10 +18,18 @@ interface RoleItem {
   name: string;
 }
 
-interface DistrictItem {
-  id: number;
-  name: string;
-}
+// Filter out dummy/test roles: any role whose name starts with role1/role2/role3 (case-insensitive)
+const isDummyRole = (name: string) =>
+  /^role[123]/i.test(name);
+
+// Build ward options from HCM_WARDS for the Autocomplete component
+// Autocomplete expects { id: number, name: string } but we adapt with numeric id from code
+const WARD_OPTIONS = HCM_WARDS.map((w) => ({
+  id: parseInt(w.code, 10),
+  name: `${w.name} (${w.district})`,
+  code: w.code,
+}));
+
 
 interface UserFormData {
   username: string;
@@ -32,7 +41,7 @@ interface UserFormData {
   roleId: number | '';
   email: string;
   provinceId: number;
-  districtId: number | '';
+  wardCode: string;  // ward code string from HCM_WARDS
   address: string;
   isActive: boolean;
 }
@@ -47,7 +56,7 @@ const emptyForm: UserFormData = {
   roleId: '',
   email: '',
   provinceId: 1,
-  districtId: '',
+  wardCode: '',  // ward code
   address: '',
   isActive: true,
 };
@@ -77,7 +86,6 @@ export default function UserDetailClient({
   const [pendingPreview, setPendingPreview] = useState('');
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
-  const [districts, setDistricts] = useState<DistrictItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
@@ -103,10 +111,7 @@ export default function UserDetailClient({
     const promises: Promise<void>[] = [
       fetch(`${baseUrl}/roles`, { headers })
         .then((r) => (r.ok ? r.json() : []))
-        .then(setRoles),
-      fetch(`${baseUrl}/districts?provinceId=1`, { headers })
-        .then((r) => (r.ok ? r.json() : []))
-        .then(setDistricts),
+        .then((data: RoleItem[]) => setRoles(data.filter(r => !isDummyRole(r.name)))),
     ];
 
     if (!isAdd) {
@@ -126,7 +131,7 @@ export default function UserDetailClient({
               roleId: user.role?.id ?? '',
               email: user.email || '',
               provinceId: user.province?.id ?? 1,
-              districtId: user.district?.id ?? '',
+              wardCode: user.district?.code || '',
               address: user.address || '',
               isActive: user.isActive ?? true,
             });
@@ -208,7 +213,8 @@ export default function UserDetailClient({
       if (formData.roleId !== '') body.roleId = Number(formData.roleId);
       if (formData.titleName.trim()) body.titleName = formData.titleName.trim();
       if (formData.provinceId) body.provinceId = Number(formData.provinceId);
-      if (formData.districtId !== '') body.districtId = Number(formData.districtId);
+      // Send wardCode as districtCode so backend can resolve
+      if (formData.wardCode) body.districtCode = formData.wardCode;
 
       if (isAdd) {
         body.password = formData.password;
@@ -467,6 +473,7 @@ export default function UserDetailClient({
                         setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
                       }
                       placeholder="dd/mm/yyyy"
+                      minYear={1900}
                       className={errors.dateOfBirth ? 'border-red-500' : ''}
                     />
                     <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
@@ -599,6 +606,7 @@ export default function UserDetailClient({
                         setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
                       }
                       placeholder="dd/mm/yyyy"
+                      minYear={1900}
                       className={errors.dateOfBirth ? 'border-red-500' : ''}
                     />
                     <label className={labelClass}>Ngày tháng năm sinh <span className="text-red-500">*</span></label>
@@ -693,16 +701,17 @@ export default function UserDetailClient({
 
           <div className="relative">
             <Autocomplete
-              value={formData.districtId}
-              options={districts}
-              placeholder=""
-              onSelect={(val) =>
+              value={WARD_OPTIONS.find(w => w.code === formData.wardCode)?.id ?? ''}
+              options={WARD_OPTIONS}
+              placeholder="-- Chọn phường/xã --"
+              onSelect={(val) => {
+                const ward = WARD_OPTIONS.find(w => String(w.id) === val);
                 setFormData((prev) => ({
                   ...prev,
-                  districtId: val === '' ? '' : Number(val),
-                }))
-              }
-              className={errors.districtId ? 'border-red-500' : ''}
+                  wardCode: ward?.code ?? '',
+                }));
+              }}
+              className={errors.wardCode ? 'border-red-500' : ''}
             />
             <label className={labelClass}>Phường/xã</label>
           </div>

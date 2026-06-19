@@ -1,0 +1,136 @@
+========================================================================
+DANH SÁCH MẪU DỮ LIỆU ĐỂ ĐIỀN FORM ĐĂNG KÝ DOANH NGHIỆP
+========================================================================
+
+MẪU 1:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Công ty Cổ phần Công nghệ thông tin VinaTech
+- Mã số thuế: 0109876543
+- Loại hình kinh doanh: Công ty cổ phần
+- Ngành nghề kinh doanh chính: Lập trình máy vi tính
+- Ngày cấp GPKD: 15/05/2022 (Trong form chọn: 2022-05-15)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường Bến Nghé (Quận 1)
+- Địa chỉ: 120 Lê Lợi, Phường Bến Nghé, Quận 1
+- Tên viết bằng tiếng nước ngoài: VinaTech Information Technology Joint Stock Company
+- Email: contact@vinatech-it.vn
+- Số điện thoại cơ quan: 02838212345
+- Người đứng đầu doanh nghiệp: Trần Minh Tâm
+- SĐT liên hệ người đứng đầu: 0903123456
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường Bến Nghé (Quận 1)
+- Địa điểm kinh doanh: Lầu 5, Tòa nhà VinaTech, 120 Lê Lợi, Quận 1
+
+MẪU 2:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Công ty TNHH Thương mại và Dịch vụ Sao Mai
+- Mã số thuế: 0312345678
+- Loại hình kinh doanh: Công ty trách nhiệm hữu hạn hai thành viên trở lên
+- Ngành nghề kinh doanh chính: Bán buôn thiết bị và linh kiện điện tử, viễn thông
+- Ngày cấp GPKD: 20/09/2021 (Trong form chọn: 2021-09-20)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường Võ Thị Sáu (Quận 3)
+- Địa chỉ: 45 Nguyễn Thị Minh Khai, Phường Võ Thị Sáu, Quận 3
+- Tên viết bằng tiếng nước ngoài: Sao Mai Trading and Services Company Limited
+- Email: info@saomai-trade.com
+- Số điện thoại cơ quan: 02839308888
+- Người đứng đầu doanh nghiệp: Lê Thị Kim Oanh
+- SĐT liên hệ người đứng đầu: 0918765432
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường Võ Thị Sáu (Quận 3)
+- Địa điểm kinh doanh: Số 45 Nguyễn Thị Minh Khai, Quận 3
+
+MẪU 3:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Doanh nghiệp Tư nhân Xây dựng An Gia
+- Mã số thuế: 0309112233
+- Loại hình kinh doanh: Doanh nghiệp tư nhân
+- Ngành nghề kinh doanh chính: Xây dựng nhà để ở
+- Ngày cấp GPKD: 10/01/2020 (Trong form chọn: 2020-01-10)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường Thảo Điền (Quận 2 / TP. Thủ Đức)
+- Địa chỉ: 78 Đường số 10, Phường Thảo Điền, Quận 2
+- Tên viết bằng tiếng nước ngoài: An Gia Construction Private Enterprise
+- Email: angia.construct@gmail.com
+- Số điện thoại cơ quan: 02835191234
+- Người đứng đầu doanh nghiệp: Nguyễn Văn An
+- SĐT liên hệ người đứng đầu: 0989222333
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường Thảo Điền (Quận 2 / TP. Thủ Đức)
+- Địa điểm kinh doanh: 78 Đường số 10, Thảo Điền, Quận 2
+
+MẪU 4:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Công ty TNHH Một thành viên Logistics Toàn Cầu
+- Mã số thuế: 0108765432
+- Loại hình kinh doanh: Công ty trách nhiệm hữu hạn một thành viên
+- Ngành nghề kinh doanh chính: Hoạt động dịch vụ hỗ trợ khác liên quan đến vận tải
+- Ngày cấp GPKD: 08/08/2023 (Trong form chọn: 2023-08-08)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường 2 (Quận Tân Bình)
+- Địa chỉ: 15 Trường Sơn, Phường 2, Quận Tân Bình
+- Tên viết bằng tiếng nước ngoài: Global Logistics One Member Company Limited
+- Email: operations@globallogistics.vn
+- Số điện thoại cơ quan: 02862967890
+- Người đứng đầu doanh nghiệp: Phạm Hồng Hải
+- SĐT liên hệ người đứng đầu: 0977889900
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường 2 (Quận Tân Bình)
+- Địa điểm kinh doanh: Tầng trệt, Tòa nhà Airport, 15 Trường Sơn, Quận Tân Bình
+
+MẪU 5:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Công ty Cổ phần Thực phẩm sạch Hữu cơ GreenLife
+- Mã số thuế: 0315432109
+- Loại hình kinh doanh: Công ty cổ phần
+- Ngành nghề kinh doanh chính: Bán lẻ lương thực, thực phẩm trong các cửa hàng chuyên doanh
+- Ngày cấp GPKD: 12/12/2019 (Trong form chọn: 2019-12-12)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường Đa Kao (Quận 1)
+- Địa chỉ: 32 Nguyễn Huy Tự, Phường Đa Kao, Quận 1
+- Tên viết bằng tiếng nước ngoài: GreenLife Organic Clean Food Joint Stock Company
+- Email: contact@greenlife-organic.vn
+- Số điện thoại cơ quan: 02838445566
+- Người đứng đầu doanh nghiệp: Vũ Hoàng Nam
+- SĐT liên hệ người đứng đầu: 0933445566
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường Đa Kao (Quận 1)
+- Địa điểm kinh doanh: Số 32 Nguyễn Huy Tự, Quận 1
+
+MẪU 6:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Công ty Cổ phần Cơ điện lạnh Việt Nam (RECO)
+- Mã số thuế: 0301112223
+- Loại hình kinh doanh: Công ty cổ phần
+- Ngành nghề kinh doanh chính: Lắp đặt hệ thống cấp, thoát nước, lò sưởi và điều hoà không khí
+- Ngày cấp GPKD: 05/03/2018 (Trong form chọn: 2018-03-05)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường 12 (Quận 10)
+- Địa chỉ: 285 Cách Mạng Tháng Tám, Phường 12, Quận 10
+- Tên viết bằng tiếng nước ngoài: Vietnam Refrigeration Electrical Engineering Joint Stock Company
+- Email: info@reco.com.vn
+- Số điện thoại cơ quan: 02838634567
+- Người đứng đầu doanh nghiệp: Đỗ Hoàng Bách
+- SĐT liên hệ người đứng đầu: 0912345678
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường 12 (Quận 10)
+- Địa điểm kinh doanh: Block A, Tòa nhà Viettel, 285 Cách Mạng Tháng Tám, Quận 10
+
+MẪU 7:
+------------------------------------------------------------------------
+- Tên doanh nghiệp: Công ty TNHH Tư vấn Thiết kế Kiến trúc Đông Dương
+- Mã số thuế: 0317890123
+- Loại hình kinh doanh: Công ty trách nhiệm hữu hạn hai thành viên trở lên
+- Ngành nghề kinh doanh chính: Hoạt động kiến trúc và tư vấn kỹ thuật có liên quan
+- Ngày cấp GPKD: 18/06/2024 (Trong form chọn: 2024-06-18)
+- Tỉnh/Thành phố ĐKKD: Thành phố Hồ Chí Minh
+- Phường/Xã ĐKKD: Phường Võ Thị Sáu (Quận 3)
+- Địa chỉ: 14 Tú Xương, Phường Võ Thị Sáu, Quận 3
+- Tên viết bằng tiếng nước ngoài: Indochina Architecture Design & Consulting Company Limited
+- Email: design@indochina-arch.com
+- Số điện thoại cơ quan: 02839322222
+- Người đứng đầu doanh nghiệp: Nguyễn Minh Huy
+- SĐT liên hệ người đứng đầu: 0909998887
+- Tỉnh/TP hoạt động KD: Thành phố Hồ Chí Minh
+- Phường/xã hoạt động KD: Phường Võ Thị Sáu (Quận 3)
+- Địa điểm kinh doanh: Số 14 Tú Xương, Quận 3

@@ -9,6 +9,8 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   error?: string;
+  minYear?: number;  // defaults to 1900 (allow past years for birth date)
+  maxYear?: number;  // defaults to current year + 10
 }
 
 function parseParts(iso: string) {
@@ -46,15 +48,7 @@ function clampDateParts(d: string, m: string, y: string) {
     cleanM = String(monthNum).padStart(2, '0');
   }
 
-  // Validate and clamp year (only clamp when 4 digits are typed)
-  if (cleanY.length === 4) {
-    let yearNum = parseInt(cleanY, 10);
-    const currentYear = new Date().getFullYear();
-    if (yearNum < currentYear) {
-      yearNum = currentYear;
-    }
-    cleanY = String(yearNum);
-  }
+  // No automatic clamping of year here — let the caller's minYear/maxYear handle it
 
   // Validate and clamp day based on max days of month/year
   if (cleanD.length === 2) {
@@ -75,7 +69,10 @@ export default function DatePicker({
   onChange,
   className = '',
   error,
+  minYear = 1900,
+  maxYear,
 }: DatePickerProps) {
+  const _maxYear = maxYear ?? new Date().getFullYear() + 10;
   const hiddenRef = useRef<HTMLInputElement>(null);
   const dRef = useRef<HTMLInputElement>(null);
   const mRef = useRef<HTMLInputElement>(null);
@@ -87,11 +84,23 @@ export default function DatePicker({
   const [localY, setLocalY] = useState(initialParts.y);
 
   // Synchronize state when value changes externally (e.g. native calendar pick)
+  // But skip resetting when value is '' while the user is actively typing segments
   useEffect(() => {
+    if (!value) {
+      // Only reset if local segments are also empty to avoid clearing mid-typing
+      const localIso = toIso(localD, localM, localY);
+      if (!localIso) {
+        setLocalD('');
+        setLocalM('');
+        setLocalY('');
+      }
+      return;
+    }
     const p = parseParts(value);
     setLocalD(p.d);
     setLocalM(p.m);
     setLocalY(p.y);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   function triggerChange(d: string, m: string, y: string) {
@@ -100,12 +109,20 @@ export default function DatePicker({
       const monthNum = parseInt(m, 10);
       const yearNum = parseInt(y, 10);
       const maxDays = getMaxDays(monthNum, yearNum);
-      if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= maxDays && yearNum >= new Date().getFullYear()) {
+      if (
+        monthNum >= 1 && monthNum <= 12 &&
+        dayNum >= 1 && dayNum <= maxDays &&
+        yearNum >= minYear && yearNum <= _maxYear
+      ) {
         onChange(toIso(d, m, y));
         return;
       }
     }
-    onChange('');
+    // Don't call onChange('') while the user is still actively typing segments
+    // Only clear if no segments have been started yet
+    if (!d && !m && !y) {
+      onChange('');
+    }
   }
 
   function handleSegmentChange(segment: 'd' | 'm' | 'y', raw: string) {
@@ -150,50 +167,71 @@ export default function DatePicker({
     setTimeout(() => ref.current?.focus(), 0);
   }
 
-  const segClass =
-    `w-full rounded-lg border px-2 py-2 text-sm text-center outline-none transition focus:ring-2 ` +
+  const wrapperClass =
+    `flex items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none transition focus-within:ring-1 ` +
     (error
-      ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
-      : 'border-slate-200 focus:border-blue-500 focus:ring-blue-200');
+      ? 'border-red-500 focus-within:ring-red-500 focus-within:border-red-500 bg-white'
+      : 'border-slate-200 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white');
+
+  const inputStyle = {
+    width: '22px',
+    border: 'none',
+    outline: 'none',
+    boxShadow: 'none',
+    padding: 0,
+    background: 'transparent',
+  };
+  const yearInputStyle = {
+    width: '36px',
+    border: 'none',
+    outline: 'none',
+    boxShadow: 'none',
+    padding: 0,
+    background: 'transparent',
+  };
+
+  const inputClass = "text-center text-sm text-slate-800 focus:ring-0 focus:outline-none placeholder-gray-400";
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center gap-1">
-        <input
-          ref={dRef}
-          type="text"
-          inputMode="numeric"
-          value={localD}
-          onChange={(e) => handleSegmentChange('d', e.target.value)}
-          onKeyDown={(e) => handleKeyDown('d', e)}
-          placeholder="dd"
-          className={segClass}
-          style={{ maxWidth: 56 }}
-        />
-        <span className="text-gray-400 text-sm select-none">/</span>
-        <input
-          ref={mRef}
-          type="text"
-          inputMode="numeric"
-          value={localM}
-          onChange={(e) => handleSegmentChange('m', e.target.value)}
-          onKeyDown={(e) => handleKeyDown('m', e)}
-          placeholder="mm"
-          className={segClass}
-          style={{ maxWidth: 56 }}
-        />
-        <span className="text-gray-400 text-sm select-none">/</span>
-        <input
-          ref={yRef}
-          type="text"
-          inputMode="numeric"
-          value={localY}
-          onChange={(e) => handleSegmentChange('y', e.target.value)}
-          onKeyDown={(e) => handleKeyDown('y', e)}
-          placeholder="yyyy"
-          className={segClass}
-          style={{ maxWidth: 76 }}
-        />
+      <div className={wrapperClass}>
+        <div className="flex items-center">
+          <input
+            ref={dRef}
+            type="text"
+            inputMode="numeric"
+            value={localD}
+            onChange={(e) => handleSegmentChange('d', e.target.value)}
+            onKeyDown={(e) => handleKeyDown('d', e)}
+            placeholder="dd"
+            className={inputClass}
+            style={inputStyle}
+          />
+          <span className="text-gray-400 text-sm select-none mx-0.5">/</span>
+          <input
+            ref={mRef}
+            type="text"
+            inputMode="numeric"
+            value={localM}
+            onChange={(e) => handleSegmentChange('m', e.target.value)}
+            onKeyDown={(e) => handleKeyDown('m', e)}
+            placeholder="mm"
+            className={inputClass}
+            style={inputStyle}
+          />
+          <span className="text-gray-400 text-sm select-none mx-0.5">/</span>
+          <input
+            ref={yRef}
+            type="text"
+            inputMode="numeric"
+            value={localY}
+            onChange={(e) => handleSegmentChange('y', e.target.value)}
+            onKeyDown={(e) => handleKeyDown('y', e)}
+            placeholder="yyyy"
+            className={inputClass}
+            style={yearInputStyle}
+          />
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -201,7 +239,7 @@ export default function DatePicker({
             // focus segments after picker closes
             setTimeout(() => dRef.current?.focus(), 200);
           }}
-          className="ml-1 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors flex-shrink-0"
+          className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
         >
           <Calendar size={16} />
         </button>
