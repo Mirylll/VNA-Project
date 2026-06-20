@@ -4,8 +4,14 @@ import { Calendar, Check, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
+import { ENTERPRISE_TYPES, HCM_WARDS } from '@/libs/tts/data/hcm-districts';
 import AttachmentTable, { AttachmentFile, initialAttachmentFiles } from './AttachmentTable';
 import EnterpriseSidebar from './EnterpriseSidebar';
+
+const BASE_URL =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    : 'http://localhost:3001';
 
 type FieldProps = {
   label: string;
@@ -20,6 +26,7 @@ type FieldProps = {
   action?: string;
   onActionClick?: () => void;
   className?: string;
+  max?: string;
   onChange?: (value: string) => void;
 };
 
@@ -36,6 +43,7 @@ function Field({
   action,
   onActionClick,
   className = '',
+  max,
   onChange,
 }: FieldProps) {
   return (
@@ -70,6 +78,7 @@ function Field({
             type={inputType}
             value={value}
             disabled={disabled}
+            max={max}
             placeholder={placeholder}
             onChange={(event) => onChange?.(event.target.value)}
             className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-gray-400 ${
@@ -116,6 +125,40 @@ type SelectOption = {
   value: string;
   label: string;
   name: string;
+};
+
+type EnterpriseTypeOption = {
+  id?: number;
+  name: string;
+  isActive?: boolean;
+};
+
+type EnterpriseAttachment = {
+  id: number;
+  name: string;
+  fileName: string;
+  filePath: string;
+};
+
+type EnterpriseApiData = {
+  id: number;
+  name?: string;
+  taxCode?: string;
+  enterpriseType?: { id: number; name: string };
+  industry?: { id: number; code: string; name: string };
+  licenseDate?: string;
+  province?: { id: number; name: string };
+  ward?: { id: number; name: string };
+  address?: string;
+  foreignName?: string;
+  email?: string;
+  phone?: string;
+  operationProvince?: { id: number; name: string };
+  operationWard?: { id: number; name: string };
+  operationAddress?: string;
+  leaderName?: string;
+  leaderPhone?: string;
+  attachments?: EnterpriseAttachment[];
 };
 
 const VIETNAM_PROVINCES_API = 'https://provinces.open-api.vn/api';
@@ -251,12 +294,82 @@ function ConfirmAttachmentTable({
   );
 }
 
+function buildFileUrl(filePath: string) {
+  if (!filePath) return '';
+  if (filePath.startsWith('http')) return filePath;
+  return `${BASE_URL}${filePath}`;
+}
+
+function mapEnterpriseAttachments(attachments: EnterpriseAttachment[] = []): AttachmentFile[] {
+  if (attachments.length === 0) return initialAttachmentFiles;
+
+  const mapped = attachments.map((attachment) => ({
+    id: String(attachment.id),
+    name: attachment.name,
+    info: attachment.fileName,
+    url: buildFileUrl(attachment.filePath),
+  }));
+
+  const missingDefaultRows = initialAttachmentFiles.filter(
+    (row) => !mapped.some((attachment) => attachment.name === row.name),
+  );
+
+  return [...mapped, ...missingDefaultRows];
+}
+
+function updateStoredAuthEmail(newEmail: string) {
+  if (typeof window === 'undefined') return;
+
+  ['localStorage', 'sessionStorage'].forEach((storageName) => {
+    const storage = storageName === 'localStorage' ? window.localStorage : window.sessionStorage;
+    const rawUser = storage.getItem('authUser');
+    if (!rawUser) return;
+
+    try {
+      const user = JSON.parse(rawUser);
+      storage.setItem('authUser', JSON.stringify({ ...user, email: newEmail }));
+    } catch {
+      // Ignore malformed auth storage.
+    }
+  });
+}
+
+function mergeEnterpriseTypeOptions(apiTypes: EnterpriseTypeOption[]) {
+  const byName = new Map<string, EnterpriseTypeOption>();
+
+  ENTERPRISE_TYPES.forEach((name) => {
+    byName.set(name, { name });
+  });
+
+  apiTypes.forEach((type) => {
+    if (!type.name || type.isActive === false) return;
+    byName.set(type.name, type);
+  });
+
+  return Array.from(byName.values());
+}
+
+function enterpriseTypeOptionValue(type: EnterpriseTypeOption) {
+  return type.id ? String(type.id) : `name:${type.name}`;
+}
+
+function getTodayDateValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function EnterpriseCompanyInfoPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
+  const [loadingEnterprise, setLoadingEnterprise] = useState(true);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [enterpriseTypes, setEnterpriseTypes] = useState<EnterpriseTypeOption[]>([]);
   const [provinceOptions, setProvinceOptions] = useState<SelectOption[]>([]);
+  const [registeredWardOptions, setRegisteredWardOptions] = useState<SelectOption[]>([]);
   const [wardOptions, setWardOptions] = useState<SelectOption[]>([]);
+  const [registeredWardCode, setRegisteredWardCode] = useState('');
   const [operatingProvinceCode, setOperatingProvinceCode] = useState('');
   const [operatingWardCode, setOperatingWardCode] = useState('');
   const [loadingProvinces, setLoadingProvinces] = useState(false);
@@ -266,16 +379,17 @@ export default function EnterpriseCompanyInfoPage() {
   const [attachmentFiles, setAttachmentFiles] = useState<AttachmentFile[]>(initialAttachmentFiles);
   const objectUrls = useRef<Set<string>>(new Set());
   const [form, setForm] = useState({
-    companyName: 'Công ty cổ phần công nghệ quốc tế VNA',
-    taxCode: '910000888292',
-    businessType: 'Công ty TNHH 1 thành viên',
-    mainIndustry: '4669 - Bán buôn chuyên doanh khác chưa...',
-    licenseDate: '2020-01-01',
-    registeredProvince: 'Thành phố Hồ Chí Minh',
-    registeredWard: 'Phường Hiệp Bình Phước',
-    address: '162 đường số 2, khu đô thị Vạn Phúc',
+    companyName: '',
+    taxCode: '',
+    businessTypeId: '',
+    businessType: '',
+    mainIndustry: '',
+    licenseDate: '',
+    registeredProvince: '',
+    registeredWard: '',
+    address: '',
     foreignName: '',
-    email: 'vna@gmail.com',
+    email: '',
     officePhone: '',
     operatingProvince: '',
     operatingWard: '',
@@ -283,6 +397,113 @@ export default function EnterpriseCompanyInfoPage() {
     representativeName: '',
     representativePhone: '',
   });
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadEnterpriseTypes() {
+      try {
+        const response = await fetch(`${BASE_URL}/enterprise-types`);
+        if (!response.ok) throw new Error('Không tải được loại hình doanh nghiệp');
+        const data = (await response.json()) as EnterpriseTypeOption[];
+        if (!active) return;
+        setEnterpriseTypes(mergeEnterpriseTypeOptions(data));
+      } catch {
+        if (active) {
+          setEnterpriseTypes(mergeEnterpriseTypeOptions([]));
+        }
+      }
+    }
+
+    loadEnterpriseTypes();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    function loadRegisteredWards() {
+      if (!active) return;
+      setRegisteredWardOptions(
+        HCM_WARDS.map((ward) => ({
+          value: ward.code,
+          label: `${ward.name} (${ward.district})`,
+          name: ward.name,
+        })),
+      );
+    }
+
+    loadRegisteredWards();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCurrentEnterprise() {
+      const token = getAuthToken();
+      setAuthToken(token);
+      setLoadingEnterprise(true);
+      setSaveMessage('');
+
+      if (!token) {
+        setLoadingEnterprise(false);
+        setSaveMessage('Bạn cần đăng nhập để xem thông tin doanh nghiệp.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${BASE_URL}/enterprises/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = (await response.json().catch(() => ({}))) as EnterpriseApiData & { message?: string };
+        if (!response.ok) {
+          throw new Error(data.message || 'Không tải được thông tin doanh nghiệp');
+        }
+        if (!active) return;
+
+        setEnterpriseId(data.id);
+        setForm({
+          companyName: data.name || '',
+          taxCode: data.taxCode || '',
+          businessTypeId: data.enterpriseType?.id ? String(data.enterpriseType.id) : '',
+          businessType: data.enterpriseType?.name || '',
+          mainIndustry: data.industry ? `${data.industry.code} - ${data.industry.name}` : '',
+          licenseDate: data.licenseDate || '',
+          registeredProvince: data.province?.name || '',
+          registeredWard: data.ward?.name || '',
+          address: data.address || '',
+          foreignName: data.foreignName || '',
+          email: data.email || '',
+          officePhone: data.phone || '',
+          operatingProvince: data.operationProvince?.name || '',
+          operatingWard: data.operationWard?.name || '',
+          businessLocation: data.operationAddress || '',
+          representativeName: data.leaderName || '',
+          representativePhone: data.leaderPhone || '',
+        });
+        setAttachmentFiles(mapEnterpriseAttachments(data.attachments));
+      } catch (error: any) {
+        if (active) {
+          setSaveMessage(error?.message || 'Không tải được thông tin doanh nghiệp');
+        }
+      } finally {
+        if (active) setLoadingEnterprise(false);
+      }
+    }
+
+    loadCurrentEnterprise();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -356,8 +577,119 @@ export default function EnterpriseCompanyInfoPage() {
     };
   }, [operatingProvinceCode]);
 
+  useEffect(() => {
+    if (operatingProvinceCode || !form.operatingProvince || provinceOptions.length === 0) return;
+
+    const matchedProvince = provinceOptions.find((option) => option.name === form.operatingProvince);
+    if (matchedProvince) {
+      setOperatingProvinceCode(matchedProvince.value);
+    }
+  }, [form.operatingProvince, operatingProvinceCode, provinceOptions]);
+
+  useEffect(() => {
+    if (operatingWardCode || !form.operatingWard || wardOptions.length === 0) return;
+
+    const matchedWard = wardOptions.find((option) => option.name === form.operatingWard);
+    if (matchedWard) {
+      setOperatingWardCode(matchedWard.value);
+    }
+  }, [form.operatingWard, operatingWardCode, wardOptions]);
+
+  useEffect(() => {
+    if (registeredWardCode || !form.registeredWard || registeredWardOptions.length === 0) return;
+
+    const matchedWard = registeredWardOptions.find((option) => option.name === form.registeredWard);
+    if (matchedWard) {
+      setRegisteredWardCode(matchedWard.value);
+    }
+  }, [form.registeredWard, registeredWardCode, registeredWardOptions]);
+
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function handleLicenseDateChange(value: string) {
+    const today = getTodayDateValue();
+    updateField('licenseDate', value > today ? today : value);
+  }
+
+  function handleBusinessTypeChange(typeId: string) {
+    const selectedType = enterpriseTypes.find((type) => enterpriseTypeOptionValue(type) === typeId);
+    setForm((current) => ({
+      ...current,
+      businessTypeId: selectedType?.id ? String(selectedType.id) : '',
+      businessType: selectedType?.name || '',
+    }));
+  }
+
+  function handleRegisteredWardChange(wardCode: string) {
+    const ward = registeredWardOptions.find((option) => option.value === wardCode);
+
+    setRegisteredWardCode(wardCode);
+    updateField('registeredWard', ward?.name || '');
+  }
+
+  async function saveEnterpriseChanges() {
+    const token = authToken || getAuthToken();
+    if (!token || !enterpriseId) {
+      setSaveMessage('Không tìm thấy thông tin doanh nghiệp để cập nhật.');
+      return;
+    }
+
+    try {
+      setSaveLoading(true);
+      setSaveMessage('');
+
+      const registeredWardId =
+        registeredWardCode && Number(registeredWardCode) < 10000 ? Number(registeredWardCode) : undefined;
+
+      const payload = {
+        name: form.companyName,
+        taxCode: form.taxCode,
+        enterpriseTypeId: form.businessTypeId ? Number(form.businessTypeId) : undefined,
+        enterpriseTypeName: form.businessTypeId ? undefined : form.businessType || undefined,
+        licenseDate: form.licenseDate || undefined,
+        wardId: registeredWardId,
+        wardName: registeredWardId ? undefined : form.registeredWard || undefined,
+        address: form.address,
+        foreignName: form.foreignName,
+        email: form.email,
+        phone: form.officePhone,
+        operationAddress: form.businessLocation,
+        leaderName: form.representativeName,
+        leaderPhone: form.representativePhone,
+      };
+
+      const response = await fetch(`${BASE_URL}/enterprises/me`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json().catch(() => ({}))) as EnterpriseApiData & { message?: string };
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Cập nhật thông tin doanh nghiệp thất bại');
+      }
+
+      setSaveMessage('Cập nhật thông tin doanh nghiệp thành công.');
+      setStep(1);
+    } catch (error: any) {
+      setSaveMessage(error?.message || 'Cập nhật thông tin doanh nghiệp thất bại');
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
+  function handlePrimaryAction() {
+    if (step === 1) {
+      setStep(2);
+      return;
+    }
+
+    void saveEnterpriseChanges();
   }
 
   function handleOperatingProvinceChange(provinceCode: string) {
@@ -379,6 +711,15 @@ export default function EnterpriseCompanyInfoPage() {
   function openChangeEmailModal() {
     setAuthToken(getAuthToken());
     setShowChangeEmailModal(true);
+  }
+
+  function handleEmailChanged(newEmail: string) {
+    updateField('email', newEmail);
+    updateStoredAuthEmail(newEmail);
+    window.dispatchEvent(new CustomEvent('user-email-changed', { detail: { email: newEmail } }));
+    setSaveMessage('Email đã được cập nhật thành công.');
+    setShowChangeEmailModal(false);
+    setTimeout(() => setSaveMessage(''), 3000);
   }
 
   function revokeFileUrl(url: string) {
@@ -403,10 +744,19 @@ export default function EnterpriseCompanyInfoPage() {
     window.open(file.url, '_blank', 'noopener,noreferrer');
   }
 
-  const registeredAddress = `${form.address}, ${form.registeredWard}, ${form.registeredProvince}`;
+  const registeredAddress = [form.address, form.registeredWard, form.registeredProvince]
+    .filter(Boolean)
+    .join(', ');
   const operatingAddress =
     [form.businessLocation, form.operatingWard, form.operatingProvince].filter(Boolean).join(', ') ||
     registeredAddress;
+  const enterpriseTypeOptions = enterpriseTypes.map((type) => ({
+    value: enterpriseTypeOptionValue(type),
+    label: type.name,
+    name: type.name,
+  }));
+  const selectedEnterpriseTypeValue = form.businessTypeId || (form.businessType ? `name:${form.businessType}` : '');
+  const todayDateValue = getTodayDateValue();
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
@@ -425,7 +775,8 @@ export default function EnterpriseCompanyInfoPage() {
             </button>
             <button
               type="button"
-              onClick={() => setStep((currentStep) => (currentStep === 1 ? 2 : currentStep))}
+              onClick={handlePrimaryAction}
+              disabled={loadingEnterprise || saveLoading || !enterpriseId}
               className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               {step === 1 ? (
@@ -436,7 +787,7 @@ export default function EnterpriseCompanyInfoPage() {
               ) : (
                 <>
                   <Check size={16} />
-                  Xác nhận
+                  {saveLoading ? 'Đang lưu...' : 'Xác nhận'}
                 </>
               )}
             </button>
@@ -447,6 +798,16 @@ export default function EnterpriseCompanyInfoPage() {
           <Stepper currentStep={step} />
 
           <div className="mx-auto w-full max-w-[1580px] px-6 pb-8">
+            {loadingEnterprise && (
+              <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+                Đang tải thông tin doanh nghiệp...
+              </div>
+            )}
+            {saveMessage && (
+              <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+                {saveMessage}
+              </div>
+            )}
             {step === 1 ? (
               <>
                 <section className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -464,8 +825,14 @@ export default function EnterpriseCompanyInfoPage() {
                       label="Loại hình kinh doanh"
                       required
                       select
-                      value={form.businessType}
-                      onChange={(value) => updateField('businessType', value)}
+                      value={selectedEnterpriseTypeValue}
+                      options={enterpriseTypeOptions}
+                      placeholder={
+                        enterpriseTypeOptions.length === 0
+                          ? form.businessType || 'Chưa có loại hình doanh nghiệp'
+                          : 'Chọn loại hình kinh doanh'
+                      }
+                      onChange={handleBusinessTypeChange}
                     />
 
                     <Field
@@ -480,13 +847,13 @@ export default function EnterpriseCompanyInfoPage() {
                       calendar
                       inputType="date"
                       value={form.licenseDate}
-                      onChange={(value) => updateField('licenseDate', value)}
+                      max={todayDateValue}
+                      onChange={handleLicenseDateChange}
                     />
                     <Field
                       label="Tỉnh/Thành phố ĐKKD"
                       required
                       disabled
-                      select
                       value={form.registeredProvince}
                     />
 
@@ -494,8 +861,10 @@ export default function EnterpriseCompanyInfoPage() {
                       label="Phường/Xã ĐKKD"
                       required
                       select
-                      value={form.registeredWard}
-                      onChange={(value) => updateField('registeredWard', value)}
+                      value={registeredWardCode}
+                      options={registeredWardOptions}
+                      placeholder="Chọn Phường/Xã ĐKKD"
+                      onChange={handleRegisteredWardChange}
                     />
                     <Field
                       label="Địa chỉ"
@@ -640,7 +1009,7 @@ export default function EnterpriseCompanyInfoPage() {
         onClose={() => setShowChangeEmailModal(false)}
         currentEmail={form.email}
         token={authToken}
-        onSave={(newEmail) => updateField('email', newEmail)}
+        onSuccess={handleEmailChanged}
       />
     </div>
   );

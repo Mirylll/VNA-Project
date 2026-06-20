@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { AlertCircle, Loader2, X } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import { requestChangeEmailOtp, verifyChangeEmailOtp } from '@/libs/core/services/auth.service';
 
@@ -59,6 +59,14 @@ export default function ChangeEmailModal({
 
   const authToken = token || getAuthToken();
 
+  function getErrorMessage(err: unknown, fallback: string) {
+    const message = err instanceof Error ? err.message : fallback;
+    if (message.includes('Mã OTP không đúng')) {
+      return 'Mã OTP không chính xác, vui lòng kiểm tra lại';
+    }
+    return message;
+  }
+
   async function sendOtpEmail() {
     if (!authToken) {
       setError('Chưa đăng nhập');
@@ -75,7 +83,7 @@ export default function ChangeEmailModal({
       setCountdown(60);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lỗi gửi OTP');
+      setError(getErrorMessage(err, 'Lỗi gửi OTP'));
       return false;
     } finally {
       setSendingOtp(false);
@@ -127,7 +135,7 @@ export default function ChangeEmailModal({
       await onSuccess?.(newEmail);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lỗi xác minh OTP');
+      setError(getErrorMessage(err, 'Lỗi xác minh OTP'));
     } finally {
       setLoading(false);
     }
@@ -135,6 +143,20 @@ export default function ChangeEmailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      {error && (
+        <div className="absolute left-1/2 top-8 z-[60] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 shadow-lg">
+          <AlertCircle size={18} className="shrink-0 fill-red-500 text-white" />
+          <span className="min-w-0 flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            className="shrink-0 rounded p-1 text-red-500 transition hover:bg-red-100"
+            aria-label="Đóng thông báo lỗi"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
       <div className="relative w-full max-w-sm overflow-hidden rounded-xl bg-white p-6 shadow-xl">
         <button
           type="button"
@@ -170,8 +192,6 @@ export default function ChangeEmailModal({
                 placeholder="Nhập email mới"
               />
             </label>
-
-            {error && <p className="mb-4 text-center text-sm text-red-600">{error}</p>}
 
             <button
               type="button"
@@ -220,8 +240,6 @@ export default function ChangeEmailModal({
                 disabled={loading}
               />
             </label>
-
-            {error && <p className="mb-4 text-center text-sm text-red-600">{error}</p>}
 
             <div className="mb-4 text-center">
               <p className="text-sm font-semibold text-blue-600">

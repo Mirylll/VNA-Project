@@ -21,6 +21,8 @@ const validateMST = (mst: string): string => {
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+const getTodayDateValue = () => new Date().toISOString().slice(0, 10);
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FileEntry {
   label: string;
@@ -178,6 +180,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleLicenseDateChange = (value: string) => {
+    const today = getTodayDateValue();
+    setField("ngayCap", (value > today ? today : value) as FormData["ngayCap"]);
+  };
+
   // ── file handlers
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -209,6 +216,29 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
       updated[index] = { ...updated[index], file: null, url: null };
       return updated;
     });
+  };
+
+  const uploadRegistrationFiles = async (enterpriseId: number) => {
+    const selectedFiles = files.filter((entry) => entry.file);
+    if (selectedFiles.length === 0) return;
+
+    await Promise.all(
+      selectedFiles.map(async (entry) => {
+        const body = new FormData();
+        body.append("name", entry.label);
+        body.append("file", entry.file as File);
+
+        const res = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/attachments`, {
+          method: "POST",
+          body,
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || `Không tải lên được file ${entry.file?.name}`);
+        }
+      }),
+    );
   };
 
   // ── validate step 1
@@ -315,8 +345,12 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     try {
       setConfirmLoading(true);
       const selectedWardObj = registrationWards.find((w) => w.code === form.phuongXa);
+      const selectedOperationWardObj = operationWards.find((w) => w.code === form.phuongXaHoatDong);
       const phuongXaTen = selectedWardObj
         ? `${selectedWardObj.name}, ${selectedWardObj.district}`
+        : "";
+      const phuongXaHoatDongTen = selectedOperationWardObj
+        ? `${selectedOperationWardObj.name}, ${selectedOperationWardObj.district}`
         : "";
 
       const res = await fetch(`${BASE_URL}/auth/register-enterprise`, {
@@ -334,14 +368,29 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
           sdtNguoiDungDau: form.sdtNguoiDungDau,
           tenNuocNgoai: form.tenNuocNgoai,
           ngayCap: form.ngayCap,
+          tinhTP: form.tinhTP,
+          phuongXaCode: form.phuongXa,
           phuongXaTen,
+          sdtCoQuan: form.sdtCoQuan,
+          tinhTPHoatDong: form.tinhTPHoatDong,
+          phuongXaHoatDongCode: form.phuongXaHoatDong,
+          phuongXaHoatDongTen,
           diaDiemKD: form.diaDiemKD,
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Lỗi tạo tài khoản");
       }
+
+      if (data.enterprise?.id) {
+        try {
+          await uploadRegistrationFiles(data.enterprise.id);
+        } catch (uploadError: any) {
+          alert(uploadError?.message || "Tài khoản đã tạo nhưng chưa tải lên được file đính kèm");
+        }
+      }
+
       setStage("account");
     } catch (e: any) {
       const msg = e?.message || "";
@@ -697,7 +746,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                 <input
                   type="date"
                   value={form.ngayCap}
-                  onChange={(e) => setField("ngayCap", e.target.value)}
+                  max={getTodayDateValue()}
+                  onChange={(e) => handleLicenseDateChange(e.target.value)}
                   className={inputCls(false)}
                 />
               </FieldWrap>
@@ -720,8 +770,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.phuongXa)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {registrationWards.map((w) => (
-                    <option key={w.code} value={w.code}>
+                  {registrationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
                       {w.name} ({w.district})
                     </option>
                   ))}
@@ -818,8 +868,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(false)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {operationWards.map((w) => (
-                    <option key={w.code} value={w.code}>
+                  {operationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
                       {w.name} ({w.district})
                     </option>
                   ))}

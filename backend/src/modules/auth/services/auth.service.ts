@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { OtpCode } from '../entities/otp-code.entity';
 import { JwtService } from '@nestjs/jwt';
@@ -8,6 +8,12 @@ import * as bcrypt from 'bcrypt';
 import { LoginDto } from '../dto/login.dto';
 import { OtpService } from './otp.service';
 import { getEffectivePermissions } from '../../../libs/core/utils/effective-permissions';
+import { Role } from '../../roles/entities/role.entity';
+import { Enterprise } from '../../enterprises/entities/enterprise.entity';
+import { EnterpriseType } from '../../enterprise-types/entities/enterprise-type.entity';
+import { Industry } from '../../industries/entities/industry.entity';
+import { Province } from '../../users/entities/province.entity';
+import { District } from '../../users/entities/district.entity';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +22,18 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(OtpCode)
     private readonly otpRepository: Repository<OtpCode>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
+    @InjectRepository(Enterprise)
+    private readonly enterpriseRepository: Repository<Enterprise>,
+    @InjectRepository(EnterpriseType)
+    private readonly enterpriseTypeRepository: Repository<EnterpriseType>,
+    @InjectRepository(Industry)
+    private readonly industryRepository: Repository<Industry>,
+    @InjectRepository(Province)
+    private readonly provinceRepository: Repository<Province>,
+    @InjectRepository(District)
+    private readonly districtRepository: Repository<District>,
     private readonly jwtService: JwtService,
     private readonly otpService: OtpService,
   ) {}
@@ -62,6 +80,15 @@ export class AuthService {
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
     if (!user.email) throw new BadRequestException('Tài khoản hiện không có email để xác thực');
     if (user.email === newEmail) throw new BadRequestException('Email mới giống với email hiện tại');
+
+    const existingUser = await this.userRepository.findOne({ where: { email: newEmail } });
+    if (existingUser) throw new BadRequestException('Email mới đã tồn tại trên hệ thống, vui lòng kiểm tra lại dữ liệu');
+
+    const existingEnterprise = await this.enterpriseRepository.findOne({ where: { email: newEmail } });
+    if (existingEnterprise && existingEnterprise.username !== user.username && existingEnterprise.taxCode !== user.username) {
+      throw new BadRequestException('Email mới đã tồn tại trên hệ thống, vui lòng kiểm tra lại dữ liệu');
+    }
+
     const otp = await this.otpService.createChangeEmailOtp(user, newEmail);
     return { message: 'Mã OTP đã được gửi tới email hiện tại', otpSent: true };
   }
@@ -75,6 +102,15 @@ export class AuthService {
     if (!valid) throw new BadRequestException('Mã OTP không đúng');
     user.email = otpRecord.targetValue;
     await this.userRepository.save(user);
+
+    const enterprise = await this.enterpriseRepository.findOne({
+      where: [{ username: user.username }, { taxCode: user.username }],
+    });
+    if (enterprise) {
+      enterprise.email = otpRecord.targetValue;
+      await this.enterpriseRepository.save(enterprise);
+    }
+
     otpRecord.verifiedAt = new Date();
     await this.otpRepository.save(otpRecord);
     return { message: 'Email đã được cập nhật' };
@@ -187,7 +223,8 @@ export class AuthService {
       throw new BadRequestException('Mã OTP không đúng');
     }
     
-    delete otpStore[email];
+    otpData.verified = true;
+    otpStore[email] = otpData;
     (global as any).otpStore = otpStore;
     
     return { success: true, message: 'Xác minh thành công' };
@@ -235,7 +272,13 @@ export class AuthService {
     sdtNguoiDungDau?: string;
     tenNuocNgoai?: string;
     ngayCap?: string;
+    tinhTP?: string;
+    phuongXaCode?: string;
     phuongXaTen?: string;
+    sdtCoQuan?: string;
+    tinhTPHoatDong?: string;
+    phuongXaHoatDongCode?: string;
+    phuongXaHoatDongTen?: string;
     diaDiemKD?: string;
   }) {
     const otpStore = (global as any).otpStore || {};
@@ -252,6 +295,7 @@ export class AuthService {
     if (otpData.code !== data.otp) {
       throw new BadRequestException('Mã OTP không đúng');
     }
+    this.assertLicenseDateNotInFuture(data.ngayCap);
 
     const existingByUsername = await this.userRepository.findOne({ where: { username: data.mst } });
     if (existingByUsername) {
@@ -263,17 +307,79 @@ export class AuthService {
       throw new BadRequestException('Email này đã được đăng ký tài khoản');
     }
 
+    const existingEnterprise = await this.enterpriseRepository.findOne({
+      where: [{ taxCode: data.mst }, { username: data.mst }],
+    });
+    if (existingEnterprise) {
+      throw new BadRequestException('Mã số thuế này đã tồn tại trong thông tin doanh nghiệp');
+    }
+
     const defaultPassword = '12345678';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
-    const user = this.userRepository.create({
-      username: data.mst,
-      passwordHash,
-      fullName: data.tenDN || data.mst,
-      email: data.email,
-      isActive: true,
+    const result = await this.userRepository.manager.transaction(async (manager) => {
+      const userRepository = manager.getRepository(User);
+      const roleRepository = manager.getRepository(Role);
+      const enterpriseRepository = manager.getRepository(Enterprise);
+      const enterpriseTypeRepository = manager.getRepository(EnterpriseType);
+      const industryRepository = manager.getRepository(Industry);
+      const provinceRepository = manager.getRepository(Province);
+      const districtRepository = manager.getRepository(District);
+
+      const enterpriseRole = await roleRepository.findOne({ where: { code: 'ROLE_ENTERPRISE' } });
+      const enterpriseType = await this.findOrCreateEnterpriseType(enterpriseTypeRepository, data.loaiHinhKD);
+      const industry = await this.findOrCreateIndustry(industryRepository, data.nganhNghe);
+      const province = await this.findOrCreateProvince(provinceRepository, data.tinhTP || 'Thành phố Hồ Chí Minh');
+      const ward = await this.findOrCreateDistrict(
+        districtRepository,
+        this.extractWardName(data.phuongXaTen),
+        province,
+      );
+      const operationProvince = await this.findOrCreateProvince(
+        provinceRepository,
+        data.tinhTPHoatDong || data.tinhTP || 'Thành phố Hồ Chí Minh',
+      );
+      const operationWard = await this.findOrCreateDistrict(
+        districtRepository,
+        this.extractWardName(data.phuongXaHoatDongTen),
+        operationProvince,
+      );
+
+      const user = userRepository.create({
+        username: data.mst,
+        passwordHash,
+        fullName: data.tenDN || data.mst,
+        email: data.email,
+        isActive: true,
+        role: enterpriseRole || undefined,
+      });
+      const savedUser = await userRepository.save(user);
+
+      const enterprise = enterpriseRepository.create({
+        name: data.tenDN || data.mst,
+        taxCode: data.mst,
+        enterpriseType: enterpriseType || undefined,
+        industry: industry || undefined,
+        licenseDate: data.ngayCap || undefined,
+        province: province || undefined,
+        ward: ward || undefined,
+        address: data.diaChi || undefined,
+        foreignName: data.tenNuocNgoai || undefined,
+        email: data.email,
+        phone: data.sdtCoQuan || undefined,
+        operationProvince: operationProvince || undefined,
+        operationWard: operationWard || undefined,
+        operationAddress: data.diaDiemKD || undefined,
+        leaderName: data.nguoiDungDau || undefined,
+        leaderPhone: data.sdtNguoiDungDau || undefined,
+        username: data.mst,
+        password: defaultPassword,
+        isActive: true,
+      });
+      const savedEnterprise = await enterpriseRepository.save(enterprise);
+
+      return { user: savedUser, enterprise: savedEnterprise };
     });
-    await this.userRepository.save(user);
 
     delete otpStore[data.email];
     (global as any).otpStore = otpStore;
@@ -285,6 +391,104 @@ export class AuthService {
         username: data.mst,
         defaultPassword,
       },
+      enterprise: {
+        id: result.enterprise.id,
+        taxCode: result.enterprise.taxCode,
+        name: result.enterprise.name,
+      },
     };
+  }
+
+  private extractWardName(value?: string) {
+    return value?.split(',')[0]?.trim() || '';
+  }
+
+  private assertLicenseDateNotInFuture(value?: string) {
+    if (!value) return;
+
+    const inputDate = new Date(`${value}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(inputDate.getTime()) || inputDate > today) {
+      throw new BadRequestException('Ngày cấp GPKD không được lớn hơn ngày hiện tại');
+    }
+  }
+
+  private makeCode(prefix: string, value: string) {
+    const normalized = value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toUpperCase();
+    return `${prefix}_${normalized}`.slice(0, 50);
+  }
+
+  private async findOrCreateEnterpriseType(
+    repository: Repository<EnterpriseType>,
+    value?: string,
+  ): Promise<EnterpriseType | null> {
+    const name = value?.trim();
+    if (!name) return null;
+
+    const existing = await repository.findOne({
+      where: [{ name }, { code: name }, { name: ILike(name) }],
+    });
+    if (existing) return existing;
+
+    const enterpriseType = repository.create({
+      code: this.makeCode('LH', name),
+      name,
+      isActive: true,
+    });
+    return repository.save(enterpriseType);
+  }
+
+  private async findOrCreateIndustry(repository: Repository<Industry>, value?: string): Promise<Industry | null> {
+    const raw = value?.trim();
+    if (!raw) return null;
+
+    const [rawCode, ...rawNameParts] = raw.split('-');
+    const code = rawCode.trim();
+    const name = rawNameParts.join('-').trim() || raw;
+    const existing = await repository.findOne({
+      where: [{ code }, { name }, { name: ILike(name) }],
+    });
+    if (existing) return existing;
+
+    const industry = repository.create({
+      code: code || this.makeCode('NN', name),
+      name,
+      level: 4,
+      isActive: true,
+    });
+    return repository.save(industry);
+  }
+
+  private async findOrCreateProvince(repository: Repository<Province>, value?: string): Promise<Province> {
+    const name = value?.trim() || 'Thành phố Hồ Chí Minh';
+    const existing = await repository.findOne({ where: { name } });
+    if (existing) return existing;
+    return repository.save(repository.create({ name }));
+  }
+
+  private async findOrCreateDistrict(
+    repository: Repository<District>,
+    value: string,
+    province: Province | null,
+  ): Promise<District | null> {
+    const name = value?.trim();
+    if (!name || !province) return null;
+
+    const existing = await repository.findOne({
+      where: { name, province: { id: province.id } },
+      relations: ['province'],
+    });
+    if (existing) return existing;
+
+    return repository.save(repository.create({ name, province }));
   }
 }

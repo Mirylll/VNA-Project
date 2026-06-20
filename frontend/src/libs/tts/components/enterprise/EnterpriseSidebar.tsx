@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   BriefcaseBusiness,
   ChevronDown,
@@ -17,8 +17,11 @@ import { clearAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
 
 export default function EnterpriseSidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const user = getAuthUser();
+  const isCompanyInfo = pathname.startsWith('/enterprise/company-info');
+  const isTnldHdld = pathname.startsWith('/enterprise/tnld-hdld');
 
   function openProfile(action?: string) {
     window.dispatchEvent(new CustomEvent('open-user-popup', { detail: { action } }));
@@ -59,9 +62,12 @@ export default function EnterpriseSidebar() {
 
         <button
           type="button"
-          className="relative flex w-full items-center gap-3 bg-[#2B59C3] py-3 pl-10 pr-4 text-left font-medium text-white shadow-[inset_4px_0_0_rgba(255,255,255,0.95)]"
+          onClick={() => router.push('/enterprise/company-info')}
+          className={`relative flex w-full items-center gap-3 py-3 pl-10 pr-4 text-left font-medium text-white transition hover:bg-white/10 ${
+            isCompanyInfo ? 'bg-[#2B59C3] shadow-[inset_4px_0_0_rgba(255,255,255,0.95)]' : ''
+          }`}
         >
-          <span className="absolute left-5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-white" />
+          <span className={`absolute left-5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${isCompanyInfo ? 'bg-white' : 'bg-white/80'}`} />
           <BriefcaseBusiness size={16} className="text-white/90" />
           <span>Thông tin doanh nghiệp</span>
         </button>
@@ -77,9 +83,12 @@ export default function EnterpriseSidebar() {
 
         <button
           type="button"
-          className="relative flex w-full items-center gap-3 py-3 pl-10 pr-4 text-left text-white/95 transition hover:bg-white/10"
+          onClick={() => router.push('/enterprise/tnld-hdld')}
+          className={`relative flex w-full items-center gap-3 py-3 pl-10 pr-4 text-left text-white/95 transition hover:bg-white/10 ${
+            isTnldHdld ? 'bg-[#2B59C3] shadow-[inset_4px_0_0_rgba(255,255,255,0.95)]' : ''
+          }`}
         >
-          <span className="absolute left-5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-white/80" />
+          <span className={`absolute left-5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${isTnldHdld ? 'bg-white' : 'bg-white/80'}`} />
           <span>TNLD theo HĐLĐ</span>
         </button>
       </nav>

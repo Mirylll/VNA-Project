@@ -9,10 +9,16 @@ import { DistrictsModule } from './modules/districts/districts.module';
 import { EnterpriseTypesModule } from './modules/enterprise-types/enterprise-types.module';
 import { IndustriesModule } from './modules/industries/industries.module';
 import { EnterprisesModule } from './modules/enterprises/enterprises.module';
+import { TnldContractReportsModule } from './modules/tnld-contract-reports/tnld-contract-reports.module';
 import { EnterpriseType } from './modules/enterprise-types/entities/enterprise-type.entity';
 import { Industry } from './modules/industries/entities/industry.entity';
 import { Enterprise } from './modules/enterprises/entities/enterprise.entity';
 import { Attachment } from './modules/enterprises/entities/attachment.entity';
+import { TnldContractReportAccidentDetail } from './modules/tnld-contract-reports/entities/tnld-contract-report-accident-detail.entity';
+import { TnldContractReportAttachment } from './modules/tnld-contract-reports/entities/tnld-contract-report-attachment.entity';
+import { TnldContractReportOverview } from './modules/tnld-contract-reports/entities/tnld-contract-report-overview.entity';
+import { TnldContractReportSubsidy } from './modules/tnld-contract-reports/entities/tnld-contract-report-subsidy.entity';
+import { TnldContractReport } from './modules/tnld-contract-reports/entities/tnld-contract-report.entity';
 import { User } from './modules/users/entities/user.entity';
 import { Province } from './modules/users/entities/province.entity';
 import { District } from './modules/users/entities/district.entity';
@@ -42,7 +48,26 @@ const dbConfig = process.env.DATABASE_URL
   imports: [
     TypeOrmModule.forRoot({
       ...dbConfig,
-      entities: [User, Province, District, UserAvatar, Role, Permission, Title, RefreshToken, OtpCode, EnterpriseType, Industry, Enterprise, Attachment],
+      entities: [
+        User,
+        Province,
+        District,
+        UserAvatar,
+        Role,
+        Permission,
+        Title,
+        RefreshToken,
+        OtpCode,
+        EnterpriseType,
+        Industry,
+        Enterprise,
+        Attachment,
+        TnldContractReport,
+        TnldContractReportOverview,
+        TnldContractReportAccidentDetail,
+        TnldContractReportSubsidy,
+        TnldContractReportAttachment,
+      ],
       synchronize: process.env.TYPEORM_SYNC !== 'false',
     }),
     AuthModule,
@@ -54,6 +79,7 @@ const dbConfig = process.env.DATABASE_URL
     EnterpriseTypesModule,
     IndustriesModule,
     EnterprisesModule,
+    TnldContractReportsModule,
   ],
 })
 export class AppModule {}
