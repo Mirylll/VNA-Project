@@ -11,7 +11,7 @@ const baseUrl =
     : "";
 
 function getHomeRoute(user?: AuthUser | null) {
-  if (user?.role?.code === "ROLE_ENTERPRISE") return "/enterprise/company-info";
+  if (user?.accountType === "enterprise" || user?.role?.code === "ROLE_ENTERPRISE") return "/enterprise/company-info";
   return "/admin/permissions";
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   BriefcaseBusiness,
@@ -15,13 +15,30 @@ import {
 } from 'lucide-react';
 import { clearAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
 
+function getEnterpriseDisplayName() {
+  const user = getAuthUser() as
+    | (ReturnType<typeof getAuthUser> & { enterpriseName?: string; companyName?: string })
+    | null;
+  return user?.enterpriseName || user?.companyName || user?.fullName || user?.username || 'Doanh nghiệp';
+}
+
 export default function EnterpriseSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [openUserMenu, setOpenUserMenu] = useState(false);
-  const user = getAuthUser();
+  const [enterpriseName, setEnterpriseName] = useState(getEnterpriseDisplayName);
   const isCompanyInfo = pathname.startsWith('/enterprise/company-info');
   const isTnldHdld = pathname.startsWith('/enterprise/tnld-hdld');
+
+  useEffect(() => {
+    function handleEnterpriseNameChanged(event: Event) {
+      const nextName = (event as CustomEvent<{ name?: string }>).detail?.name?.trim();
+      setEnterpriseName(nextName || getEnterpriseDisplayName());
+    }
+
+    window.addEventListener('enterprise-name-changed', handleEnterpriseNameChanged);
+    return () => window.removeEventListener('enterprise-name-changed', handleEnterpriseNameChanged);
+  }, []);
 
   function openProfile(action?: string) {
     window.dispatchEvent(new CustomEvent('open-user-popup', { detail: { action } }));
@@ -101,7 +118,7 @@ export default function EnterpriseSidebar() {
             className="h-9 w-9 rounded-full border border-white/30 bg-white object-cover"
           />
           <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {user?.fullName || user?.username || 'Doanh nghiệp'}
+            {enterpriseName}
           </span>
           <button
             type="button"

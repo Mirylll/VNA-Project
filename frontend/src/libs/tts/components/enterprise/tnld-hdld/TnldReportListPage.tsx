@@ -50,8 +50,8 @@ function StatusBadge({ status }: { status: ReportStatus }) {
       className: 'bg-amber-50 text-amber-700',
     },
     CHO_TIEP_NHAN: {
-      label: 'Chờ tiếp nhận',
-      className: 'bg-indigo-50 text-indigo-700',
+      label: 'Đã tiếp nhận',
+      className: 'bg-slate-100 text-slate-600',
     },
     DA_BAO_CAO: {
       label: 'Đã báo cáo',
@@ -189,7 +189,8 @@ export default function TnldReportListPage() {
 
   function openReport(report: ReportRow) {
     if (report.status === 'CHO_TIEP_NHAN' || report.status === 'DA_BAO_CAO') {
-      router.push(`/enterprise/tnld-hdld/${report.id}?mode=view&step=review`);
+      const reportId = report.backendId || report.id;
+      router.push(`/enterprise/tnld-hdld/${reportId}?mode=view&step=review`);
       return;
     }
 

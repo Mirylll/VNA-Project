@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Put } from '@nestjs/common';
 import { CreateTnldContractReportDto } from './dto/create-tnld-contract-report.dto';
 import { UpdateTnldContractReportDto } from './dto/update-tnld-contract-report.dto';
 import { TnldContractReportsService } from './tnld-contract-reports.service';
@@ -31,6 +31,11 @@ export class TnldContractReportsController {
   @Put(':id')
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTnldContractReportDto) {
     return this.service.update(id, dto);
+  }
+
+  @Patch(':id/accept')
+  async accept(@Param('id', ParseIntPipe) id: number) {
+    return this.service.accept(id);
   }
 
   @Delete(':id')

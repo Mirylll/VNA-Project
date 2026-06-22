@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { AccountType, User } from '../../users/entities/user.entity';
 import { OtpCode } from '../entities/otp-code.entity';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -67,7 +67,11 @@ export class AuthService {
     if (!matched) {
       throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại');
     }
-    const payload = { sub: user.id, username: user.username, role: user.role?.code };
+    const accountType =
+      user.role?.code === 'ROLE_ENTERPRISE'
+        ? AccountType.ENTERPRISE
+        : user.accountType || AccountType.INTERNAL;
+    const payload = { sub: user.id, username: user.username, role: user.role?.code, accountType };
     const accessToken = this.jwtService.sign(payload);
     return {
       accessToken,
@@ -143,6 +147,10 @@ export class AuthService {
       username: user.username,
       email: user.email,
       fullName: user.fullName,
+      accountType:
+        user.role?.code === 'ROLE_ENTERPRISE'
+          ? AccountType.ENTERPRISE
+          : user.accountType || AccountType.INTERNAL,
       role: user.role
         ? {
             id: user.role.id,
@@ -351,6 +359,7 @@ export class AuthService {
         fullName: data.tenDN || data.mst,
         email: data.email,
         isActive: true,
+        accountType: AccountType.ENTERPRISE,
         role: enterpriseRole || undefined,
       });
       const savedUser = await userRepository.save(user);

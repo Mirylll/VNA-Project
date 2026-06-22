@@ -193,7 +193,7 @@ interface CompanyReport {
   ward: string;
   period: string; // e.g. "6 tháng", "Cả năm"
   year: number; // e.g. 2022
-  status: 'draft' | 'submitted'; // draft = Đang báo cáo, submitted = Đã tiếp nhận
+  status: 'draft' | 'submitted' | 'accepted'; // draft = Đang báo cáo, submitted = Đã tiếp nhận, accepted = Đã báo cáo
   data: ReportData;
   overviewData?: ReportMetricSource;
   subsidyData?: ReportMetricSource;
@@ -292,7 +292,8 @@ function formatPeriod(period?: string): string {
   return period || '6 tháng';
 }
 
-function normalizeReportStatus(status?: string): 'draft' | 'submitted' {
+function normalizeReportStatus(status?: string): 'draft' | 'submitted' | 'accepted' {
+  if (status === 'accepted') return 'accepted';
   return status === 'submitted' ? 'submitted' : 'draft';
 }
 
@@ -767,6 +768,7 @@ export default function TnldContractsPage() {
   const [reports, setReports] = useState<CompanyReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<CompanyReport | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [isAcceptingReport, setIsAcceptingReport] = useState(false);
 
   // PDF Preview State
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -902,6 +904,36 @@ export default function TnldContractsPage() {
     setViewState('summary');
   };
 
+  const handleAcceptReport = async () => {
+    if (!selectedReport || selectedReport.status !== 'submitted') return;
+
+    setIsAcceptingReport(true);
+    setReportsError('');
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${baseUrl}/tnld-contract-reports/${selectedReport.id}/accept`, {
+        method: 'PATCH',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        throw new Error(data?.message || 'Không duyệt được báo cáo');
+      }
+
+      const acceptedReport = mapApiReport(data);
+      setSelectedReport(acceptedReport);
+      setReports((current) =>
+        current.map((report) => (report.id === acceptedReport.id ? acceptedReport : report)),
+      );
+    } catch (error) {
+      setReportsError(error instanceof Error ? error.message : 'Lỗi kết nối backend');
+    } finally {
+      setIsAcceptingReport(false);
+    }
+  };
+
   const handleExportSummary = () => {
     const { totals, countSubmitted } = summaryCalculations;
     let csvContent = "\uFEFF"; // UTF-8 BOM
@@ -936,7 +968,7 @@ export default function TnldContractsPage() {
 
   // Dynamic calculations for aggregate summary
   const summaryCalculations = useMemo(() => {
-    const submitted = reports.filter((r) => r.status === 'submitted' && (filterYear === 'Tất cả' || String(r.year) === filterYear));
+    const submitted = reports.filter((r) => r.status !== 'draft' && (filterYear === 'Tất cả' || String(r.year) === filterYear));
     const countSubmitted = submitted.length;
 
     const totals: ReportData = {
@@ -1181,6 +1213,7 @@ export default function TnldContractsPage() {
                         <option value="">Tất cả</option>
                         <option value="draft">Đang báo cáo</option>
                         <option value="submitted">Đã tiếp nhận</option>
+                        <option value="accepted">Đã báo cáo</option>
                       </select>
                       <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
@@ -1235,15 +1268,20 @@ export default function TnldContractsPage() {
                       {report.period}
                     </td>
                     <td className="px-3 py-3.5 text-sm">
-                      {report.status === 'draft' ? (
+                      {report.status === 'accepted' ? (
+                        <span className="inline-flex items-center gap-1.5 text-blue-600 font-medium">
+                          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                          Đã báo cáo
+                        </span>
+                      ) : report.status === 'submitted' ? (
+                        <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium">
+                          <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+                          Đã tiếp nhận
+                        </span>
+                      ) : (
                         <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium">
                           <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
                           Đang báo cáo
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-blue-600 font-medium">
-                          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                          Đã tiếp nhận
                         </span>
                       )}
                     </td>
@@ -1289,6 +1327,15 @@ export default function TnldContractsPage() {
               >
                 Huỷ bỏ
               </button>
+              {selectedReport.status === 'submitted' && (
+                <button
+                  onClick={handleAcceptReport}
+                  disabled={isAcceptingReport}
+                  className="px-4 py-2 rounded-lg border border-blue-600 text-blue-600 text-sm font-semibold hover:bg-blue-50 transition disabled:cursor-not-allowed disabled:border-blue-200 disabled:text-blue-300"
+                >
+                  {isAcceptingReport ? 'Đang duyệt...' : 'Duyệt báo cáo'}
+                </button>
+              )}
               <button
                 onClick={() => window.print()}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1D4ED8] text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm"

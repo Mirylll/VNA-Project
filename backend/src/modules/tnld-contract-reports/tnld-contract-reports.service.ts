@@ -257,6 +257,12 @@ export class TnldContractReportsService {
     return this.findOne(id);
   }
 
+  async accept(id: number): Promise<TnldContractReport> {
+    await this.findOne(id);
+    await this.reportRepo.update(id, { status: 'accepted' });
+    return this.findOne(id);
+  }
+
   async remove(id: number): Promise<void> {
     await this.findOne(id);
     await this.reportRepo.delete(id);

@@ -969,6 +969,103 @@ export default function TnldReportFormPage() {
   }, [accidentDetails, accidentTab, form, readOnly, reportYear, savedReportId, step, uploadedFile]);
 
   useEffect(() => {
+    async function loadReportById() {
+      const reportId = window.location.pathname.split('/').filter(Boolean).at(-1) || '';
+      if (!/^\d+$/.test(reportId) || !BASE_URL) return;
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${BASE_URL}/tnld-contract-reports/${reportId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data) return;
+
+        const overview = data.overview || {};
+        const subsidy = data.subsidy || {};
+        const toText = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+        const toMoneyText = (value: unknown) => formatVndNumber(toText(value));
+
+        setSavedReportId(Number(data.id));
+        setReportYear(String(data.year || reportYear));
+        setUploadedFile(data.attachments?.[0]?.fileName || '');
+        setForm((current) => ({
+          ...current,
+          totalEmployees: toText(overview.totalEmployees),
+          femaleEmployees: toText(overview.femaleEmployees),
+          payroll: toMoneyText(overview.payroll),
+          totalAccidents: toText(overview.totalAccidents),
+          fatalAccidents: toText(overview.fatalAccidents),
+          multiVictimAccidents: toText(overview.multiVictimAccidents),
+          totalVictims: toText(overview.totalVictims),
+          femaleVictims: toText(overview.femaleVictims),
+          deadVictims: toText(overview.deadVictims),
+          severeVictims: toText(overview.severeVictims),
+          unmanagedVictims: toText(overview.unmanagedVictims),
+          unmanagedFemaleVictims: toText(overview.unmanagedFemaleVictims),
+          unmanagedDeadVictims: toText(overview.unmanagedDeadVictims),
+          unmanagedSevereVictims: toText(overview.unmanagedSevereVictims),
+          medicalCost: toMoneyText(overview.medicalCost),
+          treatmentSalaryCost: toMoneyText(overview.treatmentSalaryCost),
+          compensationCost: toMoneyText(overview.compensationCost),
+          workdaysLost: toText(overview.workdaysLost),
+          assetDamage: toMoneyText(overview.assetDamage),
+          subsidyTotalAccidents: toText(subsidy.totalAccidents),
+          subsidyFatalAccidents: toText(subsidy.fatalAccidents),
+          subsidyMultiVictimAccidents: toText(subsidy.multiVictimAccidents),
+          subsidyTotalVictims: toText(subsidy.totalVictims),
+          subsidyFemaleVictims: toText(subsidy.femaleVictims),
+          subsidyDeadVictims: toText(subsidy.deadVictims),
+          subsidySevereVictims: toText(subsidy.severeVictims),
+          subsidyUnmanagedVictims: toText(subsidy.unmanagedVictims),
+          subsidyUnmanagedFemaleVictims: toText(subsidy.unmanagedFemaleVictims),
+          subsidyUnmanagedDeadVictims: toText(subsidy.unmanagedDeadVictims),
+          subsidyUnmanagedSevereVictims: toText(subsidy.unmanagedSevereVictims),
+          subsidyMedicalCost: toMoneyText(subsidy.medicalCost),
+          subsidyTreatmentSalaryCost: toMoneyText(subsidy.treatmentSalaryCost),
+          subsidyCompensationCost: toMoneyText(subsidy.compensationCost),
+          subsidyWorkdaysLost: toText(subsidy.workdaysLost),
+          subsidyAssetDamage: toMoneyText(subsidy.assetDamage),
+        }));
+
+        const mappedDetails = Array.isArray(data.accidentDetails)
+          ? data.accidentDetails.map((detail: any, index: number) => ({
+              ...createAccidentDetail(index),
+              cause: detail.cause || createAccidentDetail(index).cause,
+              injuryFactor: detail.injuryFactor || createAccidentDetail(index).injuryFactor,
+              occupation: detail.occupation || createAccidentDetail(index).occupation,
+              totalAccidents: toText(detail.totalAccidents),
+              fatalAccidents: toText(detail.fatalAccidents),
+              multiVictimAccidents: toText(detail.multiVictimAccidents),
+              totalVictims: toText(detail.totalVictims),
+              femaleVictims: toText(detail.femaleVictims),
+              deadVictims: toText(detail.deadVictims),
+              severeVictims: toText(detail.severeVictims),
+              unmanagedVictims: toText(detail.unmanagedVictims),
+              unmanagedFemaleVictims: toText(detail.unmanagedFemaleVictims),
+              unmanagedDeadVictims: toText(detail.unmanagedDeadVictims),
+              unmanagedSevereVictims: toText(detail.unmanagedSevereVictims),
+              medicalCost: toMoneyText(detail.medicalCost),
+              treatmentSalaryCost: toMoneyText(detail.treatmentSalaryCost),
+              compensationCost: toMoneyText(detail.compensationCost),
+              workdaysLost: toText(detail.workdaysLost),
+              assetDamage: toMoneyText(detail.assetDamage),
+            }))
+          : [];
+
+        if (mappedDetails.length > 0) {
+          setAccidentDetails(mappedDetails);
+        }
+      } catch {
+        // Keep current form values if the saved report cannot be loaded.
+      }
+    }
+
+    loadReportById();
+  }, []);
+
+  useEffect(() => {
     async function loadCurrentEnterprise() {
       const token = getAuthToken();
       if (!token || !BASE_URL) return;

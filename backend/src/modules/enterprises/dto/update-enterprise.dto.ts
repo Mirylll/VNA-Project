@@ -25,6 +25,11 @@ export class UpdateEnterpriseDto {
   industryId?: number;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  industryName?: string;
+
+  @IsOptional()
   @IsDateString()
   licenseDate?: string;
 

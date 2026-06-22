@@ -1,10 +1,10 @@
 "use client";
 
 import { Calendar, Check, ChevronDown, ChevronRight, Eye } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
-import { ENTERPRISE_TYPES, HCM_WARDS } from '@/libs/tts/data/hcm-districts';
+import { ENTERPRISE_TYPES, HCM_WARDS, INDUSTRIES } from '@/libs/tts/data/hcm-districts';
 import AttachmentTable, { AttachmentFile, initialAttachmentFiles } from './AttachmentTable';
 import EnterpriseSidebar from './EnterpriseSidebar';
 
@@ -27,6 +27,7 @@ type FieldProps = {
   onActionClick?: () => void;
   className?: string;
   max?: string;
+  error?: string;
   onChange?: (value: string) => void;
 };
 
@@ -44,8 +45,23 @@ function Field({
   onActionClick,
   className = '',
   max,
+  error,
   onChange,
 }: FieldProps) {
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const autocompleteOptions = options || [];
+  const isAutocomplete = select && autocompleteOptions.length > 10;
+  const selectedOption = autocompleteOptions.find((option) => option.value === value);
+  const filteredOptions = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) return autocompleteOptions.slice(0, 80);
+
+    return autocompleteOptions
+      .filter((option) => option.label.toLowerCase().includes(keyword))
+      .slice(0, 80);
+  }, [autocompleteOptions, searchTerm]);
+
   return (
     <label className={`relative block ${className}`}>
       <span className="absolute -top-2 left-3 z-10 bg-white px-1 text-[11px] font-medium text-gray-500">
@@ -56,10 +72,70 @@ function Field({
         className={`flex h-10 items-center rounded-md border px-3 text-sm shadow-[0_1px_0_rgba(16,24,40,0.02)] transition ${
           disabled
             ? 'border-gray-200 bg-gray-50 text-gray-400'
-            : 'border-gray-300 bg-white text-gray-800 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
+            : error
+              ? 'border-red-300 bg-white text-gray-800 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100'
+              : 'border-gray-300 bg-white text-gray-800 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
         }`}
       >
-        {select && options ? (
+        {isAutocomplete ? (
+          <div
+            className="relative min-w-0 flex-1"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setAutocompleteOpen(false);
+              }
+            }}
+          >
+            {autocompleteOpen ? (
+              <input
+                type="text"
+                autoFocus
+                value={searchTerm}
+                disabled={disabled}
+                placeholder={placeholder || `Tìm ${label.toLowerCase()}`}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full bg-transparent pr-7 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed"
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  setSearchTerm('');
+                  setAutocompleteOpen(true);
+                }}
+                className="w-full truncate bg-transparent pr-7 text-left outline-none disabled:cursor-not-allowed"
+              >
+                {selectedOption?.label || placeholder || `Chọn ${label.toLowerCase()}`}
+              </button>
+            )}
+            {autocompleteOpen && (
+              <div className="absolute left-[-13px] right-[-13px] top-8 z-40 max-h-64 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                {filteredOptions.length > 0 ? (
+                  filteredOptions.map((option) => (
+                    <button
+                      key={`${option.value}-${option.label}`}
+                      type="button"
+                      className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-blue-50 ${
+                        option.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700'
+                      }`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        onChange?.(option.value);
+                        setAutocompleteOpen(false);
+                        setSearchTerm('');
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-gray-400">Không tìm thấy dữ liệu</div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : select && options ? (
           <select
             value={value}
             disabled={disabled}
@@ -68,7 +144,7 @@ function Field({
           >
             <option value="">{placeholder || `Chọn ${label.toLowerCase()}`}</option>
             {options.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={`${option.value}-${option.label}`} value={option.value}>
                 {option.label}
               </option>
             ))}
@@ -98,6 +174,7 @@ function Field({
         {select && <ChevronDown size={17} className="ml-2 flex-shrink-0 text-gray-500" />}
         {calendar && <Calendar size={17} className="ml-2 flex-shrink-0 text-gray-500" />}
       </div>
+      {error && <p className="mt-1 text-xs font-medium text-red-600">{error}</p>}
     </label>
   );
 }
@@ -357,6 +434,32 @@ function getTodayDateValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function cleanPhone(value: string) {
+  return value.replace(/\D/g, '').slice(0, 11);
+}
+
+function getPhoneError(value: string) {
+  if (!value) return '';
+  return /^0\d{8,10}$/.test(value) ? '' : 'Số điện thoại phải bắt đầu bằng 0 và có 9-11 chữ số';
+}
+
+function updateStoredEnterpriseName(name: string) {
+  if (typeof window === 'undefined') return;
+
+  ['localStorage', 'sessionStorage'].forEach((storageName) => {
+    const storage = storageName === 'localStorage' ? window.localStorage : window.sessionStorage;
+    const rawUser = storage.getItem('authUser');
+    if (!rawUser) return;
+
+    try {
+      const user = JSON.parse(rawUser);
+      storage.setItem('authUser', JSON.stringify({ ...user, enterpriseName: name }));
+    } catch {
+      // Ignore malformed auth storage.
+    }
+  });
+}
+
 export default function EnterpriseCompanyInfoPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
@@ -489,6 +592,10 @@ export default function EnterpriseCompanyInfoPage() {
           representativePhone: data.leaderPhone || '',
         });
         setAttachmentFiles(mapEnterpriseAttachments(data.attachments));
+        if (data.name) {
+          updateStoredEnterpriseName(data.name);
+          window.dispatchEvent(new CustomEvent('enterprise-name-changed', { detail: { name: data.name } }));
+        }
       } catch (error: any) {
         if (active) {
           setSaveMessage(error?.message || 'Không tải được thông tin doanh nghiệp');
@@ -606,6 +713,11 @@ export default function EnterpriseCompanyInfoPage() {
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+
+    if (field === 'companyName') {
+      window.dispatchEvent(new CustomEvent('enterprise-name-changed', { detail: { name: value } }));
+      updateStoredEnterpriseName(value);
+    }
   }
 
   function handleLicenseDateChange(value: string) {
@@ -629,10 +741,21 @@ export default function EnterpriseCompanyInfoPage() {
     updateField('registeredWard', ward?.name || '');
   }
 
+  function handleIndustryChange(industryValue: string) {
+    updateField('mainIndustry', industryValue);
+  }
+
   async function saveEnterpriseChanges() {
     const token = authToken || getAuthToken();
     if (!token || !enterpriseId) {
       setSaveMessage('Không tìm thấy thông tin doanh nghiệp để cập nhật.');
+      return;
+    }
+
+    const phoneError = getPhoneError(form.officePhone);
+    const leaderPhoneError = getPhoneError(form.representativePhone);
+    if (phoneError || leaderPhoneError) {
+      setSaveMessage('Vui lòng kiểm tra lại số điện thoại trước khi lưu.');
       return;
     }
 
@@ -648,6 +771,7 @@ export default function EnterpriseCompanyInfoPage() {
         taxCode: form.taxCode,
         enterpriseTypeId: form.businessTypeId ? Number(form.businessTypeId) : undefined,
         enterpriseTypeName: form.businessTypeId ? undefined : form.businessType || undefined,
+        industryName: form.mainIndustry || undefined,
         licenseDate: form.licenseDate || undefined,
         wardId: registeredWardId,
         wardName: registeredWardId ? undefined : form.registeredWard || undefined,
@@ -675,6 +799,8 @@ export default function EnterpriseCompanyInfoPage() {
       }
 
       setSaveMessage('Cập nhật thông tin doanh nghiệp thành công.');
+      updateStoredEnterpriseName(form.companyName);
+      window.dispatchEvent(new CustomEvent('enterprise-name-changed', { detail: { name: form.companyName } }));
       setStep(1);
     } catch (error: any) {
       setSaveMessage(error?.message || 'Cập nhật thông tin doanh nghiệp thất bại');
@@ -755,8 +881,15 @@ export default function EnterpriseCompanyInfoPage() {
     label: type.name,
     name: type.name,
   }));
+  const industryOptions = INDUSTRIES.map((industry) => ({
+    value: industry,
+    label: industry,
+  }));
   const selectedEnterpriseTypeValue = form.businessTypeId || (form.businessType ? `name:${form.businessType}` : '');
   const todayDateValue = getTodayDateValue();
+  const officePhoneError = getPhoneError(form.officePhone);
+  const representativePhoneError = getPhoneError(form.representativePhone);
+  const hasPhoneError = Boolean(officePhoneError || representativePhoneError);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
@@ -776,8 +909,8 @@ export default function EnterpriseCompanyInfoPage() {
             <button
               type="button"
               onClick={handlePrimaryAction}
-              disabled={loadingEnterprise || saveLoading || !enterpriseId}
-              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              disabled={loadingEnterprise || saveLoading || !enterpriseId || hasPhoneError}
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               {step === 1 ? (
                 <>
@@ -838,8 +971,11 @@ export default function EnterpriseCompanyInfoPage() {
                     <Field
                       label="Ngành nghề kinh doanh chính"
                       required
+                      select
                       value={form.mainIndustry}
-                      onChange={(value) => updateField('mainIndustry', value)}
+                      options={industryOptions}
+                      placeholder="Chọn ngành nghề kinh doanh chính"
+                      onChange={handleIndustryChange}
                     />
                     <Field
                       label="Ngày cấp GPKD"
@@ -898,7 +1034,8 @@ export default function EnterpriseCompanyInfoPage() {
                       label="Số điện thoại cơ quan"
                       placeholder="Số điện thoại cơ quan"
                       value={form.officePhone}
-                      onChange={(value) => updateField('officePhone', value)}
+                      error={officePhoneError}
+                      onChange={(value) => updateField('officePhone', cleanPhone(value))}
                     />
 
                     <Field
@@ -943,7 +1080,8 @@ export default function EnterpriseCompanyInfoPage() {
                       className="lg:col-span-2"
                       placeholder="SĐT liên hệ người đứng đầu"
                       value={form.representativePhone}
-                      onChange={(value) => updateField('representativePhone', value)}
+                      error={representativePhoneError}
+                      onChange={(value) => updateField('representativePhone', cleanPhone(value))}
                     />
                   </div>
                   {locationError && (

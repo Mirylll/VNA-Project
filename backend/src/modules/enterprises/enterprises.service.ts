@@ -7,6 +7,7 @@ import { ILike, Repository } from 'typeorm';
 import { Enterprise } from './entities/enterprise.entity';
 import { Attachment } from './entities/attachment.entity';
 import { EnterpriseType } from '../enterprise-types/entities/enterprise-type.entity';
+import { Industry } from '../industries/entities/industry.entity';
 import { District } from '../users/entities/district.entity';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
@@ -20,6 +21,8 @@ export class EnterprisesService {
     private readonly attachmentRepo: Repository<Attachment>,
     @InjectRepository(EnterpriseType)
     private readonly enterpriseTypeRepo: Repository<EnterpriseType>,
+    @InjectRepository(Industry)
+    private readonly industryRepo: Repository<Industry>,
     @InjectRepository(District)
     private readonly districtRepo: Repository<District>,
     private readonly jwtService: JwtService,
@@ -70,6 +73,43 @@ export class EnterprisesService {
         code: this.makeCode('LH', cleanName),
         name: cleanName,
         isActive: true,
+      }),
+    );
+  }
+
+  private parseIndustryValue(value?: string) {
+    const cleanValue = value?.trim();
+    if (!cleanValue) return null;
+
+    const matched = cleanValue.match(/^(\d{2,10})\s*-\s*(.+)$/);
+    if (!matched) {
+      return {
+        code: this.makeCode('NN', cleanValue),
+        name: cleanValue,
+      };
+    }
+
+    return {
+      code: matched[1],
+      name: matched[2].trim(),
+    };
+  }
+
+  private async findOrCreateIndustry(value?: string) {
+    const industry = this.parseIndustryValue(value);
+    if (!industry) return null;
+
+    const existing = await this.industryRepo.findOne({
+      where: [{ code: industry.code }, { name: industry.name }, { name: ILike(industry.name) }],
+    });
+    if (existing) return existing;
+
+    return this.industryRepo.save(
+      this.industryRepo.create({
+        code: industry.code,
+        name: industry.name,
+        isActive: true,
+        level: 1,
       }),
     );
   }
@@ -195,7 +235,12 @@ export class EnterprisesService {
       const enterpriseType = await this.findOrCreateEnterpriseType(dto.enterpriseTypeName);
       if (enterpriseType) entity.enterpriseType = enterpriseType;
     }
-    if (dto.industryId !== undefined) entity.industry = { id: dto.industryId } as any;
+    if (dto.industryId !== undefined) {
+      entity.industry = { id: dto.industryId } as any;
+    } else if (dto.industryName !== undefined) {
+      const industry = await this.findOrCreateIndustry(dto.industryName);
+      if (industry) entity.industry = industry;
+    }
     if (dto.provinceId !== undefined) entity.province = { id: dto.provinceId } as any;
     if (dto.wardId !== undefined) {
       entity.ward = { id: dto.wardId } as any;

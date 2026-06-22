@@ -5,7 +5,37 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import UserProfilePopup from '@/libs/tts/components/UserProfilePopup';
 import Sidebar from '@/libs/tts/components/Sidebar';
-import { getAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
+import { getAuthToken, getAuthUser, type AuthUser } from '@/libs/core/utils/auth-token';
+
+const adminRoutePermissions = [
+  { route: '/admin/permissions', permission: 'ADMIN_C_PERMISSION_VIEW' },
+  { route: '/admin/roles', permission: 'ADMIN_C_ROLE_VIEW' },
+  { route: '/admin/users', permission: 'ADMIN_C_USER_VIEW' },
+  { route: '/admin/enterprise-types', permission: 'ADMIN_C_ENTERPRISE_TYPE_VIEW' },
+  { route: '/admin/industries', permission: 'ADMIN_C_INDUSTRY_VIEW' },
+  { route: '/admin/enterprises', permission: 'ADMIN_C_ENTERPRISE_VIEW' },
+  { route: '/admin/report-periods', permission: 'ADMIN_C_REPORT_PERIOD_VIEW' },
+  { route: '/admin/tnld-categories', permission: 'ADMIN_C_TNLD_CATEGORY_VIEW' },
+  { route: '/admin/tnld-contracts', permission: 'ADMIN_C_TNLD_CONTRACT_VIEW' },
+];
+
+function getPermissionCodes(user: AuthUser | null) {
+  return new Set(user?.permissions?.map((permission) => permission.code) || []);
+}
+
+function getFirstAllowedAdminRoute(user: AuthUser | null) {
+  const permissionCodes = getPermissionCodes(user);
+  return (
+    adminRoutePermissions.find((item) => permissionCodes.has(item.permission))?.route ||
+    '/admin/account'
+  );
+}
+
+function getRequiredPermissionForPath(pathname: string) {
+  return adminRoutePermissions.find(
+    (item) => pathname === item.route || pathname.startsWith(`${item.route}/`),
+  )?.permission;
+}
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,6 +54,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       setIsAuthenticated(!!token);
       setIsLoginPage(isLogin);
       setChecking(false);
+      const isEnterpriseAccount = user?.accountType === 'enterprise' || user?.role?.code === 'ROLE_ENTERPRISE';
 
       if (!token && !isLogin) {
         router.replace('/login');
@@ -31,17 +62,30 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       }
 
       if (token && isLogin) {
-        router.replace(user?.role?.code === 'ROLE_ENTERPRISE' ? '/enterprise/company-info' : '/admin/permissions');
+        router.replace(isEnterpriseAccount ? '/enterprise/company-info' : getFirstAllowedAdminRoute(user));
         return;
       }
 
-      if (token && user?.role?.code === 'ROLE_ENTERPRISE' && pathname.startsWith('/admin')) {
+      if (token && isEnterpriseAccount && pathname.startsWith('/admin')) {
         router.replace('/enterprise/company-info');
         return;
       }
 
-      if (token && user?.role?.code === 'ROLE_ADMIN' && pathname.startsWith('/enterprise')) {
-        router.replace('/admin/permissions');
+      if (token && !isEnterpriseAccount && pathname.startsWith('/enterprise')) {
+        router.replace(getFirstAllowedAdminRoute(user));
+        return;
+      }
+
+      if (token && !isEnterpriseAccount && pathname === '/admin') {
+        router.replace(getFirstAllowedAdminRoute(user));
+        return;
+      }
+
+      if (token && !isEnterpriseAccount && pathname.startsWith('/admin')) {
+        const requiredPermission = getRequiredPermissionForPath(pathname);
+        if (requiredPermission && !getPermissionCodes(user).has(requiredPermission)) {
+          router.replace(getFirstAllowedAdminRoute(user));
+        }
       }
     }
   }, [pathname, router]);

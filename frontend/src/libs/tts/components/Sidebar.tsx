@@ -26,18 +26,18 @@ const menuGroups: MenuGroup[] = [
       { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions', permission: 'ADMIN_C_PERMISSION_VIEW' },
       { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles', permission: 'ADMIN_C_ROLE_VIEW' },
       { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung', route: '/admin/users', permission: 'ADMIN_C_USER_VIEW' },
-      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep', route: '/admin/enterprise-types' },
-      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh', route: '/admin/industries' },
+      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep', route: '/admin/enterprise-types', permission: 'ADMIN_C_ENTERPRISE_TYPE_VIEW' },
+      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh', route: '/admin/industries', permission: 'ADMIN_C_INDUSTRY_VIEW' },
       { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep', route: '/admin/enterprises', permission: 'ADMIN_C_ENTERPRISE_VIEW' },
-      { label: 'Kỳ báo cáo', id: 'ky-bao-cao', route: '/admin/report-periods' },
+      { label: 'Kỳ báo cáo', id: 'ky-bao-cao', route: '/admin/report-periods', permission: 'ADMIN_C_REPORT_PERIOD_VIEW' },
     ],
   },
   {
     label: 'Tai nạn lao động',
     id: 'tai-nan-lao-dong',
     items: [
-      { label: 'Danh mục chung', id: 'danh-muc-chung', route: '/admin/tnld-categories' },
-      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld', route: '/admin/tnld-contracts' },
+      { label: 'Danh mục chung', id: 'danh-muc-chung', route: '/admin/tnld-categories', permission: 'ADMIN_C_TNLD_CATEGORY_VIEW' },
+      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld', route: '/admin/tnld-contracts', permission: 'ADMIN_C_TNLD_CONTRACT_VIEW' },
     ],
   },
 ];

@@ -2,7 +2,7 @@ import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Permission } from '../modules/permissions/entities/permission.entity';
 import { Role } from '../modules/roles/entities/role.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { AccountType, User } from '../modules/users/entities/user.entity';
 import { Title } from '../modules/titles/entities/title.entity';
 import { Province } from '../modules/users/entities/province.entity';
 import { District } from '../modules/users/entities/district.entity';
@@ -77,6 +77,60 @@ const permissionGroups: PermissionSeed[] = [
       { code: 'ADMIN_C_ENTERPRISE_CREATE', name: 'Create Enterprise' },
       { code: 'ADMIN_C_ENTERPRISE_UPDATE', name: 'Update Enterprise' },
       { code: 'ADMIN_C_ENTERPRISE_DELETE', name: 'Delete Enterprise' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_ENTERPRISE_TYPE',
+    name: 'Enterprise Type Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_VIEW', name: 'View Enterprise Type' },
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_CREATE', name: 'Create Enterprise Type' },
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_UPDATE', name: 'Update Enterprise Type' },
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_DELETE', name: 'Delete Enterprise Type' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_INDUSTRY',
+    name: 'Industry Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_INDUSTRY_VIEW', name: 'View Industry' },
+      { code: 'ADMIN_C_INDUSTRY_CREATE', name: 'Create Industry' },
+      { code: 'ADMIN_C_INDUSTRY_UPDATE', name: 'Update Industry' },
+      { code: 'ADMIN_C_INDUSTRY_DELETE', name: 'Delete Industry' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_REPORT_PERIOD',
+    name: 'Report Period Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_REPORT_PERIOD_VIEW', name: 'View Report Period' },
+      { code: 'ADMIN_C_REPORT_PERIOD_CREATE', name: 'Create Report Period' },
+      { code: 'ADMIN_C_REPORT_PERIOD_UPDATE', name: 'Update Report Period' },
+      { code: 'ADMIN_C_REPORT_PERIOD_DELETE', name: 'Delete Report Period' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_TNLD_CATEGORY',
+    name: 'TNLD Category Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_TNLD_CATEGORY_VIEW', name: 'View TNLD Category' },
+      { code: 'ADMIN_C_TNLD_CATEGORY_CREATE', name: 'Create TNLD Category' },
+      { code: 'ADMIN_C_TNLD_CATEGORY_UPDATE', name: 'Update TNLD Category' },
+      { code: 'ADMIN_C_TNLD_CATEGORY_DELETE', name: 'Delete TNLD Category' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_TNLD_CONTRACT',
+    name: 'TNLD Contract Report Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_TNLD_CONTRACT_VIEW', name: 'View TNLD Contract Report' },
+      { code: 'ADMIN_C_TNLD_CONTRACT_ACCEPT', name: 'Accept TNLD Contract Report' },
+      { code: 'ADMIN_C_TNLD_CONTRACT_PRINT', name: 'Print TNLD Contract Report' },
     ],
   },
   {
@@ -178,33 +232,67 @@ export async function seed(dataSource: DataSource): Promise<void> {
   const titleRepo = dataSource.getRepository(Title);
 
   // ---- Permissions ----
-  const permCount = await permissionRepo.count();
-  if (permCount === 0) {
-    let sortOrder = 0;
-    for (const group of permissionGroups) {
-      const parent = permissionRepo.create({
-        code: group.code,
-        name: group.name,
-        type: 'Group',
-        sortOrder: sortOrder++,
-      });
-      const savedParent = await permissionRepo.save(parent);
+  let insertedPermissions = 0;
+  let sortOrder = 0;
+  for (const group of permissionGroups) {
+    let savedParent = await permissionRepo.findOne({
+      where: { code: group.code },
+    });
 
-      if (group.children) {
-        let childSort = 0;
-        for (const child of group.children) {
-          const childPerm = permissionRepo.create({
+    if (!savedParent) {
+      savedParent = await permissionRepo.save(
+        permissionRepo.create({
+          code: group.code,
+          name: group.name,
+          type: 'Group',
+          sortOrder,
+        }),
+      );
+      insertedPermissions++;
+    } else if (savedParent.type !== 'Group') {
+      savedParent.type = 'Group';
+      savedParent.name = group.name;
+      savedParent.sortOrder = sortOrder;
+      savedParent = await permissionRepo.save(savedParent);
+    }
+
+    let childSort = 0;
+    for (const child of group.children || []) {
+      let savedChild = await permissionRepo.findOne({
+        where: { code: child.code },
+      });
+
+      if (!savedChild) {
+        await permissionRepo.save(
+          permissionRepo.create({
             code: child.code,
             name: child.name,
             type: 'Component',
             parent: savedParent,
-            sortOrder: childSort++,
-          });
-          await permissionRepo.save(childPerm);
-        }
+            sortOrder: childSort,
+          }),
+        );
+        insertedPermissions++;
+      } else if (
+        savedChild.type !== 'Component' ||
+        savedChild.name !== child.name ||
+        savedChild.sortOrder !== childSort
+      ) {
+        savedChild.type = 'Component';
+        savedChild.name = child.name;
+        savedChild.parent = savedParent;
+        savedChild.sortOrder = childSort;
+        await permissionRepo.save(savedChild);
       }
+
+      childSort++;
     }
-    console.log('✅ Seeded permissions');
+
+    sortOrder++;
+  }
+
+  if (insertedPermissions > 0) {
+    console.log(`✅ Seeded ${insertedPermissions} missing permissions`);
   }
 
   // ---- Titles ----
@@ -272,7 +360,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
     const roleAdmin = savedRoles.get('ROLE_ADMIN');
     if (roleAdmin) {
-      roleAdmin.permissions = allComps.filter((p) => p.code.startsWith('ADMIN_'));
+      roleAdmin.permissions = allComps;
       await roleRepo.save(roleAdmin);
     }
 
@@ -283,6 +371,21 @@ export async function seed(dataSource: DataSource): Promise<void> {
     }
 
     console.log('✅ Seeded role_permissions');
+  }
+
+  const refreshedAllComps = await permissionRepo.find({ where: { type: 'Component' } });
+  for (const adminCode of ['ROLE_ADMIN', 'ADMIN', 'CEO']) {
+    const adminRole = savedRoles.get(adminCode);
+    if (adminRole) {
+      adminRole.permissions = refreshedAllComps;
+      await roleRepo.save(adminRole);
+    }
+  }
+
+  const enterpriseRole = savedRoles.get('ROLE_ENTERPRISE');
+  if (enterpriseRole) {
+    enterpriseRole.permissions = refreshedAllComps.filter((p) => p.code.startsWith('ENTERPRISE_'));
+    await roleRepo.save(enterpriseRole);
   }
 
   // ---- Admin User ----
@@ -306,6 +409,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
       fullName: adminFullName,
       email: adminEmail,
       isActive: true,
+      accountType: AccountType.INTERNAL,
       role: adminRole || undefined,
       title: adminTitle || undefined,
     });
@@ -700,6 +804,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
           fullName: e.name,
           email: e.email,
           isActive: true,
+          accountType: AccountType.ENTERPRISE,
           role: enterpriseRole || undefined,
         });
         await userRepo.save(user);
