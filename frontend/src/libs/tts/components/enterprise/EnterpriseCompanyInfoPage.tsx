@@ -443,6 +443,26 @@ function getPhoneError(value: string) {
   return /^0\d{8,10}$/.test(value) ? '' : 'Số điện thoại phải bắt đầu bằng 0 và có 9-11 chữ số';
 }
 
+function getRequiredPhoneError(value: string, label: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return `Vui lòng nhập ${label}`;
+  return getPhoneError(trimmedValue);
+}
+
+function getTaxCodeError(value: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return 'Vui lòng nhập mã số thuế';
+  if (!/^\d+$/.test(trimmedValue)) return 'Mã số thuế chỉ được chứa chữ số';
+  if (trimmedValue.length !== 10 && trimmedValue.length !== 13) {
+    return 'Mã số thuế phải có 10 hoặc 13 chữ số';
+  }
+  return '';
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function updateStoredEnterpriseName(name: string) {
   if (typeof window === 'undefined') return;
 
@@ -500,6 +520,7 @@ export default function EnterpriseCompanyInfoPage() {
     representativeName: '',
     representativePhone: '',
   });
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
   useEffect(() => {
     let active = true;
@@ -713,6 +734,10 @@ export default function EnterpriseCompanyInfoPage() {
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+    setFormErrors((current) => {
+      if (!current[field]) return current;
+      return { ...current, [field]: '' };
+    });
 
     if (field === 'companyName') {
       window.dispatchEvent(new CustomEvent('enterprise-name-changed', { detail: { name: value } }));
@@ -732,6 +757,7 @@ export default function EnterpriseCompanyInfoPage() {
       businessTypeId: selectedType?.id ? String(selectedType.id) : '',
       businessType: selectedType?.name || '',
     }));
+    setFormErrors((current) => ({ ...current, businessType: '' }));
   }
 
   function handleRegisteredWardChange(wardCode: string) {
@@ -745,6 +771,66 @@ export default function EnterpriseCompanyInfoPage() {
     updateField('mainIndustry', industryValue);
   }
 
+  function validateEnterpriseForm() {
+    const errors: Partial<Record<keyof typeof form, string>> = {};
+    const requireText = (field: keyof typeof form, message: string) => {
+      if (!String(form[field] || '').trim()) errors[field] = message;
+    };
+
+    requireText('companyName', 'Vui lòng nhập tên doanh nghiệp');
+
+    const taxCodeError = getTaxCodeError(form.taxCode);
+    if (taxCodeError) errors.taxCode = taxCodeError;
+
+    if (!form.businessTypeId && !form.businessType.trim()) {
+      errors.businessType = 'Vui lòng chọn loại hình kinh doanh';
+    }
+    requireText('mainIndustry', 'Vui lòng chọn ngành nghề kinh doanh chính');
+
+    if (!form.licenseDate) {
+      errors.licenseDate = 'Vui lòng chọn ngày cấp GPKD';
+    } else if (form.licenseDate > getTodayDateValue()) {
+      errors.licenseDate = 'Ngày cấp GPKD không được lớn hơn ngày hiện tại';
+    }
+
+    requireText('registeredProvince', 'Vui lòng chọn tỉnh/thành phố ĐKKD');
+    if (!registeredWardCode && !form.registeredWard.trim()) {
+      errors.registeredWard = 'Vui lòng chọn phường/xã ĐKKD';
+    }
+    requireText('address', 'Vui lòng nhập địa chỉ');
+
+    if (!form.email.trim()) {
+      errors.email = 'Vui lòng nhập email';
+    } else if (!isValidEmail(form.email.trim())) {
+      errors.email = 'Email không đúng định dạng';
+    }
+
+    const officePhoneError = getRequiredPhoneError(form.officePhone, 'số điện thoại cơ quan');
+    if (officePhoneError) errors.officePhone = officePhoneError;
+
+    if (!operatingProvinceCode && !form.operatingProvince.trim()) {
+      errors.operatingProvince = 'Vui lòng chọn tỉnh/thành phố hoạt động KD';
+    }
+    if (!operatingWardCode && !form.operatingWard.trim()) {
+      errors.operatingWard = 'Vui lòng chọn phường/xã hoạt động KD';
+    }
+    requireText('businessLocation', 'Vui lòng nhập địa điểm kinh doanh');
+    requireText('representativeName', 'Vui lòng nhập người đứng đầu doanh nghiệp');
+
+    const representativePhoneError = getRequiredPhoneError(form.representativePhone, 'SĐT liên hệ người đứng đầu');
+    if (representativePhoneError) errors.representativePhone = representativePhoneError;
+
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setSaveMessage('Vui lòng kiểm tra lại các trường bắt buộc.');
+      return false;
+    }
+
+    setSaveMessage('');
+    return true;
+  }
+
   async function saveEnterpriseChanges() {
     const token = authToken || getAuthToken();
     if (!token || !enterpriseId) {
@@ -752,12 +838,7 @@ export default function EnterpriseCompanyInfoPage() {
       return;
     }
 
-    const phoneError = getPhoneError(form.officePhone);
-    const leaderPhoneError = getPhoneError(form.representativePhone);
-    if (phoneError || leaderPhoneError) {
-      setSaveMessage('Vui lòng kiểm tra lại số điện thoại trước khi lưu.');
-      return;
-    }
+    if (!validateEnterpriseForm()) return;
 
     try {
       setSaveLoading(true);
@@ -811,6 +892,7 @@ export default function EnterpriseCompanyInfoPage() {
 
   function handlePrimaryAction() {
     if (step === 1) {
+      if (!validateEnterpriseForm()) return;
       setStep(2);
       return;
     }
@@ -825,6 +907,7 @@ export default function EnterpriseCompanyInfoPage() {
     setOperatingWardCode('');
     updateField('operatingProvince', province?.name || '');
     updateField('operatingWard', '');
+    setFormErrors((current) => ({ ...current, operatingProvince: '', operatingWard: '' }));
   }
 
   function handleOperatingWardChange(wardCode: string) {
@@ -887,9 +970,8 @@ export default function EnterpriseCompanyInfoPage() {
   }));
   const selectedEnterpriseTypeValue = form.businessTypeId || (form.businessType ? `name:${form.businessType}` : '');
   const todayDateValue = getTodayDateValue();
-  const officePhoneError = getPhoneError(form.officePhone);
-  const representativePhoneError = getPhoneError(form.representativePhone);
-  const hasPhoneError = Boolean(officePhoneError || representativePhoneError);
+  const officePhoneError = formErrors.officePhone || getPhoneError(form.officePhone);
+  const representativePhoneError = formErrors.representativePhone || getPhoneError(form.representativePhone);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
@@ -909,7 +991,7 @@ export default function EnterpriseCompanyInfoPage() {
             <button
               type="button"
               onClick={handlePrimaryAction}
-              disabled={loadingEnterprise || saveLoading || !enterpriseId || hasPhoneError}
+              disabled={loadingEnterprise || saveLoading || !enterpriseId}
               className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
               {step === 1 ? (
@@ -951,9 +1033,10 @@ export default function EnterpriseCompanyInfoPage() {
                       label="Tên doanh nghiệp"
                       required
                       value={form.companyName}
+                      error={formErrors.companyName}
                       onChange={(value) => updateField('companyName', value)}
                     />
-                    <Field label="Mã số thuế" required disabled value={form.taxCode} />
+                    <Field label="Mã số thuế" required disabled value={form.taxCode} error={formErrors.taxCode} />
                     <Field
                       label="Loại hình kinh doanh"
                       required
@@ -965,6 +1048,7 @@ export default function EnterpriseCompanyInfoPage() {
                           ? form.businessType || 'Chưa có loại hình doanh nghiệp'
                           : 'Chọn loại hình kinh doanh'
                       }
+                      error={formErrors.businessType}
                       onChange={handleBusinessTypeChange}
                     />
 
@@ -975,6 +1059,7 @@ export default function EnterpriseCompanyInfoPage() {
                       value={form.mainIndustry}
                       options={industryOptions}
                       placeholder="Chọn ngành nghề kinh doanh chính"
+                      error={formErrors.mainIndustry}
                       onChange={handleIndustryChange}
                     />
                     <Field
@@ -984,6 +1069,7 @@ export default function EnterpriseCompanyInfoPage() {
                       inputType="date"
                       value={form.licenseDate}
                       max={todayDateValue}
+                      error={formErrors.licenseDate}
                       onChange={handleLicenseDateChange}
                     />
                     <Field
@@ -991,6 +1077,7 @@ export default function EnterpriseCompanyInfoPage() {
                       required
                       disabled
                       value={form.registeredProvince}
+                      error={formErrors.registeredProvince}
                     />
 
                     <Field
@@ -1000,6 +1087,7 @@ export default function EnterpriseCompanyInfoPage() {
                       value={registeredWardCode}
                       options={registeredWardOptions}
                       placeholder="Chọn Phường/Xã ĐKKD"
+                      error={formErrors.registeredWard}
                       onChange={handleRegisteredWardChange}
                     />
                     <Field
@@ -1007,6 +1095,7 @@ export default function EnterpriseCompanyInfoPage() {
                       required
                       className="lg:col-span-2"
                       value={form.address}
+                      error={formErrors.address}
                       onChange={(value) => updateField('address', value)}
                     />
                   </div>
@@ -1028,10 +1117,12 @@ export default function EnterpriseCompanyInfoPage() {
                       action="Thay đổi"
                       onActionClick={openChangeEmailModal}
                       value={form.email}
+                      error={formErrors.email}
                       onChange={(value) => updateField('email', value)}
                     />
                     <Field
                       label="Số điện thoại cơ quan"
+                      required
                       placeholder="Số điện thoại cơ quan"
                       value={form.officePhone}
                       error={officePhoneError}
@@ -1045,6 +1136,8 @@ export default function EnterpriseCompanyInfoPage() {
                       value={operatingProvinceCode}
                       options={provinceOptions}
                       disabled={loadingProvinces}
+                      required
+                      error={formErrors.operatingProvince}
                       onChange={handleOperatingProvinceChange}
                     />
                     <Field
@@ -1060,12 +1153,16 @@ export default function EnterpriseCompanyInfoPage() {
                       value={operatingWardCode}
                       options={wardOptions}
                       disabled={!operatingProvinceCode || loadingWards}
+                      required
+                      error={formErrors.operatingWard}
                       onChange={handleOperatingWardChange}
                     />
                     <Field
                       label="Địa điểm kinh doanh"
                       placeholder="Địa điểm kinh doanh"
                       value={form.businessLocation}
+                      required
+                      error={formErrors.businessLocation}
                       onChange={(value) => updateField('businessLocation', value)}
                     />
 
@@ -1073,11 +1170,14 @@ export default function EnterpriseCompanyInfoPage() {
                       label="Người đứng đầu doanh nghiệp"
                       placeholder="Người đứng đầu doanh nghiệp"
                       value={form.representativeName}
+                      required
+                      error={formErrors.representativeName}
                       onChange={(value) => updateField('representativeName', value)}
                     />
                     <Field
                       label="SĐT liên hệ người đứng đầu"
                       className="lg:col-span-2"
+                      required
                       placeholder="SĐT liên hệ người đứng đầu"
                       value={form.representativePhone}
                       error={representativePhoneError}

@@ -7,11 +7,8 @@ import {
   ChevronDown,
   ChevronRight,
   HardHat,
-  KeyRound,
-  LogOut,
   Menu,
   Settings,
-  UserRound,
 } from 'lucide-react';
 import { clearAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
 
@@ -28,6 +25,7 @@ export default function EnterpriseSidebar() {
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [enterpriseName, setEnterpriseName] = useState(getEnterpriseDisplayName);
   const isCompanyInfo = pathname.startsWith('/enterprise/company-info');
+  const isAccount = pathname.startsWith('/enterprise/account');
   const isTnldHdld = pathname.startsWith('/enterprise/tnld-hdld');
 
   useEffect(() => {
@@ -110,20 +108,22 @@ export default function EnterpriseSidebar() {
         </button>
       </nav>
 
-      <div className="px-4 pb-4">
-        <div className="relative flex items-center gap-3 border-t border-dashed border-white/45 pt-4">
+      <div className="border-t border-white/10 px-4 py-3">
+        <div className="relative flex items-center gap-3">
           <img
             src="/avatar-placeholder.svg"
-            alt="Phan Thanh Tùng"
-            className="h-9 w-9 rounded-full border border-white/30 bg-white object-cover"
+            alt={enterpriseName}
+            className="h-10 w-10 flex-shrink-0 rounded-full border border-white/30 bg-white object-cover"
           />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {enterpriseName}
-          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-white">
+              {enterpriseName}
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => setOpenUserMenu((current) => !current)}
-            className="rounded-md p-1 text-white/90 transition hover:bg-white/10"
+            className="ml-2 flex-shrink-0 rounded bg-white/10 px-2 py-1 text-sm font-bold text-white transition hover:bg-white/20"
             aria-label="Mở menu tài khoản"
           >
             <ChevronRight
@@ -138,39 +138,41 @@ export default function EnterpriseSidebar() {
                 className="fixed inset-0 z-40"
                 onClick={() => setOpenUserMenu(false)}
               />
-              <div className="absolute bottom-full right-0 z-50 mb-2 w-56 overflow-hidden rounded-lg bg-white text-slate-800 shadow-xl">
+              <div className="absolute bottom-full right-0 z-50 mb-2 w-56 overflow-hidden rounded-lg bg-white text-gray-800 shadow-xl">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50"
+                  className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition hover:bg-gray-50"
                   onClick={() => {
                     setOpenUserMenu(false);
-                    router.push('/enterprise/company-info');
+                    router.push('/enterprise/account');
                   }}
                 >
-                  <UserRound size={17} className="text-slate-500" />
-                  <span>Thông tin tài khoản</span>
+                  <span>👤</span>
+                  <span className={`text-sm ${isAccount ? 'font-semibold text-blue-700' : ''}`}>
+                    Thông tin tài khoản
+                  </span>
                 </button>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm transition hover:bg-slate-50"
+                  className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition hover:bg-gray-50"
                   onClick={() => {
                     setOpenUserMenu(false);
                     openProfile('changePassword');
                   }}
                 >
-                  <KeyRound size={17} className="text-amber-600" />
-                  <span>Đổi mật khẩu</span>
+                  <span>🔑</span>
+                  <span className="text-sm">Đổi mật khẩu</span>
                 </button>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-600 transition hover:bg-red-50"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-red-600 transition hover:bg-red-50"
                   onClick={() => {
                     clearAuthToken();
                     location.href = '/login';
                   }}
                 >
-                  <LogOut size={17} />
-                  <span>Đăng xuất</span>
+                  <span>🚪</span>
+                  <span className="text-sm">Đăng xuất</span>
                 </button>
               </div>
             </>

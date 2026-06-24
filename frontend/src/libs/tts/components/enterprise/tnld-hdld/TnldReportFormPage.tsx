@@ -228,11 +228,13 @@ function MoneyField({
   label,
   value,
   required,
+  error,
   onChange,
 }: {
   label: string;
   value: string;
   required?: boolean;
+  error?: string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -241,7 +243,11 @@ function MoneyField({
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </span>
-      <div className="flex h-10 items-center rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900">
+      <div
+        className={`flex h-10 items-center rounded-md border px-3 text-sm text-gray-900 ${
+          error ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
+        }`}
+      >
         <input
           type="text"
           inputMode="decimal"
@@ -253,6 +259,7 @@ function MoneyField({
         />
         <span className="ml-2 shrink-0 text-xs text-gray-400">VNĐ</span>
       </div>
+      {error && <span className="mt-1 block text-xs font-medium text-red-500">{error}</span>}
     </label>
   );
 }
@@ -371,6 +378,34 @@ function parseInteger(value: string) {
   return digits ? Number(digits) : 0;
 }
 
+function sanitizeIntegerInput(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function getRequiredIntegerError(value: string) {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) return 'Vui lòng nhập số, nếu không có nhập 0';
+  if (!/^\d+$/.test(normalizedValue)) return 'Chỉ được nhập số nguyên không âm';
+
+  return '';
+}
+
+function getRequiredMoneyError(value: string) {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) return 'Vui lòng nhập số tiền, nếu không có nhập 0';
+  if (!/^[\d.,]+$/.test(normalizedValue) || !/\d/.test(normalizedValue)) {
+    return 'Chỉ được nhập số tiền hợp lệ';
+  }
+
+  return '';
+}
+
+function firstError(...errors: string[]) {
+  return errors.find(Boolean) || '';
+}
+
 function formatMoneyInput(value: string) {
   return formatVndNumber(value);
 }
@@ -423,42 +458,76 @@ function getAccidentDetailTotalCost(detail: AccidentDetail) {
 
 function getAccidentDetailErrors(detail: AccidentDetail) {
   return {
+    totalAccidents: getRequiredIntegerError(detail.totalAccidents),
     fatalAccidents:
-      parseInteger(detail.fatalAccidents) > parseInteger(detail.totalAccidents)
+      firstError(
+        getRequiredIntegerError(detail.fatalAccidents),
+        parseInteger(detail.fatalAccidents) > parseInteger(detail.totalAccidents)
         ? 'Tổng số vụ có người chết phải nhỏ hơn hoặc bằng Tổng số vụ'
-        : '',
+          : '',
+      ),
     multiVictimAccidents:
-      parseInteger(detail.multiVictimAccidents) > parseInteger(detail.totalAccidents)
+      firstError(
+        getRequiredIntegerError(detail.multiVictimAccidents),
+        parseInteger(detail.multiVictimAccidents) > parseInteger(detail.totalAccidents)
         ? 'Tổng số vụ có từ 2 người bị nạn trở lên phải nhỏ hơn hoặc bằng Tổng số vụ'
-        : '',
+          : '',
+      ),
+    totalVictims: getRequiredIntegerError(detail.totalVictims),
     femaleVictims:
-      parseInteger(detail.femaleVictims) > parseInteger(detail.totalVictims)
+      firstError(
+        getRequiredIntegerError(detail.femaleVictims),
+        parseInteger(detail.femaleVictims) > parseInteger(detail.totalVictims)
         ? 'Tổng số lao động nữ bị nạn phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-        : '',
+          : '',
+      ),
     deadVictims:
-      parseInteger(detail.deadVictims) > parseInteger(detail.totalVictims)
+      firstError(
+        getRequiredIntegerError(detail.deadVictims),
+        parseInteger(detail.deadVictims) > parseInteger(detail.totalVictims)
         ? 'Tổng số người bị chết phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-        : '',
+          : '',
+      ),
     severeVictims:
-      parseInteger(detail.severeVictims) > parseInteger(detail.totalVictims)
+      firstError(
+        getRequiredIntegerError(detail.severeVictims),
+        parseInteger(detail.severeVictims) > parseInteger(detail.totalVictims)
         ? 'Tổng số người bị thương nặng phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-        : '',
+          : '',
+      ),
     unmanagedVictims:
-      parseInteger(detail.unmanagedVictims) > parseInteger(detail.totalVictims)
+      firstError(
+        getRequiredIntegerError(detail.unmanagedVictims),
+        parseInteger(detail.unmanagedVictims) > parseInteger(detail.totalVictims)
         ? 'Số người bị nạn không QL phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-        : '',
+          : '',
+      ),
     unmanagedFemaleVictims:
-      parseInteger(detail.unmanagedFemaleVictims) > parseInteger(detail.unmanagedVictims)
+      firstError(
+        getRequiredIntegerError(detail.unmanagedFemaleVictims),
+        parseInteger(detail.unmanagedFemaleVictims) > parseInteger(detail.unmanagedVictims)
         ? 'Lao động nữ bị nạn không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-        : '',
+          : '',
+      ),
     unmanagedDeadVictims:
-      parseInteger(detail.unmanagedDeadVictims) > parseInteger(detail.unmanagedVictims)
+      firstError(
+        getRequiredIntegerError(detail.unmanagedDeadVictims),
+        parseInteger(detail.unmanagedDeadVictims) > parseInteger(detail.unmanagedVictims)
         ? 'Số người chết không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-        : '',
+          : '',
+      ),
     unmanagedSevereVictims:
-      parseInteger(detail.unmanagedSevereVictims) > parseInteger(detail.unmanagedVictims)
+      firstError(
+        getRequiredIntegerError(detail.unmanagedSevereVictims),
+        parseInteger(detail.unmanagedSevereVictims) > parseInteger(detail.unmanagedVictims)
         ? 'Người bị thương nặng không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-        : '',
+          : '',
+      ),
+    medicalCost: getRequiredMoneyError(detail.medicalCost),
+    treatmentSalaryCost: getRequiredMoneyError(detail.treatmentSalaryCost),
+    compensationCost: getRequiredMoneyError(detail.compensationCost),
+    workdaysLost: getRequiredIntegerError(detail.workdaysLost),
+    assetDamage: getRequiredMoneyError(detail.assetDamage),
   };
 }
 
@@ -808,108 +877,185 @@ export default function TnldReportFormPage() {
     form.workdaysLost,
     totalCost,
   ]);
-  const femaleEmployeesError =
+  const totalEmployeesError = getRequiredIntegerError(form.totalEmployees);
+  const femaleEmployeesError = firstError(
+    getRequiredIntegerError(form.femaleEmployees),
     parseInteger(form.femaleEmployees) > parseInteger(form.totalEmployees)
       ? 'Tổng số lao động nữ phải nhỏ hơn hoặc bằng tổng số lao động của cơ sở'
-      : '';
-  const fatalAccidentsError =
+      : '',
+  );
+  const payrollError = getRequiredMoneyError(form.payroll);
+
+  const totalAccidentsError = getRequiredIntegerError(form.totalAccidents);
+  const fatalAccidentsError = firstError(
+    getRequiredIntegerError(form.fatalAccidents),
     parseInteger(form.fatalAccidents) > parseInteger(form.totalAccidents)
       ? 'Tổng số vụ có người chết phải nhỏ hơn hoặc bằng Tổng số vụ TNLD'
-      : '';
-  const multiVictimAccidentsError =
+      : '',
+  );
+  const multiVictimAccidentsError = firstError(
+    getRequiredIntegerError(form.multiVictimAccidents),
     parseInteger(form.multiVictimAccidents) > parseInteger(form.totalAccidents)
       ? 'Tổng số vụ có từ 2 người bị nạn trở lên phải nhỏ hơn hoặc bằng Tổng số vụ TNLD'
-      : '';
-  const femaleVictimsError =
+      : '',
+  );
+  const totalVictimsError = getRequiredIntegerError(form.totalVictims);
+  const femaleVictimsError = firstError(
+    getRequiredIntegerError(form.femaleVictims),
     parseInteger(form.femaleVictims) > parseInteger(form.totalVictims)
       ? 'Tổng số lao động nữ bị nạn phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const deadVictimsError =
+      : '',
+  );
+  const deadVictimsError = firstError(
+    getRequiredIntegerError(form.deadVictims),
     parseInteger(form.deadVictims) > parseInteger(form.totalVictims)
       ? 'Tổng số người bị chết phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const severeVictimsError =
+      : '',
+  );
+  const severeVictimsError = firstError(
+    getRequiredIntegerError(form.severeVictims),
     parseInteger(form.severeVictims) > parseInteger(form.totalVictims)
       ? 'Số người bị thương nặng phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const unmanagedVictimsError =
+      : '',
+  );
+  const unmanagedVictimsError = firstError(
+    getRequiredIntegerError(form.unmanagedVictims),
     parseInteger(form.unmanagedVictims) > parseInteger(form.totalVictims)
       ? 'Số người bị nạn không QL phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const unmanagedFemaleVictimsError =
+      : '',
+  );
+  const unmanagedFemaleVictimsError = firstError(
+    getRequiredIntegerError(form.unmanagedFemaleVictims),
     parseInteger(form.unmanagedFemaleVictims) > parseInteger(form.unmanagedVictims)
       ? 'Lao động nữ bị nạn không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-      : '';
-  const unmanagedDeadVictimsError =
+      : '',
+  );
+  const unmanagedDeadVictimsError = firstError(
+    getRequiredIntegerError(form.unmanagedDeadVictims),
     parseInteger(form.unmanagedDeadVictims) > parseInteger(form.unmanagedVictims)
       ? 'Số người chết không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-      : '';
-  const unmanagedSevereVictimsError =
+      : '',
+  );
+  const unmanagedSevereVictimsError = firstError(
+    getRequiredIntegerError(form.unmanagedSevereVictims),
     parseInteger(form.unmanagedSevereVictims) > parseInteger(form.unmanagedVictims)
       ? 'Người bị thương nặng không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-      : '';
-  const subsidyFatalAccidentsError =
+      : '',
+  );
+  const medicalCostError = getRequiredMoneyError(form.medicalCost);
+  const treatmentSalaryCostError = getRequiredMoneyError(form.treatmentSalaryCost);
+  const compensationCostError = getRequiredMoneyError(form.compensationCost);
+  const workdaysLostError = getRequiredIntegerError(form.workdaysLost);
+  const assetDamageError = getRequiredMoneyError(form.assetDamage);
+
+  const subsidyTotalAccidentsError = getRequiredIntegerError(form.subsidyTotalAccidents);
+  const subsidyFatalAccidentsError = firstError(
+    getRequiredIntegerError(form.subsidyFatalAccidents),
     parseInteger(form.subsidyFatalAccidents) > parseInteger(form.subsidyTotalAccidents)
       ? 'Tổng số vụ có người chết phải nhỏ hơn hoặc bằng Tổng số vụ TNLD'
-      : '';
-  const subsidyMultiVictimAccidentsError =
+      : '',
+  );
+  const subsidyMultiVictimAccidentsError = firstError(
+    getRequiredIntegerError(form.subsidyMultiVictimAccidents),
     parseInteger(form.subsidyMultiVictimAccidents) > parseInteger(form.subsidyTotalAccidents)
       ? 'Tổng số vụ có từ 2 người bị nạn trở lên phải nhỏ hơn hoặc bằng Tổng số vụ TNLD'
-      : '';
-  const subsidyFemaleVictimsError =
+      : '',
+  );
+  const subsidyTotalVictimsError = getRequiredIntegerError(form.subsidyTotalVictims);
+  const subsidyFemaleVictimsError = firstError(
+    getRequiredIntegerError(form.subsidyFemaleVictims),
     parseInteger(form.subsidyFemaleVictims) > parseInteger(form.subsidyTotalVictims)
       ? 'Tổng số lao động nữ bị nạn phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const subsidyDeadVictimsError =
+      : '',
+  );
+  const subsidyDeadVictimsError = firstError(
+    getRequiredIntegerError(form.subsidyDeadVictims),
     parseInteger(form.subsidyDeadVictims) > parseInteger(form.subsidyTotalVictims)
       ? 'Tổng số người bị chết phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const subsidySevereVictimsError =
+      : '',
+  );
+  const subsidySevereVictimsError = firstError(
+    getRequiredIntegerError(form.subsidySevereVictims),
     parseInteger(form.subsidySevereVictims) > parseInteger(form.subsidyTotalVictims)
       ? 'Số người bị thương nặng phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const subsidyUnmanagedVictimsError =
+      : '',
+  );
+  const subsidyUnmanagedVictimsError = firstError(
+    getRequiredIntegerError(form.subsidyUnmanagedVictims),
     parseInteger(form.subsidyUnmanagedVictims) > parseInteger(form.subsidyTotalVictims)
       ? 'Số người bị nạn không QL phải nhỏ hơn hoặc bằng Tổng số người bị nạn'
-      : '';
-  const subsidyUnmanagedFemaleVictimsError =
+      : '',
+  );
+  const subsidyUnmanagedFemaleVictimsError = firstError(
+    getRequiredIntegerError(form.subsidyUnmanagedFemaleVictims),
     parseInteger(form.subsidyUnmanagedFemaleVictims) > parseInteger(form.subsidyUnmanagedVictims)
       ? 'Lao động nữ bị nạn không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-      : '';
-  const subsidyUnmanagedDeadVictimsError =
+      : '',
+  );
+  const subsidyUnmanagedDeadVictimsError = firstError(
+    getRequiredIntegerError(form.subsidyUnmanagedDeadVictims),
     parseInteger(form.subsidyUnmanagedDeadVictims) > parseInteger(form.subsidyUnmanagedVictims)
       ? 'Số người chết không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-      : '';
-  const subsidyUnmanagedSevereVictimsError =
+      : '',
+  );
+  const subsidyUnmanagedSevereVictimsError = firstError(
+    getRequiredIntegerError(form.subsidyUnmanagedSevereVictims),
     parseInteger(form.subsidyUnmanagedSevereVictims) > parseInteger(form.subsidyUnmanagedVictims)
       ? 'Người bị thương nặng không QL phải nhỏ hơn hoặc bằng Số người bị nạn không QL'
-      : '';
+      : '',
+  );
+  const subsidyMedicalCostError = getRequiredMoneyError(form.subsidyMedicalCost);
+  const subsidyTreatmentSalaryCostError = getRequiredMoneyError(form.subsidyTreatmentSalaryCost);
+  const subsidyCompensationCostError = getRequiredMoneyError(form.subsidyCompensationCost);
+  const subsidyWorkdaysLostError = getRequiredIntegerError(form.subsidyWorkdaysLost);
+  const subsidyAssetDamageError = getRequiredMoneyError(form.subsidyAssetDamage);
+  const companyStepErrors = [totalEmployeesError, femaleEmployeesError, payrollError];
+  const accidentOverviewErrors = [
+    totalAccidentsError,
+    fatalAccidentsError,
+    multiVictimAccidentsError,
+    totalVictimsError,
+    femaleVictimsError,
+    deadVictimsError,
+    severeVictimsError,
+    unmanagedVictimsError,
+    unmanagedFemaleVictimsError,
+    unmanagedDeadVictimsError,
+    unmanagedSevereVictimsError,
+    medicalCostError,
+    treatmentSalaryCostError,
+    compensationCostError,
+    workdaysLostError,
+    assetDamageError,
+  ];
+  const subsidyStepErrors = [
+    subsidyTotalAccidentsError,
+    subsidyFatalAccidentsError,
+    subsidyMultiVictimAccidentsError,
+    subsidyTotalVictimsError,
+    subsidyFemaleVictimsError,
+    subsidyDeadVictimsError,
+    subsidySevereVictimsError,
+    subsidyUnmanagedVictimsError,
+    subsidyUnmanagedFemaleVictimsError,
+    subsidyUnmanagedDeadVictimsError,
+    subsidyUnmanagedSevereVictimsError,
+    subsidyMedicalCostError,
+    subsidyTreatmentSalaryCostError,
+    subsidyCompensationCostError,
+    subsidyWorkdaysLostError,
+    subsidyAssetDamageError,
+  ];
   const hasCurrentStepError =
-    (step === 'company' && !!femaleEmployeesError) ||
+    (step === 'company' && companyStepErrors.some(Boolean)) ||
     (step === 'accident' &&
       accidentTab === 'overview' &&
-      (!!fatalAccidentsError ||
-        !!multiVictimAccidentsError ||
-        !!femaleVictimsError ||
-        !!deadVictimsError ||
-        !!severeVictimsError ||
-        !!unmanagedVictimsError ||
-        !!unmanagedFemaleVictimsError ||
-        !!unmanagedDeadVictimsError ||
-        !!unmanagedSevereVictimsError)) ||
+      accidentOverviewErrors.some(Boolean)) ||
     (step === 'accident' &&
       accidentTab === 'details' &&
       (hasAccidentDetailErrors || accidentDetailSummaryErrors.length > 0)) ||
     (step === 'subsidy' &&
-      (!!subsidyFatalAccidentsError ||
-        !!subsidyMultiVictimAccidentsError ||
-        !!subsidyFemaleVictimsError ||
-        !!subsidyDeadVictimsError ||
-        !!subsidySevereVictimsError ||
-        !!subsidyUnmanagedVictimsError ||
-        !!subsidyUnmanagedFemaleVictimsError ||
-        !!subsidyUnmanagedDeadVictimsError ||
-        !!subsidyUnmanagedSevereVictimsError));
+      subsidyStepErrors.some(Boolean));
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1141,6 +1287,10 @@ export default function TnldReportFormPage() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateIntegerField(field: keyof typeof form, value: string) {
+    updateField(field, sanitizeIntegerInput(value));
+  }
+
   function updateAccidentDetail(index: number, field: keyof AccidentDetail, value: string) {
     setAccidentDetails((current) => {
       const next = [...current];
@@ -1150,6 +1300,10 @@ export default function TnldReportFormPage() {
       };
       return next;
     });
+  }
+
+  function updateAccidentDetailInteger(index: number, field: keyof AccidentDetail, value: string) {
+    updateAccidentDetail(index, field, sanitizeIntegerInput(value));
   }
 
   function goNext() {
@@ -1406,18 +1560,25 @@ export default function TnldReportFormPage() {
                 <Field label="Tên công ty" value={companyInfo.name} placeholder="Chưa có thông tin doanh nghiệp" readOnly />
                 <Field label="Loại hình công ty" value={companyInfo.enterpriseType} placeholder="Chưa có loại hình công ty" readOnly />
                 <Field label="Ngành nghề kinh doanh" value={companyInfo.industry} placeholder="Chưa có ngành nghề kinh doanh" readOnly />
-                <Field label="Tổng số lao động của cơ sở" required value={form.totalEmployees} onChange={(value) => updateField('totalEmployees', value)} />
+                <Field
+                  label="Tổng số lao động của cơ sở"
+                  required
+                  value={form.totalEmployees}
+                  error={totalEmployeesError}
+                  onChange={(value) => updateIntegerField('totalEmployees', value)}
+                />
                 <Field
                   label="Tổng số lao động nữ"
                   required
                   value={form.femaleEmployees}
                   error={femaleEmployeesError}
-                  onChange={(value) => updateField('femaleEmployees', value)}
+                  onChange={(value) => updateIntegerField('femaleEmployees', value)}
                 />
                 <MoneyField
                   label="Tổng quỹ lương"
                   required
                   value={form.payroll}
+                  error={payrollError}
                   onChange={(value) => updateField('payroll', value)}
                 />
               </div>
@@ -1457,44 +1618,56 @@ export default function TnldReportFormPage() {
                     <h3 className="mb-4 text-sm font-bold text-gray-900">1. Tổng số vụ tai nạn lao động & số nạn nhân tai nạn lao động</h3>
                     <div className="space-y-5">
                       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                      <Field label="Tổng số vụ" required value={form.totalAccidents} onChange={(value) => updateField('totalAccidents', value)} />
+                      <Field
+                        label="Tổng số vụ"
+                        required
+                        value={form.totalAccidents}
+                        error={totalAccidentsError}
+                        onChange={(value) => updateIntegerField('totalAccidents', value)}
+                      />
                       <Field
                         label="Tổng số vụ có người chết"
                         required
                         value={form.fatalAccidents}
                         error={fatalAccidentsError}
-                        onChange={(value) => updateField('fatalAccidents', value)}
+                        onChange={(value) => updateIntegerField('fatalAccidents', value)}
                       />
                       <Field
                         label="Tổng số vụ có từ 2 người bị nạn trở lên"
                         required
                         value={form.multiVictimAccidents}
                         error={multiVictimAccidentsError}
-                        onChange={(value) => updateField('multiVictimAccidents', value)}
+                        onChange={(value) => updateIntegerField('multiVictimAccidents', value)}
                       />
                       </div>
                       <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                      <Field label="Tổng số người bị nạn" required value={form.totalVictims} onChange={(value) => updateField('totalVictims', value)} />
+                      <Field
+                        label="Tổng số người bị nạn"
+                        required
+                        value={form.totalVictims}
+                        error={totalVictimsError}
+                        onChange={(value) => updateIntegerField('totalVictims', value)}
+                      />
                       <Field
                         label="Tổng số lao động nữ bị nạn"
                         required
                         value={form.femaleVictims}
                         error={femaleVictimsError}
-                        onChange={(value) => updateField('femaleVictims', value)}
+                        onChange={(value) => updateIntegerField('femaleVictims', value)}
                       />
                       <Field
                         label="Tổng số người bị chết"
                         required
                         value={form.deadVictims}
                         error={deadVictimsError}
-                        onChange={(value) => updateField('deadVictims', value)}
+                        onChange={(value) => updateIntegerField('deadVictims', value)}
                       />
                       <Field
                         label="Tổng số người bị thương nặng"
                         required
                         value={form.severeVictims}
                         error={severeVictimsError}
-                        onChange={(value) => updateField('severeVictims', value)}
+                        onChange={(value) => updateIntegerField('severeVictims', value)}
                       />
                       </div>
                       <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
@@ -1503,28 +1676,28 @@ export default function TnldReportFormPage() {
                         required
                         value={form.unmanagedVictims}
                         error={unmanagedVictimsError}
-                        onChange={(value) => updateField('unmanagedVictims', value)}
+                        onChange={(value) => updateIntegerField('unmanagedVictims', value)}
                       />
                       <Field
                         label="Lao động nữ bị nạn không QL"
                         required
                         value={form.unmanagedFemaleVictims}
                         error={unmanagedFemaleVictimsError}
-                        onChange={(value) => updateField('unmanagedFemaleVictims', value)}
+                        onChange={(value) => updateIntegerField('unmanagedFemaleVictims', value)}
                       />
                       <Field
                         label="Số người chết không QL"
                         required
                         value={form.unmanagedDeadVictims}
                         error={unmanagedDeadVictimsError}
-                        onChange={(value) => updateField('unmanagedDeadVictims', value)}
+                        onChange={(value) => updateIntegerField('unmanagedDeadVictims', value)}
                       />
                       <Field
                         label="Người bị thương nặng không QL"
                         required
                         value={form.unmanagedSevereVictims}
                         error={unmanagedSevereVictimsError}
-                        onChange={(value) => updateField('unmanagedSevereVictims', value)}
+                        onChange={(value) => updateIntegerField('unmanagedSevereVictims', value)}
                       />
                       </div>
                     </div>
@@ -1533,12 +1706,12 @@ export default function TnldReportFormPage() {
                   <div>
                     <h3 className="mb-4 text-sm font-bold text-gray-900">2. Thiệt hại do tai nạn lao động</h3>
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                      <Field label="Chi phí y tế" required value={form.medicalCost} suffix="(1.000đ)" onChange={(value) => updateField('medicalCost', formatMoneyInput(value))} />
-                      <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.treatmentSalaryCost} suffix="(1.000đ)" onChange={(value) => updateField('treatmentSalaryCost', formatMoneyInput(value))} />
-                      <Field label="Chi phí bồi thường trợ cấp" required value={form.compensationCost} suffix="(1.000đ)" onChange={(value) => updateField('compensationCost', formatMoneyInput(value))} />
+                      <Field label="Chi phí y tế" required value={form.medicalCost} error={medicalCostError} suffix="(1.000đ)" onChange={(value) => updateField('medicalCost', formatMoneyInput(value))} />
+                      <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.treatmentSalaryCost} error={treatmentSalaryCostError} suffix="(1.000đ)" onChange={(value) => updateField('treatmentSalaryCost', formatMoneyInput(value))} />
+                      <Field label="Chi phí bồi thường trợ cấp" required value={form.compensationCost} error={compensationCostError} suffix="(1.000đ)" onChange={(value) => updateField('compensationCost', formatMoneyInput(value))} />
                       <Field label="Tổng số tiền chi phí" required value={totalCost} suffix="(1.000đ)" readOnly />
-                      <Field label="Tổng số ngày nghỉ vì TNLD" value={form.workdaysLost} onChange={(value) => updateField('workdaysLost', value)} />
-                      <Field label="Thiệt hại tài sản" value={form.assetDamage} suffix="(1.000đ)" onChange={(value) => updateField('assetDamage', formatMoneyInput(value))} />
+                      <Field label="Tổng số ngày nghỉ vì TNLD" required value={form.workdaysLost} error={workdaysLostError} onChange={(value) => updateIntegerField('workdaysLost', value)} />
+                      <Field label="Thiệt hại tài sản" required value={form.assetDamage} error={assetDamageError} suffix="(1.000đ)" onChange={(value) => updateField('assetDamage', formatMoneyInput(value))} />
                     </div>
                   </div>
                 </div>
@@ -1624,44 +1797,56 @@ export default function TnldReportFormPage() {
                                 <h4 className="mb-4 text-sm font-bold text-gray-900">4. Chi tiết vụ tai nạn số {item}</h4>
                                 <div className="space-y-5">
                                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                                    <Field label="Tổng số vụ" required value={detail.totalAccidents} onChange={(value) => updateAccidentDetail(index, 'totalAccidents', value)} />
+                                    <Field
+                                      label="Tổng số vụ"
+                                      required
+                                      value={detail.totalAccidents}
+                                      error={detailErrors.totalAccidents}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'totalAccidents', value)}
+                                    />
                                     <Field
                                       label="Tổng số vụ có người chết"
                                       required
                                       value={detail.fatalAccidents}
                                       error={detailErrors.fatalAccidents}
-                                      onChange={(value) => updateAccidentDetail(index, 'fatalAccidents', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'fatalAccidents', value)}
                                     />
                                     <Field
                                       label="Tổng số vụ có 2 người bị nạn trở lên"
                                       required
                                       value={detail.multiVictimAccidents}
                                       error={detailErrors.multiVictimAccidents}
-                                      onChange={(value) => updateAccidentDetail(index, 'multiVictimAccidents', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'multiVictimAccidents', value)}
                                     />
                                   </div>
                                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                                    <Field label="Tổng số người bị nạn" required value={detail.totalVictims} onChange={(value) => updateAccidentDetail(index, 'totalVictims', value)} />
+                                    <Field
+                                      label="Tổng số người bị nạn"
+                                      required
+                                      value={detail.totalVictims}
+                                      error={detailErrors.totalVictims}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'totalVictims', value)}
+                                    />
                                     <Field
                                       label="Tổng số lao động nữ bị nạn"
                                       required
                                       value={detail.femaleVictims}
                                       error={detailErrors.femaleVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'femaleVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'femaleVictims', value)}
                                     />
                                     <Field
                                       label="Tổng số người bị chết"
                                       required
                                       value={detail.deadVictims}
                                       error={detailErrors.deadVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'deadVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'deadVictims', value)}
                                     />
                                     <Field
                                       label="Tổng số người bị thương nặng"
                                       required
                                       value={detail.severeVictims}
                                       error={detailErrors.severeVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'severeVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'severeVictims', value)}
                                     />
                                   </div>
                                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
@@ -1670,28 +1855,28 @@ export default function TnldReportFormPage() {
                                       required
                                       value={detail.unmanagedVictims}
                                       error={detailErrors.unmanagedVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'unmanagedVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedVictims', value)}
                                     />
                                     <Field
                                       label="Lao động nữ bị nạn không QL"
                                       required
                                       value={detail.unmanagedFemaleVictims}
                                       error={detailErrors.unmanagedFemaleVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'unmanagedFemaleVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedFemaleVictims', value)}
                                     />
                                     <Field
                                       label="Số người chết không QL"
                                       required
                                       value={detail.unmanagedDeadVictims}
                                       error={detailErrors.unmanagedDeadVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'unmanagedDeadVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedDeadVictims', value)}
                                     />
                                     <Field
                                       label="Người bị thương nặng không QL"
                                       required
                                       value={detail.unmanagedSevereVictims}
                                       error={detailErrors.unmanagedSevereVictims}
-                                      onChange={(value) => updateAccidentDetail(index, 'unmanagedSevereVictims', value)}
+                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedSevereVictims', value)}
                                     />
                                   </div>
                                 </div>
@@ -1700,11 +1885,12 @@ export default function TnldReportFormPage() {
                               <div>
                                 <h4 className="mb-4 text-sm font-bold text-gray-900">5. Thiệt hại do tai nạn lao động số {item}</h4>
                                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                                  <Field label="Chi phí y tế" required value={detail.medicalCost} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'medicalCost', formatMoneyInput(value))} />
+                                  <Field label="Chi phí y tế" required value={detail.medicalCost} error={detailErrors.medicalCost} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'medicalCost', formatMoneyInput(value))} />
                                   <Field
                                     label="Chi phí trả lương trong thời gian điều trị"
                                     required
                                     value={detail.treatmentSalaryCost}
+                                    error={detailErrors.treatmentSalaryCost}
                                     suffix="(1.000đ)"
                                     onChange={(value) => updateAccidentDetail(index, 'treatmentSalaryCost', formatMoneyInput(value))}
                                   />
@@ -1712,12 +1898,13 @@ export default function TnldReportFormPage() {
                                     label="Chi phí bồi thường trợ cấp"
                                     required
                                     value={detail.compensationCost}
+                                    error={detailErrors.compensationCost}
                                     suffix="(1.000đ)"
                                     onChange={(value) => updateAccidentDetail(index, 'compensationCost', formatMoneyInput(value))}
                                   />
                                   <Field label="Tổng số tiền chi phí" required value={getAccidentDetailTotalCost(detail)} suffix="(1.000đ)" readOnly />
-                                  <Field label="Tổng số ngày nghỉ vì TNLĐ" required value={detail.workdaysLost} onChange={(value) => updateAccidentDetail(index, 'workdaysLost', value)} />
-                                  <Field label="Thiệt hại tài sản" value={detail.assetDamage} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'assetDamage', formatMoneyInput(value))} />
+                                  <Field label="Tổng số ngày nghỉ vì TNLĐ" required value={detail.workdaysLost} error={detailErrors.workdaysLost} onChange={(value) => updateAccidentDetailInteger(index, 'workdaysLost', value)} />
+                                  <Field label="Thiệt hại tài sản" required value={detail.assetDamage} error={detailErrors.assetDamage} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'assetDamage', formatMoneyInput(value))} />
                                 </div>
                               </div>
                             </>
@@ -1739,44 +1926,56 @@ export default function TnldReportFormPage() {
                   <h3 className="mb-4 text-sm font-bold text-gray-900">1. Tổng số vụ tai nạn lao động & số nạn nhân tai nạn lao động</h3>
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                      <Field label="Tổng số vụ" required value={form.subsidyTotalAccidents} onChange={(value) => updateField('subsidyTotalAccidents', value)} />
+                      <Field
+                        label="Tổng số vụ"
+                        required
+                        value={form.subsidyTotalAccidents}
+                        error={subsidyTotalAccidentsError}
+                        onChange={(value) => updateIntegerField('subsidyTotalAccidents', value)}
+                      />
                       <Field
                         label="Tổng số vụ có người chết"
                         required
                         value={form.subsidyFatalAccidents}
                         error={subsidyFatalAccidentsError}
-                        onChange={(value) => updateField('subsidyFatalAccidents', value)}
+                        onChange={(value) => updateIntegerField('subsidyFatalAccidents', value)}
                       />
                       <Field
                         label="Tổng số vụ có từ 2 người bị nạn trở lên"
                         required
                         value={form.subsidyMultiVictimAccidents}
                         error={subsidyMultiVictimAccidentsError}
-                        onChange={(value) => updateField('subsidyMultiVictimAccidents', value)}
+                        onChange={(value) => updateIntegerField('subsidyMultiVictimAccidents', value)}
                       />
                     </div>
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                      <Field label="Tổng số người bị nạn" required value={form.subsidyTotalVictims} onChange={(value) => updateField('subsidyTotalVictims', value)} />
+                      <Field
+                        label="Tổng số người bị nạn"
+                        required
+                        value={form.subsidyTotalVictims}
+                        error={subsidyTotalVictimsError}
+                        onChange={(value) => updateIntegerField('subsidyTotalVictims', value)}
+                      />
                       <Field
                         label="Tổng số lao động nữ bị nạn"
                         required
                         value={form.subsidyFemaleVictims}
                         error={subsidyFemaleVictimsError}
-                        onChange={(value) => updateField('subsidyFemaleVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidyFemaleVictims', value)}
                       />
                       <Field
                         label="Tổng số người bị chết"
                         required
                         value={form.subsidyDeadVictims}
                         error={subsidyDeadVictimsError}
-                        onChange={(value) => updateField('subsidyDeadVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidyDeadVictims', value)}
                       />
                       <Field
                         label="Tổng số người bị thương nặng"
                         required
                         value={form.subsidySevereVictims}
                         error={subsidySevereVictimsError}
-                        onChange={(value) => updateField('subsidySevereVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidySevereVictims', value)}
                       />
                     </div>
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
@@ -1785,28 +1984,28 @@ export default function TnldReportFormPage() {
                         required
                         value={form.subsidyUnmanagedVictims}
                         error={subsidyUnmanagedVictimsError}
-                        onChange={(value) => updateField('subsidyUnmanagedVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidyUnmanagedVictims', value)}
                       />
                       <Field
                         label="Lao động nữ bị nạn không QL"
                         required
                         value={form.subsidyUnmanagedFemaleVictims}
                         error={subsidyUnmanagedFemaleVictimsError}
-                        onChange={(value) => updateField('subsidyUnmanagedFemaleVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidyUnmanagedFemaleVictims', value)}
                       />
                       <Field
                         label="Số người chết không QL"
                         required
                         value={form.subsidyUnmanagedDeadVictims}
                         error={subsidyUnmanagedDeadVictimsError}
-                        onChange={(value) => updateField('subsidyUnmanagedDeadVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidyUnmanagedDeadVictims', value)}
                       />
                       <Field
                         label="Người bị thương nặng không QL"
                         required
                         value={form.subsidyUnmanagedSevereVictims}
                         error={subsidyUnmanagedSevereVictimsError}
-                        onChange={(value) => updateField('subsidyUnmanagedSevereVictims', value)}
+                        onChange={(value) => updateIntegerField('subsidyUnmanagedSevereVictims', value)}
                       />
                     </div>
                   </div>
@@ -1815,12 +2014,12 @@ export default function TnldReportFormPage() {
                 <div>
                   <h3 className="mb-4 text-sm font-bold text-gray-900">2. Thiệt hại do tai nạn lao động</h3>
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                    <Field label="Chi phí y tế" required value={form.subsidyMedicalCost} suffix="(1.000đ)" onChange={(value) => updateField('subsidyMedicalCost', formatMoneyInput(value))} />
-                    <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.subsidyTreatmentSalaryCost} suffix="(1.000đ)" onChange={(value) => updateField('subsidyTreatmentSalaryCost', formatMoneyInput(value))} />
-                    <Field label="Chi phí bồi thường trợ cấp" required value={form.subsidyCompensationCost} suffix="(1.000đ)" onChange={(value) => updateField('subsidyCompensationCost', formatMoneyInput(value))} />
+                    <Field label="Chi phí y tế" required value={form.subsidyMedicalCost} error={subsidyMedicalCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyMedicalCost', formatMoneyInput(value))} />
+                    <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.subsidyTreatmentSalaryCost} error={subsidyTreatmentSalaryCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyTreatmentSalaryCost', formatMoneyInput(value))} />
+                    <Field label="Chi phí bồi thường trợ cấp" required value={form.subsidyCompensationCost} error={subsidyCompensationCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyCompensationCost', formatMoneyInput(value))} />
                     <Field label="Tổng số tiền chi phí" required value={subsidyDamageTotal} suffix="(1.000đ)" readOnly />
-                    <Field label="Tổng số ngày nghỉ vì TNLD" value={form.subsidyWorkdaysLost} onChange={(value) => updateField('subsidyWorkdaysLost', value)} />
-                    <Field label="Thiệt hại tài sản" value={form.subsidyAssetDamage} suffix="(1.000đ)" onChange={(value) => updateField('subsidyAssetDamage', formatMoneyInput(value))} />
+                    <Field label="Tổng số ngày nghỉ vì TNLD" required value={form.subsidyWorkdaysLost} error={subsidyWorkdaysLostError} onChange={(value) => updateIntegerField('subsidyWorkdaysLost', value)} />
+                    <Field label="Thiệt hại tài sản" required value={form.subsidyAssetDamage} error={subsidyAssetDamageError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyAssetDamage', formatMoneyInput(value))} />
                   </div>
                 </div>
               </div>
