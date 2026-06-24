@@ -147,6 +147,8 @@ export class AuthService {
       username: user.username,
       email: user.email,
       fullName: user.fullName,
+      avatarUrl: user.avatarUrl || null,
+      titleName: user.title?.name || null,
       accountType:
         user.role?.code === 'ROLE_ENTERPRISE'
           ? AccountType.ENTERPRISE
