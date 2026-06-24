@@ -7,6 +7,11 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from '../dto/login.dto';
 import { OtpService } from './otp.service';
+import { Enterprise } from '../../enterprises/entities/enterprise.entity';
+import { EnterpriseType } from '../../enterprise-types/entities/enterprise-type.entity';
+import { Industry } from '../../industries/entities/industry.entity';
+import { Province } from '../../users/entities/province.entity';
+import { District } from '../../users/entities/district.entity';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +22,16 @@ export class AuthService {
     private readonly otpRepository: Repository<OtpCode>,
     private readonly jwtService: JwtService,
     private readonly otpService: OtpService,
+    @InjectRepository(Enterprise)
+    private readonly enterpriseRepository: Repository<Enterprise>,
+    @InjectRepository(EnterpriseType)
+    private readonly enterpriseTypeRepository: Repository<EnterpriseType>,
+    @InjectRepository(Industry)
+    private readonly industryRepository: Repository<Industry>,
+    @InjectRepository(District)
+    private readonly districtRepository: Repository<District>,
+    @InjectRepository(Province)
+    private readonly provinceRepository: Repository<Province>,
   ) {}
 
   async extractUserIdFromAuthHeader(authHeader?: string) {
@@ -241,7 +256,31 @@ export class AuthService {
       throw new BadRequestException('Email này đã được đăng ký tài khoản');
     }
 
-    // 4. Tạo tài khoản với mật khẩu mặc định 12345678
+    // 4. Tìm kiếm các thực thể liên quan (Ward, EnterpriseType, Industry, Province)
+    let ward: District | null = null;
+    if (data.phuongXaTen) {
+      const dbWardName = data.phuongXaTen.replace(', ', ' (') + ')';
+      ward = await this.districtRepository.findOne({ where: { name: dbWardName } });
+    }
+
+    let enterpriseType: EnterpriseType | null = null;
+    if (data.loaiHinhKD) {
+      enterpriseType = await this.enterpriseTypeRepository.findOne({ where: { name: data.loaiHinhKD } });
+    }
+
+    let industryEntity: Industry | null = null;
+    if (data.nganhNghe) {
+      const parts = data.nganhNghe.split(' - ');
+      if (parts.length > 0) {
+        const rawCode = parts[0].trim();
+        const mappedCode = mapIndustryCode(rawCode);
+        industryEntity = await this.industryRepository.findOne({ where: { code: mappedCode } });
+      }
+    }
+
+    const province = await this.provinceRepository.findOne({ where: { id: 1 } });
+
+    // 5. Tạo tài khoản với mật khẩu mặc định 12345678
     const DEFAULT_PASSWORD = '12345678';
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
@@ -252,10 +291,35 @@ export class AuthService {
       fullName,
       email: data.email,
       isActive: true,
+      district: ward || undefined,
+      province: province || undefined,
     });
     await this.userRepository.save(user);
 
-    // 5. Xóa OTP khỏi store
+    // 6. Tạo thông tin doanh nghiệp (Enterprise)
+    const enterprise = this.enterpriseRepository.create({
+      name: data.tenDN,
+      taxCode: data.mst,
+      enterpriseType: enterpriseType || undefined,
+      industry: industryEntity || undefined,
+      ward: ward || undefined,
+      province: province || undefined,
+      address: data.diaChi,
+      foreignName: data.tenNuocNgoai,
+      email: data.email,
+      leaderName: data.nguoiDungDau,
+      leaderPhone: data.sdtNguoiDungDau,
+      username: data.mst,
+      password: DEFAULT_PASSWORD,
+      isActive: true,
+      licenseDate: data.ngayCap || undefined,
+      operationAddress: data.diaDiemKD || undefined,
+      operationProvince: province || undefined,
+      operationWard: ward || undefined,
+    });
+    await this.enterpriseRepository.save(enterprise);
+
+    // 7. Xóa OTP khỏi store
     delete otpStore[data.email];
     (global as any).otpStore = otpStore;
 
@@ -268,4 +332,24 @@ export class AuthService {
       },
     };
   }
+}
+
+function mapIndustryCode(rawCode: string): string {
+  if (!rawCode) return rawCode;
+  const firstChar = rawCode.charAt(0);
+  let prefix = '';
+  if (firstChar === '0') {
+    prefix = 'NLTS';
+  } else if (firstChar === '1') {
+    prefix = 'CNCB';
+  } else if (firstChar === '4') {
+    prefix = 'TMDV';
+  } else {
+    return rawCode;
+  }
+  
+  if (rawCode.length === 1) {
+    return prefix;
+  }
+  return `${prefix}-${rawCode}`;
 }
