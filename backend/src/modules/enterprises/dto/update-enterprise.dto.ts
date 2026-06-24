@@ -16,8 +16,18 @@ export class UpdateEnterpriseDto {
   enterpriseTypeId?: number;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  enterpriseTypeName?: string;
+
+  @IsOptional()
   @IsNumber()
   industryId?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  industryName?: string;
 
   @IsOptional()
   @IsDateString()
@@ -30,6 +40,11 @@ export class UpdateEnterpriseDto {
   @IsOptional()
   @IsNumber()
   wardId?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  wardName?: string;
 
   @IsOptional()
   @IsString()

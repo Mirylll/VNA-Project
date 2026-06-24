@@ -1,317 +1,279 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { X, Loader2, CheckCircle2 } from 'lucide-react';
-import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
-
-const baseUrl =
-  typeof window !== 'undefined'
-    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    : '';
+import { AlertCircle, Loader2, X } from 'lucide-react';
+import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { requestChangeEmailOtp, verifyChangeEmailOtp } from '@/libs/core/services/auth.service';
 
 interface ChangeEmailModalProps {
   open: boolean;
-  currentEmail: string;
-  userId: string;
   onClose: () => void;
-  onSuccess: (newEmail: string) => void;
+  currentEmail?: string;
+  token?: string | null;
+  userId?: string;
+  onSave?: (newEmail: string) => void | Promise<void>;
+  onSuccess?: (newEmail: string) => void | Promise<void>;
 }
 
 export default function ChangeEmailModal({
   open,
-  currentEmail,
-  userId,
   onClose,
+  currentEmail = '',
+  token,
+  onSave,
   onSuccess,
 }: ChangeEmailModalProps) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2>(2);
   const [otp, setOtp] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [countdown, setCountdown] = useState(60);
-  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
-
-    setStep(1);
-    setOtp('');
-    setNewEmail('');
-    setCountdown(60);
-    setError('');
-    setLoading(false);
-    sendOtp();
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
+    if (!open) {
+      setStep(2);
+      setOtp('');
+      setNewEmail('');
+      setCountdown(60);
+      setMessage('');
+      setError('');
+      setLoading(false);
+      setSendingOtp(false);
+    }
   }, [open]);
 
-  async function sendOtp() {
-    const token = getAuthToken();
-    if (!token) return;
+  useEffect(() => {
+    if (!open || step !== 1 || countdown <= 0) return;
 
-    setLoading(true);
-    setError('');
+    const timer = window.setInterval(() => {
+      setCountdown((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
 
-    try {
-      const res = await fetch(`${baseUrl}/auth/send-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email: currentEmail }),
-      });
-
-      if (res.status === 401) {
-        clearAuthToken();
-        window.location.href = '/login';
-        return;
-      }
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Gửi OTP thất bại');
-      }
-
-      setCountdown(60);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerify() {
-    if (!otp.trim()) {
-      setError('Vui lòng nhập mã OTP');
-      return;
-    }
-
-    const token = getAuthToken();
-    if (!token) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch(`${baseUrl}/auth/verify-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email: currentEmail, otp: otp.trim() }),
-      });
-
-      if (res.status === 401) {
-        clearAuthToken();
-        window.location.href = '/login';
-        return;
-      }
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Mã OTP không đúng');
-      }
-
-      setStep(2);
-      setError('');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSaveEmail() {
-    if (!newEmail.trim()) {
-      setError('Vui lòng nhập email mới');
-      return;
-    }
-
-    const token = getAuthToken();
-    if (!token) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch(`${baseUrl}/users/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email: newEmail.trim() }),
-      });
-
-      if (res.status === 401) {
-        clearAuthToken();
-        window.location.href = '/login';
-        return;
-      }
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Cập nhật email thất bại');
-      }
-
-      onSuccess(newEmail.trim());
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+    return () => window.clearInterval(timer);
+  }, [countdown, open, step]);
 
   if (!open) return null;
 
-  const minutes = Math.floor(countdown / 60);
-  const seconds = countdown % 60;
-  const timerDisplay = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const authToken = token || getAuthToken();
 
-  if (step === 2) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-xl shadow-xl w-[440px] p-8 relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X size={20} />
-          </button>
+  function getErrorMessage(err: unknown, fallback: string) {
+    const message = err instanceof Error ? err.message : fallback;
+    if (message.includes('Mã OTP không đúng')) {
+      return 'Mã OTP không chính xác, vui lòng kiểm tra lại';
+    }
+    return message;
+  }
 
-          <h2 className="text-blue-600 font-bold text-lg uppercase text-center mb-2">
-            Thay đổi email
-          </h2>
+  async function sendOtpEmail() {
+    if (!authToken) {
+      setError('Chưa đăng nhập');
+      return false;
+    }
 
-          <p className="text-sm text-slate-500 text-center mb-8">
-            Vui lòng nhập email mới
-          </p>
+    setSendingOtp(true);
+    setError('');
+    setMessage('');
 
-          <div className="relative mb-6">
-            <input
-              type="text"
-              value={newEmail}
-              onChange={(e) => {
-                setNewEmail(e.target.value);
-                if (error) setError('');
-              }}
-              placeholder="Phanthanhtung094@gmail.com"
-              className="w-full h-11 rounded-lg border border-slate-200 px-3 pt-3 pb-1 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            />
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-              Email <span className="text-red-500">*</span>
-            </label>
-          </div>
+    try {
+      await requestChangeEmailOtp(newEmail, authToken);
+      setMessage('Đã gửi OTP đến email hiện tại của bạn');
+      setCountdown(60);
+      return true;
+    } catch (err) {
+      setError(getErrorMessage(err, 'Lỗi gửi OTP'));
+      return false;
+    } finally {
+      setSendingOtp(false);
+    }
+  }
 
-          {error && (
-            <p className="text-red-500 text-xs text-center mb-4">{error}</p>
-          )}
+  function handleOtpChange(value: string) {
+    setOtp(value.replace(/\D/g, '').slice(0, 6));
+    setError('');
+  }
 
-          <button
-            onClick={handleSaveEmail}
-            disabled={loading || !newEmail.trim()}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"
-          >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-            {loading ? 'Đang xử lý...' : 'Lưu'}
-          </button>
+  async function handleSaveEmail() {
+    setMessage('');
+    setError('');
 
-          <button
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 font-medium pt-4 block text-center w-full cursor-pointer transition-colors"
-          >
-            Hủy bỏ
-          </button>
-        </div>
-      </div>
-    );
+    if (!newEmail) {
+      setError('Vui lòng nhập email mới');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      setError('Email không hợp lệ, vui lòng kiểm tra lại dữ liệu');
+      return;
+    }
+    if (newEmail === currentEmail) {
+      setError('Email mới không được trùng email hiện tại, vui lòng kiểm tra lại dữ liệu');
+      return;
+    }
+
+    const sent = await sendOtpEmail();
+    if (sent) setStep(1);
+  }
+
+  async function handleVerifyOtp() {
+    if (!authToken) {
+      setError('Chưa đăng nhập');
+      return;
+    }
+    if (otp.length !== 6) {
+      setError('OTP phải gồm 6 chữ số');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await verifyChangeEmailOtp(otp, authToken);
+      await onSave?.(newEmail);
+      await onSuccess?.(newEmail);
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Lỗi xác minh OTP'));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-[440px] p-8 relative">
+      {error && (
+        <div className="absolute left-1/2 top-8 z-[60] flex w-[min(520px,calc(100vw-32px))] -translate-x-1/2 items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 shadow-lg">
+          <AlertCircle size={18} className="shrink-0 fill-red-500 text-white" />
+          <span className="min-w-0 flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => setError('')}
+            className="shrink-0 rounded p-1 text-red-500 transition hover:bg-red-100"
+            aria-label="Đóng thông báo lỗi"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      <div className="relative w-full max-w-sm overflow-hidden rounded-xl bg-white p-6 shadow-xl">
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+          className="absolute right-4 top-4 text-slate-400 transition hover:text-slate-600"
+          aria-label="Đóng"
         >
           <X size={20} />
         </button>
 
-        <h2 className="text-blue-600 font-bold text-lg uppercase text-center mb-6">
+        <h3 className="mb-2 text-center text-lg font-bold uppercase text-blue-600">
           Thay đổi email
-        </h2>
+        </h3>
 
-        <p className="text-sm text-slate-600 text-center leading-relaxed mb-6">
-          Chúng tôi đã gửi mã xác minh qua số email cũ
-        </p>
-        <p className="text-sm font-bold text-slate-800 text-center mb-2">
-          {currentEmail}
-        </p>
-        <p className="text-sm text-slate-600 text-center mb-8">
-          Bạn vui lòng kiểm tra và điền mã xác thực
-        </p>
+        {step === 2 ? (
+          <>
+            <p className="mb-6 text-center text-sm text-slate-600">
+              Vui lòng nhập email mới
+            </p>
 
-        <div className="relative mb-6">
-          <input
-            type="text"
-            value={otp}
-            onChange={(e) => {
-              setOtp(e.target.value);
-              if (error) setError('');
-            }}
-            placeholder="122456"
-            className="w-full h-12 rounded-lg border border-slate-200 px-4 pt-3 pb-1 text-lg text-slate-700 tracking-widest text-center outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-          />
-          <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-            OTP <span className="text-red-500">*</span>
-          </label>
-        </div>
+            <label className="mb-4 block">
+              <span className="mb-2 block text-xs font-medium text-slate-600">
+                Email <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(event) => {
+                  setNewEmail(event.target.value);
+                  setError('');
+                }}
+                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="Nhập email mới"
+              />
+            </label>
 
-        {error && (
-          <p className="text-red-500 text-xs text-center mb-4">{error}</p>
-        )}
-
-        <div className="text-center mb-8">
-          <p className="text-blue-600 font-medium text-sm mb-1">{timerDisplay}</p>
-          <p className="text-sm text-slate-400">
-            Chưa nhận được mã?{' '}
             <button
-              onClick={sendOtp}
-              disabled={loading || countdown > 0}
-              className="text-slate-600 font-medium hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+              onClick={handleSaveEmail}
+              disabled={sendingOtp}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Gửi lại
+              {sendingOtp && <Loader2 size={18} className="animate-spin" />}
+              {sendingOtp ? 'Đang gửi OTP...' : 'Lưu'}
             </button>
-          </p>
-        </div>
 
-        <button
-          onClick={handleVerify}
-          disabled={loading || !otp.trim()}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-          {loading ? 'Đang xử lý...' : 'Xác nhận'}
-        </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-4 block w-full text-center text-sm font-medium text-slate-500 transition hover:text-slate-700"
+            >
+              Hủy bỏ
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="mb-5 text-center text-sm text-slate-600">
+              <p>Chúng tôi đã gửi mã xác minh qua email hiện tại</p>
+              <p className="mt-2 font-bold text-slate-800">{currentEmail || 'Email hiện tại'}</p>
+              <p className="mt-2">Bạn vui lòng kiểm tra và điền mã xác thực</p>
+            </div>
 
-        <button
-          onClick={onClose}
-          className="text-slate-500 hover:text-slate-700 font-medium pt-3 block text-center w-full cursor-pointer transition-colors"
-        >
-          Hủy bỏ
-        </button>
+            {message && (
+              <div className="mb-4 rounded border border-green-200 bg-green-50 p-2 text-center text-sm text-green-700">
+                {message}
+              </div>
+            )}
+
+            <label className="mb-4 block">
+              <span className="mb-2 block text-xs font-medium text-slate-600">
+                OTP <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={otp}
+                onChange={(event) => handleOtpChange(event.target.value)}
+                maxLength={6}
+                className="h-12 w-full rounded-lg border border-slate-300 px-3 text-center text-xl font-bold tracking-widest outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                placeholder="000000"
+                disabled={loading}
+              />
+            </label>
+
+            <div className="mb-4 text-center">
+              <p className="text-sm font-semibold text-blue-600">
+                00:{String(countdown).padStart(2, '0')}
+              </p>
+              <button
+                type="button"
+                onClick={sendOtpEmail}
+                disabled={countdown > 0 || sendingOtp}
+                className="mt-2 text-sm font-medium text-slate-500 transition hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Chưa nhận được mã? Gửi lại
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={otp.length !== 6 || loading}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading && <Loader2 size={18} className="animate-spin" />}
+              {loading ? 'Đang xác minh...' : 'Xác nhận'}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-4 block w-full text-center text-sm font-medium text-slate-500 transition hover:text-slate-700"
+            >
+              Hủy bỏ
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

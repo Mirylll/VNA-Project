@@ -67,7 +67,13 @@ export class AuthController {
     sdtNguoiDungDau?: string;
     tenNuocNgoai?: string;
     ngayCap?: string;
+    tinhTP?: string;
+    phuongXaCode?: string;
     phuongXaTen?: string;
+    sdtCoQuan?: string;
+    tinhTPHoatDong?: string;
+    phuongXaHoatDongCode?: string;
+    phuongXaHoatDongTen?: string;
     diaDiemKD?: string;
   }) {
     try {

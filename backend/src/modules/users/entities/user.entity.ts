@@ -11,6 +11,11 @@ export enum Gender {
   OTHER = 'Khác',
 }
 
+export enum AccountType {
+  INTERNAL = 'internal',
+  ENTERPRISE = 'enterprise',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -42,6 +47,9 @@ export class User {
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  @Column({ name: 'account_type', type: 'varchar', length: 20, default: AccountType.INTERNAL })
+  accountType: AccountType;
 
   @ManyToOne(() => Role, { nullable: true })
   @JoinColumn({ name: 'role_id' })

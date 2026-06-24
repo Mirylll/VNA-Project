@@ -21,6 +21,16 @@ const validateMST = (mst: string): string => {
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
+const getTodayDateValue = () => new Date().toISOString().slice(0, 10);
+
+const validatePhone = (phone: string, label: string): string => {
+  const value = phone.trim();
+  if (!value) return `Vui lòng nhập ${label}`;
+  if (!/^\d+$/.test(value)) return `${label} chỉ được chứa chữ số`;
+  if (!/^0\d{8,10}$/.test(value)) return `${label} phải bắt đầu bằng 0 và có 9-11 chữ số`;
+  return "";
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FileEntry {
   label: string;
@@ -178,6 +188,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleLicenseDateChange = (value: string) => {
+    const today = getTodayDateValue();
+    setField("ngayCap", (value > today ? today : value) as FormData["ngayCap"]);
+  };
+
   // ── file handlers
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -211,6 +226,29 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     });
   };
 
+  const uploadRegistrationFiles = async (enterpriseId: number) => {
+    const selectedFiles = files.filter((entry) => entry.file);
+    if (selectedFiles.length === 0) return;
+
+    await Promise.all(
+      selectedFiles.map(async (entry) => {
+        const body = new FormData();
+        body.append("name", entry.label);
+        body.append("file", entry.file as File);
+
+        const res = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/attachments`, {
+          method: "POST",
+          body,
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || `Không tải lên được file ${entry.file?.name}`);
+        }
+      }),
+    );
+  };
+
   // ── validate step 1
   const validateForm = (): boolean => {
     const errs: Partial<Record<keyof FormData, string>> = {};
@@ -219,12 +257,27 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     if (mstErr) errs.mst = mstErr;
     if (!form.loaiHinhKD) errs.loaiHinhKD = "Vui lòng chọn loại hình kinh doanh";
     if (!form.nganhNghe) errs.nganhNghe = "Vui lòng chọn ngành nghề kinh doanh";
+    if (!form.ngayCap) {
+      errs.ngayCap = "Vui lòng chọn ngày cấp GPKD";
+    } else if (form.ngayCap > getTodayDateValue()) {
+      errs.ngayCap = "Ngày cấp GPKD không được lớn hơn ngày hiện tại";
+    }
+    if (!form.tinhTP) errs.tinhTP = "Vui lòng chọn tỉnh/thành phố ĐKKD";
     if (!form.phuongXa) errs.phuongXa = "Vui lòng chọn phường/xã ĐKKD";
+    if (!form.diaChi.trim()) errs.diaChi = "Vui lòng nhập địa chỉ";
     if (!form.email.trim()) {
       errs.email = "Vui lòng nhập email";
     } else if (!isValidEmail(form.email.trim())) {
       errs.email = "Email không đúng định dạng";
     }
+    const officePhoneErr = validatePhone(form.sdtCoQuan, "Số điện thoại cơ quan");
+    if (officePhoneErr) errs.sdtCoQuan = officePhoneErr;
+    if (!form.nguoiDungDau.trim()) errs.nguoiDungDau = "Vui lòng nhập người đứng đầu doanh nghiệp";
+    const leaderPhoneErr = validatePhone(form.sdtNguoiDungDau, "SĐT liên hệ người đứng đầu");
+    if (leaderPhoneErr) errs.sdtNguoiDungDau = leaderPhoneErr;
+    if (!form.tinhTPHoatDong) errs.tinhTPHoatDong = "Vui lòng chọn tỉnh/thành phố hoạt động KD";
+    if (!form.phuongXaHoatDong) errs.phuongXaHoatDong = "Vui lòng chọn phường/xã hoạt động KD";
+    if (!form.diaDiemKD.trim()) errs.diaDiemKD = "Vui lòng nhập địa điểm kinh doanh";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -315,8 +368,12 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     try {
       setConfirmLoading(true);
       const selectedWardObj = registrationWards.find((w) => w.code === form.phuongXa);
+      const selectedOperationWardObj = operationWards.find((w) => w.code === form.phuongXaHoatDong);
       const phuongXaTen = selectedWardObj
         ? `${selectedWardObj.name}, ${selectedWardObj.district}`
+        : "";
+      const phuongXaHoatDongTen = selectedOperationWardObj
+        ? `${selectedOperationWardObj.name}, ${selectedOperationWardObj.district}`
         : "";
 
       const res = await fetch(`${BASE_URL}/auth/register-enterprise`, {
@@ -334,14 +391,29 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
           sdtNguoiDungDau: form.sdtNguoiDungDau,
           tenNuocNgoai: form.tenNuocNgoai,
           ngayCap: form.ngayCap,
+          tinhTP: form.tinhTP,
+          phuongXaCode: form.phuongXa,
           phuongXaTen,
+          sdtCoQuan: form.sdtCoQuan,
+          tinhTPHoatDong: form.tinhTPHoatDong,
+          phuongXaHoatDongCode: form.phuongXaHoatDong,
+          phuongXaHoatDongTen,
           diaDiemKD: form.diaDiemKD,
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Lỗi tạo tài khoản");
       }
+
+      if (data.enterprise?.id) {
+        try {
+          await uploadRegistrationFiles(data.enterprise.id);
+        } catch (uploadError: any) {
+          alert(uploadError?.message || "Tài khoản đã tạo nhưng chưa tải lên được file đính kèm");
+        }
+      }
+
       setStage("account");
     } catch (e: any) {
       const msg = e?.message || "";
@@ -693,17 +765,18 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* Ngày cấp GPKD */}
-              <FieldWrap label="Ngày cấp GPKD">
+              <FieldWrap label="Ngày cấp GPKD" required error={errors.ngayCap}>
                 <input
                   type="date"
                   value={form.ngayCap}
-                  onChange={(e) => setField("ngayCap", e.target.value)}
-                  className={inputCls(false)}
+                  max={getTodayDateValue()}
+                  onChange={(e) => handleLicenseDateChange(e.target.value)}
+                  className={inputCls(!!errors.ngayCap)}
                 />
               </FieldWrap>
 
               {/* Tỉnh/Thành phố ĐKKD (hardcode HCM) */}
-              <FieldWrap label="Tỉnh/Thành phố ĐKKD" required>
+              <FieldWrap label="Tỉnh/Thành phố ĐKKD" required error={errors.tinhTP}>
                 <input
                   type="text"
                   value={form.tinhTP}
@@ -720,8 +793,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.phuongXa)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {registrationWards.map((w) => (
-                    <option key={w.code} value={w.code}>
+                  {registrationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
                       {w.name} ({w.district})
                     </option>
                   ))}
@@ -729,13 +802,13 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* Địa chỉ */}
-              <FieldWrap label="Địa chỉ" className="md:col-span-2">
+              <FieldWrap label="Địa chỉ" required error={errors.diaChi} className="md:col-span-2">
                 <input
                   type="text"
                   value={form.diaChi}
                   onChange={(e) => setField("diaChi", e.target.value)}
                   placeholder="Số nhà, đường..."
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.diaChi)}
                 />
               </FieldWrap>
             </div>
@@ -768,40 +841,40 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* SĐT cơ quan */}
-              <FieldWrap label="Số điện thoại cơ quan">
+              <FieldWrap label="Số điện thoại cơ quan" required error={errors.sdtCoQuan}>
                 <input
                   type="tel"
                   value={form.sdtCoQuan}
                   onChange={(e) => setField("sdtCoQuan", e.target.value.replace(/\D/g, "").slice(0, 11))}
                   placeholder="0XX XXX XXXX"
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.sdtCoQuan)}
                 />
               </FieldWrap>
 
               {/* Người đứng đầu */}
-              <FieldWrap label="Người đứng đầu doanh nghiệp">
+              <FieldWrap label="Người đứng đầu doanh nghiệp" required error={errors.nguoiDungDau}>
                 <input
                   type="text"
                   value={form.nguoiDungDau}
                   onChange={(e) => setField("nguoiDungDau", e.target.value)}
                   placeholder="Nguyễn Văn A"
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.nguoiDungDau)}
                 />
               </FieldWrap>
 
               {/* SĐT người đứng đầu */}
-              <FieldWrap label="SĐT liên hệ người đứng đầu">
+              <FieldWrap label="SĐT liên hệ người đứng đầu" required error={errors.sdtNguoiDungDau}>
                 <input
                   type="tel"
                   value={form.sdtNguoiDungDau}
                   onChange={(e) => setField("sdtNguoiDungDau", e.target.value.replace(/\D/g, "").slice(0, 11))}
                   placeholder="0XX XXX XXXX"
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.sdtNguoiDungDau)}
                 />
               </FieldWrap>
 
               {/* Tỉnh/TP hoạt động KD */}
-              <FieldWrap label="Tỉnh/TP hoạt động KD">
+              <FieldWrap label="Tỉnh/TP hoạt động KD" required error={errors.tinhTPHoatDong}>
                 <input
                   type="text"
                   value={form.tinhTPHoatDong}
@@ -811,15 +884,15 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* Phường/xã hoạt động KD */}
-              <FieldWrap label="Phường/xã hoạt động KD">
+              <FieldWrap label="Phường/xã hoạt động KD" required error={errors.phuongXaHoatDong}>
                 <select
                   value={form.phuongXaHoatDong}
                   onChange={(e) => setField("phuongXaHoatDong", e.target.value)}
-                  className={selectCls(false)}
+                  className={selectCls(!!errors.phuongXaHoatDong)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {operationWards.map((w) => (
-                    <option key={w.code} value={w.code}>
+                  {operationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
                       {w.name} ({w.district})
                     </option>
                   ))}
@@ -827,13 +900,13 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* Địa điểm kinh doanh */}
-              <FieldWrap label="Địa điểm kinh doanh" className="md:col-span-2">
+              <FieldWrap label="Địa điểm kinh doanh" required error={errors.diaDiemKD} className="md:col-span-2">
                 <input
                   type="text"
                   value={form.diaDiemKD}
                   onChange={(e) => setField("diaDiemKD", e.target.value)}
                   placeholder="Địa điểm kinh doanh..."
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.diaDiemKD)}
                 />
               </FieldWrap>
             </div>
