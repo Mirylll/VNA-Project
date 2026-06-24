@@ -193,6 +193,10 @@ export default function EnterpriseStep1({
       newErrors.taxCode = 'Mã số thuế tối đa 15 ký tự (không tính dấu gạch ngang)';
     }
 
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = 'Email không đúng định dạng';
+    }
+
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) return;
@@ -257,6 +261,7 @@ export default function EnterpriseStep1({
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Công ty cổ phần công nghệ quốc tế VNA"
+                maxLength={100}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
             </>
@@ -272,6 +277,7 @@ export default function EnterpriseStep1({
                 value={formData.taxCode}
                 onChange={handleInputChange}
                 placeholder="910000888292"
+                maxLength={50}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
             </>
@@ -387,13 +393,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Địa chỉ
             </label>
-            <input
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              placeholder="162 đường số 2, khu đô thị Vạn Phúc"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="address"
+                value={formData.address}
+                onChange={handleInputChange}
+                placeholder="162 đường số 2, khu đô thị Vạn Phúc"
+                maxLength={500}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
         </div>
       </div>
@@ -409,13 +416,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Tên viết bằng tiếng nước ngoài
             </label>
-            <input
-              name="foreignName"
-              value={formData.foreignName}
-              onChange={handleInputChange}
-              placeholder="VNA International"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="foreignName"
+                value={formData.foreignName}
+                onChange={handleInputChange}
+                placeholder="VNA International"
+                maxLength={255}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           {renderField('email',
@@ -428,6 +436,7 @@ export default function EnterpriseStep1({
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="vna@gmail.com"
+                maxLength={200}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
             </>
@@ -437,13 +446,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Số điện thoại cơ quan
             </label>
-            <input
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              placeholder="028 3828 2888"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="028 3828 2888"
+                maxLength={20}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
@@ -489,39 +499,42 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Địa điểm kinh doanh
             </label>
-            <input
-              name="operationAddress"
-              value={formData.operationAddress}
-              onChange={handleInputChange}
-              placeholder="162 đường số 2, khu đô thị Vạn Phúc"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="operationAddress"
+                value={formData.operationAddress}
+                onChange={handleInputChange}
+                placeholder="162 đường số 2, khu đô thị Vạn Phúc"
+                maxLength={500}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Người đứng đầu doanh nghiệp
             </label>
-            <input
-              name="leaderName"
-              value={formData.leaderName}
-              onChange={handleInputChange}
-              placeholder="Nguyễn Văn A"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="leaderName"
+                value={formData.leaderName}
+                onChange={handleInputChange}
+                placeholder="Nguyễn Văn A"
+                maxLength={100}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               SĐT liên hệ người đứng đầu
             </label>
-            <input
-              name="leaderPhone"
-              value={formData.leaderPhone}
-              onChange={handleInputChange}
-              placeholder="090 123 4567"
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-            />
+              <input
+                name="leaderPhone"
+                value={formData.leaderPhone}
+                onChange={handleInputChange}
+                placeholder="090 123 4567"
+                maxLength={20}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              />
           </div>
         </div>
       </div>

@@ -72,7 +72,9 @@ export default function IndustryModal({
   function validate() {
     const errs: { code?: string; name?: string } = {};
     if (!code.trim()) errs.code = 'Mã ngành không được để trống';
+    else if (code.trim().length > 50) errs.code = 'Mã ngành tối đa 50 ký tự';
     if (!name.trim()) errs.name = 'Tên ngành không được để trống';
+    else if (name.trim().length > 255) errs.name = 'Tên ngành tối đa 255 ký tự';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -111,19 +113,20 @@ export default function IndustryModal({
 
         <div className="p-6 space-y-6">
           <div className="relative">
-            <input
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
-                if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
-              }}
-              placeholder="Nhập mã ngành"
-              className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                errors.code
-                  ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                  : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
-              }`}
-            />
+                <input
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                    if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
+                  }}
+                  placeholder="Nhập mã ngành"
+                  maxLength={50}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    errors.code
+                      ? 'border-red-500 focus:ring-1 focus:ring-red-500'
+                      : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                />
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Mã ngành <span className="text-red-500">*</span>
             </label>
@@ -133,19 +136,20 @@ export default function IndustryModal({
           </div>
 
           <div className="relative">
-            <input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
-              }}
-              placeholder="Nhập tên ngành nghề"
-              className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                errors.name
-                  ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                  : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
-              }`}
-            />
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
+                  }}
+                  placeholder="Nhập tên ngành"
+                  maxLength={255}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    errors.name
+                      ? 'border-red-500 focus:ring-1 focus:ring-red-500'
+                      : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                />
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Tên ngành nghề <span className="text-red-500">*</span>
             </label>

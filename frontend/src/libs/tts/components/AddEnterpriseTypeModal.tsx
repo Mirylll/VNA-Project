@@ -43,7 +43,9 @@ export default function AddEnterpriseTypeModal({
   function validate() {
     const errs: { code?: string; name?: string } = {};
     if (!code.trim()) errs.code = 'Mã loại hình không được để trống';
+    else if (code.trim().length > 50) errs.code = 'Mã loại hình tối đa 50 ký tự';
     if (!name.trim()) errs.name = 'Tên loại hình không được để trống';
+    else if (name.trim().length > 200) errs.name = 'Tên loại hình tối đa 200 ký tự';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -71,19 +73,20 @@ export default function AddEnterpriseTypeModal({
 
         <div className="p-6 space-y-6">
           <div className="relative">
-            <input
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
-                if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
-              }}
-              placeholder="Nhập mã loại hình"
-              className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                errors.code
-                  ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                  : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
-              }`}
-            />
+              <input
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                    if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
+                  }}
+                  placeholder="Nhập mã loại hình"
+                  maxLength={50}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    errors.code
+                      ? 'border-red-500 focus:ring-1 focus:ring-red-500'
+                      : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                />
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Mã loại hình <span className="text-red-500">*</span>
             </label>
@@ -93,19 +96,20 @@ export default function AddEnterpriseTypeModal({
           </div>
 
           <div className="relative">
-            <input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
-              }}
-              placeholder="Nhập tên loại hình"
-              className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-                errors.name
-                  ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                  : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
-              }`}
-            />
+              <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
+                  }}
+                  placeholder="Nhập tên loại hình"
+                  maxLength={200}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+                    errors.name
+                      ? 'border-red-500 focus:ring-1 focus:ring-red-500'
+                      : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                />
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Tên loại hình kinh doanh <span className="text-red-500">*</span>
             </label>

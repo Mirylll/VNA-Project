@@ -968,7 +968,23 @@ export default function TnldContractsPage() {
 
   // Dynamic calculations for aggregate summary
   const summaryCalculations = useMemo(() => {
-    const submitted = reports.filter((r) => r.status !== 'draft' && (filterYear === 'Tất cả' || String(r.year) === filterYear));
+    const submitted = reports.filter((r) => {
+      if (r.status === 'draft') return false;
+      if (filterYear !== 'Tất cả' && String(r.year) !== filterYear) return false;
+      if (filterProvince && normalizeLocationName(r.province) !== normalizeLocationName(filterProvince)) return false;
+
+      // Top filter ward check
+      if (filterWard && filterWard !== 'Tất cả') {
+        if (!r.ward) return false;
+
+        const selectedWardClean = filterWard.split('(')[0].trim();
+        const normEntWard = normalizeLocationName(r.ward);
+        const normFilterWard = normalizeLocationName(selectedWardClean);
+        if (normEntWard !== normFilterWard) return false;
+      }
+
+      return true;
+    });
     const countSubmitted = submitted.length;
 
     const totals: ReportData = {
@@ -1012,7 +1028,7 @@ export default function TnldContractsPage() {
       countSubmitted,
       totals
     };
-  }, [reports, filterYear]);
+  }, [reports, filterYear, filterProvince, filterWard]);
 
   // Formatter for values
   const formatNumber = (num: number) => {

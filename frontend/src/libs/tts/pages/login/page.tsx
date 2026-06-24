@@ -198,6 +198,18 @@ export default function LoginPage() {
       setResetError("Mật khẩu mới phải có ít nhất 8 ký tự");
       return;
     }
+    if (!/[A-Z]/.test(newPassword)) {
+      setResetError("Mật khẩu phải có ít nhất 1 chữ hoa");
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      setResetError("Mật khẩu phải có ít nhất 1 chữ thường");
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      setResetError("Mật khẩu phải có ít nhất 1 chữ số");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setResetError("Mật khẩu không khớp");
       return;
@@ -251,25 +263,28 @@ export default function LoginPage() {
                 ĐĂNG NHẬP
               </p>
 
-              <div className="relative mb-4 floating">
+              <div className="relative mb-4">
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder=" "
-                  className=""
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
-                <label>Tên tài khoản <span className="text-red-500">*</span></label>
+                <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
+                  Tên tài khoản <span className="text-red-500">*</span>
+                </label>
               </div>
 
-              <div className="relative mb-4 floating">
+              <div className="relative mb-4">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder=" "
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
-                <label>Mật khẩu <span className="text-red-500">*</span></label>
+                <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
+                  Mật khẩu <span className="text-red-500">*</span>
+                </label>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}

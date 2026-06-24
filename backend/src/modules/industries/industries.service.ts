@@ -13,7 +13,7 @@ export class IndustriesService {
   ) {}
 
   async findAll(): Promise<Industry[]> {
-    return this.repo.find({ relations: ['parent'], order: { createdAt: 'DESC' } });
+    return this.repo.find({ relations: ['parent', 'children'], order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: number): Promise<Industry> {

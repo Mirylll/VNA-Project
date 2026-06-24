@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CreateEnterpriseDto {
   @IsString()
@@ -80,7 +80,9 @@ export class CreateEnterpriseDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(255)
+  @MinLength(8)
+  @MaxLength(100)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: 'Mật khẩu phải bao gồm chữ hoa, chữ thường và chữ số' })
   password?: string;
 
   @IsOptional()

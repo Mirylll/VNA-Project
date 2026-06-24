@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Permission } from '../modules/permissions/entities/permission.entity';
@@ -432,19 +434,40 @@ export async function seed(dataSource: DataSource): Promise<void> {
   if (!province) {
     console.warn('⚠️  Province id=1 not found, skipping HCMC wards seed');
   } else {
+    const filePath = path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'libs', 'tts', 'data', 'hcm-districts.ts');
+    let parsedWards: { name: string; type?: string }[] = [];
+
+    if (fs.existsSync(filePath)) {
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      const regex = /\{\s*code:\s*["']\d+["']\s*,\s*name:\s*["']([^"']+)["']\s*,\s*district:\s*["']([^"']+)["']\s*\}/g;
+      let match;
+      while ((match = regex.exec(fileContent)) !== null) {
+        const name = match[1];
+        const district = match[2];
+        parsedWards.push({
+          name: `${name} (${district})`
+        });
+      }
+      console.log(`Parsed ${parsedWards.length} wards from frontend data file`);
+    }
+
+    // Fallback to static list if parsing failed or file doesn't exist
+    const wardsToSeed = parsedWards.length > 0 
+      ? parsedWards 
+      : WARDS.map(w => ({ name: w.name }));
+
+    // Clean up existing associations and wards first to prevent duplicate/stale records
+    await dataSource.query('UPDATE users SET district_id = NULL');
+    await dataSource.query('DELETE FROM enterprises');
+    await dataSource.query('DELETE FROM districts');
+    console.log('🗑️  Cleared existing districts and related enterprise records');
+
     let inserted = 0;
-    let skipped = 0;
-    for (const ward of WARDS) {
-      const exists = await districtRepo.findOne({
-        where: { name: ward.name, province: { id: 1 } },
-      });
-      if (exists) { skipped++; continue; }
+    for (const ward of wardsToSeed) {
       await districtRepo.save(districtRepo.create({ name: ward.name, province }));
       inserted++;
     }
-    if (inserted > 0 || skipped > 0) {
-      console.log(`✅ HCMC wards seeded: ${inserted} inserted, ${skipped} skipped.`);
-    }
+    console.log(`✅ HCMC wards seeded: ${inserted} inserted.`);
   }
 
   // ---- Enterprise Types ----
@@ -478,42 +501,84 @@ export async function seed(dataSource: DataSource): Promise<void> {
   await dataSource.query('DELETE FROM industries');
   console.log('🗑️  Cleared existing industries, re-seeding...');
 
-  // Level 1 (4 mục)
-  const l1 = await industryRepo.save([
-    { code: 'LV1-1', name: 'Nông nghiệp, lâm nghiệp và thủy sản', level: 1 },
-    { code: 'LV1-2', name: 'Công nghiệp khai khoáng', level: 1 },
-    { code: 'LV1-3', name: 'Công nghiệp chế biến, chế tạo', level: 1 },
-    { code: 'LV1-4', name: 'Thương mại và dịch vụ', level: 1 },
-  ]);
+  // Đọc danh sách INDUSTRIES từ frontend
+  const frontendPath = path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'libs', 'tts', 'data', 'hcm-districts.ts');
+  let parsedIndustries: { code: string; name: string }[] = [];
 
-  // Level 2 (5 mục)
-  const l2 = await industryRepo.save([
-    { code: 'LV2-1', name: 'Trồng trọt và chăn nuôi', parent: l1[0], level: 2 },
-    { code: 'LV2-2', name: 'Khai thác dầu thô và khí đốt', parent: l1[1], level: 2 },
-    { code: 'LV2-3', name: 'Sản xuất thực phẩm và đồ uống', parent: l1[2], level: 2 },
-    { code: 'LV2-4', name: 'Dệt may và da giày', parent: l1[2], level: 2 },
-    { code: 'LV2-5', name: 'Bán buôn và bán lẻ', parent: l1[3], level: 2 },
-  ]);
+  if (fs.existsSync(frontendPath)) {
+    const fileContent = fs.readFileSync(frontendPath, 'utf-8');
+    const regex = /["'](\d{4})\s*-\s*([^"']+)["']/g;
+    let match;
+    while ((match = regex.exec(fileContent)) !== null) {
+      parsedIndustries.push({
+        code: match[1],
+        name: match[2].trim()
+      });
+    }
+  }
 
-  // Level 3 (6 mục)
-  const l3 = await industryRepo.save([
-    { code: 'LV3-1', name: 'Trồng cây hàng năm', parent: l2[0], level: 3 },
-    { code: 'LV3-2', name: 'Chăn nuôi gia súc, gia cầm', parent: l2[0], level: 3 },
-    { code: 'LV3-3', name: 'Chế biến và bảo quản thủy sản', parent: l2[2], level: 3 },
-    { code: 'LV3-4', name: 'Sản xuất đồ uống không cồn', parent: l2[2], level: 3 },
-    { code: 'LV3-5', name: 'May trang phục', parent: l2[3], level: 3 },
-    { code: 'LV3-6', name: 'Siêu thị và cửa hàng tiện lợi', parent: l2[4], level: 3 },
-  ]);
+  // Fallback nếu không parse được
+  if (parsedIndustries.length === 0) {
+    parsedIndustries = [
+      { code: '0111', name: 'Trồng cây lương thực' },
+      { code: '0112', name: 'Trồng cây công nghiệp' },
+      { code: '0113', name: 'Trồng cây ăn quả' },
+      { code: '0141', name: 'Chăn nuôi trâu, bò' },
+      { code: '1011', name: 'Chế biến và bảo quản thịt' },
+    ];
+  }
 
-  // Level 4 (5 mục) — giữ lại LV4-1, LV4-2, LV4-3 cho enterprise seed
-  await industryRepo.save([
-    { code: 'LV4-1', name: 'Trồng lúa', parent: l3[0], level: 4 },
-    { code: 'LV4-2', name: 'Trồng rau, củ, quả', parent: l3[0], level: 4 },
-    { code: 'LV4-3', name: 'Chế biến cá tra, cá basa', parent: l3[2], level: 4 },
-    { code: 'LV4-4', name: 'Sản xuất nước giải khát', parent: l3[3], level: 4 },
-    { code: 'LV4-5', name: 'May áo sơ mi, veston', parent: l3[4], level: 4 },
-  ]);
-  console.log('✅ Seeded industries (4+5+6+5 = 20 mục)');
+  console.log(`Parsed ${parsedIndustries.length} industries from frontend data file`);
+
+  // Map to store created parent nodes to avoid duplicates and links them correctly
+  const lvl1Map = new Map<string, Industry>();
+  const lvl2Map = new Map<string, Industry>();
+  const lvl3Map = new Map<string, Industry>();
+
+  // Helper names for broad categories
+  const categoryNames: Record<string, string> = {
+    '01': 'Nông nghiệp và hoạt động dịch vụ liên quan',
+    '10': 'Sản xuất, chế biến thực phẩm',
+    '45': 'Bán buôn, bán lẻ và sửa chữa ô tô, mô tô',
+    '46': 'Bán buôn (trừ ô tô, mô tô, xe máy)',
+    '0': 'Nông, lâm nghiệp và thủy sản',
+    '1': 'Công nghiệp chế biến, chế tạo',
+    '4': 'Bán buôn, bán lẻ, dịch vụ',
+  };
+
+  for (const ind of parsedIndustries) {
+    const code1 = ind.code.substring(0, 1);
+    const code2 = ind.code.substring(0, 2);
+    const code3 = ind.code.substring(0, 3);
+
+    // 1. Seed Level 1
+    let l1 = lvl1Map.get(code1);
+    if (!l1) {
+      const name = categoryNames[code1] || `Nhóm ngành cấp 1 (${code1})`;
+      l1 = await industryRepo.save(industryRepo.create({ code: code1, name, level: 1 }));
+      lvl1Map.set(code1, l1);
+    }
+
+    // 2. Seed Level 2
+    let l2 = lvl2Map.get(code2);
+    if (!l2) {
+      const name = categoryNames[code2] || `Nhóm ngành cấp 2 (${code2})`;
+      l2 = await industryRepo.save(industryRepo.create({ code: code2, name, level: 2, parent: l1 }));
+      lvl2Map.set(code2, l2);
+    }
+
+    // 3. Seed Level 3
+    let l3 = lvl3Map.get(code3);
+    if (!l3) {
+      l3 = await industryRepo.save(industryRepo.create({ code: code3, name: `Nhóm ngành cấp 3 (${code3})`, level: 3, parent: l2 }));
+      lvl3Map.set(code3, l3);
+    }
+
+    // 4. Seed Level 4
+    await industryRepo.save(industryRepo.create({ code: ind.code, name: ind.name, level: 4, parent: l3 }));
+  }
+
+  console.log('✅ Seeded hierarchical industries from frontend file');
 
   // ---- Enterprises ----
   const enterpriseRepo = dataSource.getRepository(Enterprise);
@@ -536,7 +601,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty TNHH Thương mại ABC',
         taxCode: '910000888295',
         enterpriseType: types.find((t) => t.code === 'TNHH'),
-        industry: industries.find((i) => i.code === 'LV4-1'),
+        industry: industries.find((i) => i.code === '0111'),
         foreignName: 'ABC Trading Company Limited',
         licenseDate: '2020-03-15',
         email: 'abc@thuongmai.vn',
@@ -554,7 +619,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty CP Đầu tư Bình Minh',
         taxCode: '910000888296',
         enterpriseType: types.find((t) => t.code === 'CP'),
-        industry: industries.find((i) => i.code === 'LV4-2'),
+        industry: industries.find((i) => i.code === '0112'),
         foreignName: 'Binh Minh Investment Joint Stock Company',
         licenseDate: '2019-07-20',
         email: 'info@binhminh.vn',
@@ -572,7 +637,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Doanh nghiệp tư nhân Hoàng Anh',
         taxCode: '910000888297',
         enterpriseType: types.find((t) => t.code === 'DNTN'),
-        industry: industries.find((i) => i.code === 'LV4-3'),
+        industry: industries.find((i) => i.code === '0113'),
         foreignName: 'Hoang Anh Private Enterprise',
         licenseDate: '2021-01-10',
         email: 'hoanganh@dntn.vn',
@@ -590,7 +655,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty TNHH Sản xuất Thực phẩm Xanh',
         taxCode: '910000888298',
         enterpriseType: types.find((t) => t.code === 'TNHH'),
-        industry: industries.find((i) => i.code === 'LV4-4'),
+        industry: industries.find((i) => i.code === '0141'),
         foreignName: 'Xanh Food Production Company Limited',
         licenseDate: '2022-05-30',
         email: 'xanh@thucpham.vn',
@@ -609,7 +674,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty CP Xây dựng và Đầu tư Nam Phương',
         taxCode: '910000888299',
         enterpriseType: types.find((t) => t.code === 'CP'),
-        industry: industries.find((i) => i.code === 'LV4-5'),
+        industry: industries.find((i) => i.code === '1011'),
         foreignName: 'Nam Phuong Construction & Investment JSC',
         licenseDate: '2018-11-05',
         email: 'info@namphuong.vn',
@@ -627,7 +692,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty TNHH Thương mại Dịch vụ Đông Á',
         taxCode: '910000888300',
         enterpriseType: types.find((t) => t.code === 'TNHH'),
-        industry: industries.find((i) => i.code === 'LV4-1'),
+        industry: industries.find((i) => i.code === '0111'),
         foreignName: 'Dong A Trading Service Company Limited',
         licenseDate: '2020-09-18',
         email: 'contact@donga.vn',
@@ -645,7 +710,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Doanh nghiệp tư nhân Minh Phát',
         taxCode: '910000888301',
         enterpriseType: types.find((t) => t.code === 'DNTN'),
-        industry: industries.find((i) => i.code === 'LV4-3'),
+        industry: industries.find((i) => i.code === '0113'),
         foreignName: 'Minh Phat Private Enterprise',
         licenseDate: '2023-02-14',
         email: 'minhphat@dntn.vn',
@@ -663,7 +728,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty CP Công nghệ Thông tin Sài Gòn',
         taxCode: '910000888302',
         enterpriseType: types.find((t) => t.code === 'CP'),
-        industry: industries.find((i) => i.code === 'LV4-5'),
+        industry: industries.find((i) => i.code === '1011'),
         foreignName: 'Saigon Information Technology JSC',
         licenseDate: '2017-06-01',
         email: 'info@sgontech.vn',
@@ -681,7 +746,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty TNHH Vận tải Biển Xanh',
         taxCode: '910000888303',
         enterpriseType: types.find((t) => t.code === 'TNHH'),
-        industry: industries.find((i) => i.code === 'LV4-4'),
+        industry: industries.find((i) => i.code === '0141'),
         foreignName: 'Blue Sea Transport Company Limited',
         licenseDate: '2019-12-20',
         email: 'info@bientrinh.vn',
@@ -699,7 +764,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty TNHH 1TV Sản xuất Bao bì An Khang',
         taxCode: '910000888304',
         enterpriseType: types.find((t) => t.code === 'TNHH1TV'),
-        industry: industries.find((i) => i.code === 'LV4-2'),
+        industry: industries.find((i) => i.code === '0112'),
         foreignName: 'An Khang Packaging Manufacturing Co., Ltd.',
         licenseDate: '2021-08-10',
         email: 'ankhang@baobi.vn',
@@ -717,7 +782,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Hộ kinh doanh Thực phẩm Hữu cơ',
         taxCode: '910000888305',
         enterpriseType: types.find((t) => t.code === 'HKD'),
-        industry: industries.find((i) => i.code === 'LV4-3'),
+        industry: industries.find((i) => i.code === '0113'),
         foreignName: '',
         licenseDate: '2024-01-05',
         email: 'huuco@organic.vn',
@@ -735,7 +800,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Hợp tác xã Nông nghiệp Công nghệ Cao',
         taxCode: '910000888306',
         enterpriseType: types.find((t) => t.code === 'HTX'),
-        industry: industries.find((i) => i.code === 'LV4-1'),
+        industry: industries.find((i) => i.code === '0111'),
         foreignName: 'High-Tech Agricultural Cooperative',
         licenseDate: '2022-04-22',
         email: 'htx@nncnc.vn',
@@ -753,7 +818,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty CP Dịch vụ Du lịch Mê Kông',
         taxCode: '910000888307',
         enterpriseType: types.find((t) => t.code === 'CP'),
-        industry: industries.find((i) => i.code === 'LV4-5'),
+        industry: industries.find((i) => i.code === '1011'),
         foreignName: 'Mekong Tourism Services JSC',
         licenseDate: '2016-05-12',
         email: 'info@mekongtravel.vn',
@@ -771,7 +836,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
         name: 'Công ty TNHH Thiết kế Xây dựng Hoàn Mỹ',
         taxCode: '910000888308',
         enterpriseType: types.find((t) => t.code === 'TNHH'),
-        industry: industries.find((i) => i.code === 'LV4-2'),
+        industry: industries.find((i) => i.code === '0112'),
         foreignName: 'Hoan My Design & Construction Company Limited',
         licenseDate: '2020-10-30',
         email: 'info@hoanmy.vn',

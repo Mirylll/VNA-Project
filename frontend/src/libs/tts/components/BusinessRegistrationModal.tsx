@@ -455,7 +455,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
             </p>
             <p className="text-sm text-gray-700">
               <span className="font-medium">• Mật khẩu:</span>{" "}
-              <span className="font-bold">12345678</span>
+              <span className="font-bold">Default@123</span>
             </p>
           </div>
           {/* Footer */}

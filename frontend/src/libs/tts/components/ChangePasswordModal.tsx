@@ -33,6 +33,18 @@ export default function ChangePasswordModal({ open, onClose, onSave }: ChangePas
       setMessage('Mật khẩu mới phải có ít nhất 8 ký tự');
       return;
     }
+    if (!/[A-Z]/.test(newPassword)) {
+      setMessage('Mật khẩu phải có ít nhất 1 chữ hoa');
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      setMessage('Mật khẩu phải có ít nhất 1 chữ thường');
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      setMessage('Mật khẩu phải có ít nhất 1 chữ số');
+      return;
+    }
     if (onSave) {
       onSave(oldPassword, newPassword, confirmPassword);
       setOldPassword('');
