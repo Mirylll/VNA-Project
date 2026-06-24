@@ -9,6 +9,7 @@ import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 type User = { id: string; username: string; email?: string; fullName?: string };
 
 export default function UserProfilePopup() {
+  const [showProfile, setShowProfile] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showChangeEmail, setShowChangeEmail] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -47,7 +48,9 @@ export default function UserProfilePopup() {
       const action = e?.detail?.action as string | undefined;
       setToken(getAuthToken());
       
-      if (action === 'changePassword') {
+      if (action === 'profile') {
+        setShowProfile(true);
+      } else if (action === 'changePassword') {
         setShowChangePassword(true);
       } else if (action === 'changeEmail') {
         setShowChangeEmail(true);
@@ -101,6 +104,99 @@ export default function UserProfilePopup() {
 
   return (
     <>
+      {showProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-lg">
+            <div className="flex items-center justify-between bg-blue-600 px-5 py-4 text-white">
+              <h3 className="text-base font-semibold">Thông tin tài khoản</h3>
+              <button
+                type="button"
+                onClick={() => setShowProfile(false)}
+                className="rounded px-2 py-1 text-xl leading-none transition hover:bg-white/10"
+                aria-label="Đóng"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-5 py-5">
+              <div className="mb-5 flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-bold text-white">
+                  {(user?.fullName || user?.username || 'PT')
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(-2)
+                    .map((part) => part[0])
+                    .join('')
+                    .toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-base font-semibold text-gray-900">
+                    {user?.fullName || 'Chưa có họ tên'}
+                  </div>
+                  <div className="mt-1 text-sm text-gray-500">
+                    Quản trị viên
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div>
+                  <div className="text-xs font-medium text-gray-500">Tên đăng nhập</div>
+                  <div className="mt-1 text-sm font-medium text-gray-900">
+                    {user?.username || '-'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-gray-500">Họ và tên</div>
+                  <div className="mt-1 text-sm font-medium text-gray-900">
+                    {user?.fullName || '-'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-gray-500">Email</div>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-medium text-gray-900">
+                      {user?.email || '-'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfile(false);
+                        setShowChangeEmail(true);
+                      }}
+                      className="shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      Thay đổi
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t bg-gray-50 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfile(false);
+                  setShowChangePassword(true);
+                }}
+                className="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+              >
+                Đổi mật khẩu
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowProfile(false)}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Change Password Modal */}
       <ChangePasswordModal
         open={showChangePassword}

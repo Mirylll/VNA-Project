@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../../modules/users/entities/user.entity';
 import { PERMISSION_KEY } from '../decorators/require-permission.decorator';
+import { getEffectivePermissions } from '../utils/effective-permissions';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -36,14 +37,14 @@ export class PermissionsGuard implements CanActivate {
 
       const user = await this.userRepo.findOne({
         where: { id: payload.sub },
-        relations: ['role', 'role.permissions'],
+        relations: ['role', 'role.permissions', 'title'],
       });
 
       if (!user?.role?.permissions) {
         throw new ForbiddenException('Access denied');
       }
 
-      const hasPermission = user.role.permissions.some(
+      const hasPermission = getEffectivePermissions(user).some(
         (p) => p.code === requiredPermission,
       );
 
