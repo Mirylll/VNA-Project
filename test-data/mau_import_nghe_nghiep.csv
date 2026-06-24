@@ -1,0 +1,4 @@
+﻿Mã ngành,Tên ngành,Cấp,Mã cha
+NN-03,Nhân viên hỗ trợ văn phòng,1,
+NN-031,Nhân viên tổng đài điện thoại,2,NN-03
+NN-032,Thư ký nghiệp vụ văn phòng,2,NN-03

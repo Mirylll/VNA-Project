@@ -311,6 +311,52 @@ const SEED_REPORTS: CompanyReport[] = [
       costCompensation: 1500000,
       propertyDamage: 12000000
     }
+  },
+  {
+    id: '8',
+    name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
+    taxCode: '0317118106',
+    period: '6 tháng',
+    year: 2024,
+    status: 'draft',
+    data: {
+      casesTotal: 2,
+      casesDeath: 0,
+      casesMultiple: 0,
+      peopleTotal: 3,
+      peopleFemale: 1,
+      peopleDeath: 0,
+      peopleSevere: 2,
+      daysOff: 8,
+      costTotal: 2200000,
+      costMedical: 800000,
+      costSalary: 700000,
+      costCompensation: 700000,
+      propertyDamage: 8000000
+    }
+  },
+  {
+    id: '9',
+    name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
+    taxCode: '0317118106',
+    period: 'Cả năm',
+    year: 2024,
+    status: 'submitted',
+    data: {
+      casesTotal: 3,
+      casesDeath: 1,
+      casesMultiple: 1,
+      peopleTotal: 8,
+      peopleFemale: 3,
+      peopleDeath: 1,
+      peopleSevere: 5,
+      daysOff: 18,
+      costTotal: 5500000,
+      costMedical: 2000000,
+      costSalary: 1500000,
+      costCompensation: 2000000,
+      propertyDamage: 15000000
+    }
   }
 ];
 
@@ -357,7 +403,7 @@ export default function TnldContractsPage() {
         try {
           const parsed = JSON.parse(stored);
           // Check if parsed data is valid and contains the necessary 'data' field
-          const needsUpgrade = !Array.isArray(parsed) || parsed.length === 0 || parsed.some(r => !r || !r.data || typeof r.data.casesTotal !== 'number');
+          const needsUpgrade = !Array.isArray(parsed) || parsed.length < SEED_REPORTS.length || parsed.some(r => !r || !r.data || typeof r.data.casesTotal !== 'number');
           if (needsUpgrade) {
             setReports(SEED_REPORTS);
             localStorage.setItem('vna_tnld_contracts', JSON.stringify(SEED_REPORTS));
