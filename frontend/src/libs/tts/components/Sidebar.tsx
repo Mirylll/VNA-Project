@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings, ChevronDown } from 'lucide-react';
-import { clearAuthToken, getAuthToken } from '@/libs/core/utils/auth-token';
+import { clearAuthToken, getAuthToken, type AuthUser } from '@/libs/core/utils/auth-token';
 
 interface SubMenuItem {
   label: string;
   id: string;
   route: string;
+  permission?: string;
 }
 
 interface MenuGroup {
@@ -27,21 +28,21 @@ const menuGroups: MenuGroup[] = [
     label: 'Hệ thống',
     id: 'he-thong',
     items: [
-      { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions' },
-      { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles' },
-      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung', route: '/admin/users' },
-      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep', route: '/admin/enterprise-types' },
-      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh', route: '/admin/industries' },
-      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep', route: '/admin/enterprises' },
-      { label: 'Kỳ báo cáo', id: 'ky-bao-cao', route: '/admin/report-periods' },
+      { label: 'Phân quyền', id: 'phan-quyen', route: '/admin/permissions', permission: 'ADMIN_C_PERMISSION_VIEW' },
+      { label: 'Vai trò', id: 'vai-tro', route: '/admin/roles', permission: 'ADMIN_C_ROLE_VIEW' },
+      { label: 'Quản lý người dùng', id: 'quan-ly-nguoi-dung', route: '/admin/users', permission: 'ADMIN_C_USER_VIEW' },
+      { label: 'Loại hình doanh nghiệp', id: 'loai-hinh-doanh-nghiep', route: '/admin/enterprise-types', permission: 'ADMIN_C_ENTERPRISE_TYPE_VIEW' },
+      { label: 'Ngành nghề kinh doanh', id: 'nganh-nghe-kinh-doanh', route: '/admin/industries', permission: 'ADMIN_C_INDUSTRY_VIEW' },
+      { label: 'Quản lý doanh nghiệp', id: 'quan-ly-doanh-nghiep', route: '/admin/enterprises', permission: 'ADMIN_C_ENTERPRISE_VIEW' },
+      { label: 'Kỳ báo cáo', id: 'ky-bao-cao', route: '/admin/report-periods', permission: 'ADMIN_C_REPORT_PERIOD_VIEW' },
     ],
   },
   {
     label: 'Tai nạn lao động',
     id: 'tai-nan-lao-dong',
     items: [
-      { label: 'Danh mục chung', id: 'danh-muc-chung', route: '/admin/tnld-categories' },
-      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld', route: '/admin/tnld-contracts' },
+      { label: 'Danh mục chung', id: 'danh-muc-chung', route: '/admin/tnld-categories', permission: 'ADMIN_C_TNLD_CATEGORY_VIEW' },
+      { label: 'TNLĐ theo HĐLĐ', id: 'tnld-theo-hdld', route: '/admin/tnld-contracts', permission: 'ADMIN_C_TNLD_CONTRACT_VIEW' },
     ],
   },
 ];
@@ -89,6 +90,7 @@ export default function Sidebar() {
     fullName: string;
     avatarUrl?: string;
     titleName?: string;
+    permissions?: Array<{ id: string; code: string; name: string }>;
   } | null>(null);
   const [avatarError, setAvatarError] = useState(false);
 
@@ -134,6 +136,14 @@ export default function Sidebar() {
     );
   }
 
+  const permissionCodes = new Set(user?.permissions?.map((p) => p.code) || []);
+  const visibleMenuGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || permissionCodes.has(item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
+
   if (!token || pathname === '/' || pathname.startsWith('/login')) return null;
 
   const initials = user ? getInitials(user.fullName) : '??';
@@ -160,7 +170,7 @@ export default function Sidebar() {
 
         {/* MAIN MENU */}
         <nav className="flex-1 overflow-auto py-4 text-sm">
-          {menuGroups.map((group) => (
+          {visibleMenuGroups.map((group) => (
             <div key={group.id} className="mb-2">
               {/* Parent button */}
               <button
