@@ -410,8 +410,12 @@ export default function EnterpriseCompanyInfoPage() {
     let active = true;
 
     async function loadEnterpriseTypes() {
+      const token = getAuthToken();
+      if (!token) return;
       try {
-        const response = await fetch(`${BASE_URL}/enterprise-types`);
+        const response = await fetch(`${BASE_URL}/enterprise-types`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!response.ok) throw new Error('Không tải được loại hình doanh nghiệp');
         const data = (await response.json()) as EnterpriseTypeOption[];
         if (!active) return;
@@ -634,6 +638,7 @@ export default function EnterpriseCompanyInfoPage() {
   }
 
   function handleBusinessTypeChange(autoId: string) {
+    if (!autoId) { setForm((current) => ({ ...current, businessTypeId: '', businessType: '' })); setFormErrors((current) => ({ ...current, businessType: '' })); return; }
     const idx = Number(autoId);
     const selectedType = enterpriseTypes[idx];
     setForm((current) => ({
@@ -652,6 +657,7 @@ export default function EnterpriseCompanyInfoPage() {
   }
 
   function handleIndustryChange(autoId: string) {
+    if (!autoId) { updateField('mainIndustry', ''); return; }
     const idx = Number(autoId);
     const selectedIndustry = industries[idx];
     updateField('mainIndustry', selectedIndustry ? `${selectedIndustry.code} - ${selectedIndustry.name}` : '');
@@ -787,6 +793,7 @@ export default function EnterpriseCompanyInfoPage() {
   }
 
   function handleOperatingProvinceChange(autoId: string) {
+    if (!autoId) { setOperatingProvinceCode(''); setOperatingWardCode(''); updateField('operatingProvince', ''); updateField('operatingWard', ''); setFormErrors((current) => ({ ...current, operatingProvince: '', operatingWard: '' })); return; }
     const idx = Number(autoId);
     const province = ADMIN_PROVINCES[idx];
 
