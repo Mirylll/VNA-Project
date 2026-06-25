@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Permission } from '../modules/permissions/entities/permission.entity';
@@ -194,37 +192,45 @@ const titleSeeds = [
 // 20 phường + 10 xã phổ biến TP.HCM (post-merger 2025 structure)
 // To add more: insert new { name, type } entries and re-run seeder
 const WARDS = [
-  { name: 'Bến Thành',     type: 'phuong' },
-  { name: 'Bàn Cờ',        type: 'phuong' },
-  { name: 'Xuân Hòa',      type: 'phuong' },
-  { name: 'Khánh Hội',     type: 'phuong' },
-  { name: 'An Đông',       type: 'phuong' },
-  { name: 'Bình Phú',      type: 'phuong' },
-  { name: 'Bình Tây',      type: 'phuong' },
-  { name: 'Tân Thuận Đông',type: 'phuong' },
-  { name: 'Bình Đông',     type: 'phuong' },
-  { name: 'Tân Thới Nhất', type: 'phuong' },
-  { name: 'An Phú Đông',   type: 'phuong' },
-  { name: 'An Lạc',        type: 'phuong' },
-  { name: 'Bình Tân',      type: 'phuong' },
-  { name: 'Bình Hưng Hòa', type: 'phuong' },
-  { name: 'Bình Quới',     type: 'phuong' },
-  { name: 'Bình Lợi Trung',type: 'phuong' },
-  { name: 'An Nhơn',       type: 'phuong' },
-  { name: 'An Hội Tây',    type: 'phuong' },
-  { name: 'Bảy Hiền',      type: 'phuong' },
-  { name: 'An Khánh',      type: 'phuong' },
-  { name: 'Bình Hưng',     type: 'xa'    },
-  { name: 'Vĩnh Lộc A',    type: 'xa'    },
-  { name: 'Vĩnh Lộc B',    type: 'xa'    },
-  { name: 'Lê Minh Xuân',  type: 'xa'    },
-  { name: 'Tân Kiên',      type: 'xa'    },
-  { name: 'Phước Kiển',    type: 'xa'    },
-  { name: 'Phú Xuân',      type: 'xa'    },
-  { name: 'Nhơn Đức',      type: 'xa'    },
-  { name: 'Tân Thới Nhì',  type: 'xa'    },
-  { name: 'An Phú',        type: 'xa'    },
-];
+  "Phường Sài Gòn (Quận 1)", "Phường Tân Định (Quận 1)", "Phường Bến Thành (Quận 1)", "Phường Cầu Ông Lãnh (Quận 1)",
+  "Phường Bàn Cờ (Quận 3)", "Phường Xuân Hòa (Quận 3)", "Phường Nhiêu Lộc (Quận 3)",
+  "Phường Xóm Chiếu (Quận 4)", "Phường Khánh Hội (Quận 4)", "Phường Vĩnh Hội (Quận 4)",
+  "Phường Chợ Quán (Quận 5)", "Phường An Đông (Quận 5)", "Phường Chợ Lớn (Quận 5)",
+  "Phường Bình Tây (Quận 6)", "Phường Bình Tiên (Quận 6)", "Phường Bình Phú (Quận 6)", "Phường Phú Lâm (Quận 6)",
+  "Phường Tân Thuận (Quận 7)", "Phường Phú Thuận (Quận 7)", "Phường Tân Mỹ (Quận 7)", "Phường Tân Hưng (Quận 7)",
+  "Phường Chánh Hưng (Quận 8)", "Phường Phú Định (Q.8)", "Phường Bình Đông (Q.8)",
+  "Phường Diên Hồng (Quận 10)", "Phường Vườn Lài (Quận 10)", "Phường Hòa Hưng (Quận 10)",
+  "Phường Minh Phụng (Quận 11)", "Phường Bình Thới (Quận 11)", "Phường Hòa Bình (Quận 11)", "Phường Phú Thọ (Quận 11)",
+  "Phường Đông Hưng Thuận (Quận 12)", "Phường Trung Mỹ Tây (Quận 12)", "Phường Tân Thới Hiệp (Quận 12)", "Phường Thới An (Quận 12)", "Phường An Phú Đông (Quận 12)",
+  "Phường An Lạc (Quận Bình Tân)", "Phường Bình Tân (Quận Bình Tân)", "Phường Tân Tạo (Quận Bình Tân)", "Phường Bình Trị Đông (Quận Bình Tân)", "Phường Bình Hưng Hòa (Quận Bình Tân)",
+  "Phường Gia Định (Quận Bình Thạnh)", "Phường Bình Thạnh (Quận Bình Thạnh)", "Phường Bình Lợi Trung (Quận Bình Thạnh)", "Phường Thạnh Mỹ Tây (Quận Bình Thạnh)", "Phường Bình Quới (Quận Bình Thạnh)",
+  "Phường Hạnh Thông (Quận Gò Vấp)", "Phường An Nhơn (Quận Gò Vấp)", "Phường Gò Vấp (Quận Gò Vấp)", "Phường An Hội Đông (Quận Gò Vấp)", "Phường Thông Tây Hội (Quận Gò Vấp)", "Phường An Hội Tây (Quận Gò Vấp)",
+  "Phường Đức Nhuận (Quận Phú Nhuận)", "Phường Cầu Kiệu (Quận Phú Nhuận)", "Phường Phú Nhuận (Quận Phú Nhuận)",
+  "Phường Tân Sơn Hòa (Quận Tân Bình)", "Phường Tân Sơn Nhất (Quận Tân Bình)", "Phường Tân Hòa (Quận Tân Bình)", "Phường Bảy Hiền (Quận Tân Bình)", "Phường Tân Bình (Quận Tân Bình)", "Phường Tân Sơn (Quận Tân Bình)",
+  "Phường Tây Thạnh (Quận Tân Phú)", "Phường Tân Sơn Nhì (Quận Tân Phú)", "Phường Phú Thọ Hòa (Quận Tân Phú)", "Phường Tân Phú (Quận Tân Phú)", "Phường Phú Thạnh (Quận Tân Phú)",
+  "Phường Hiệp Bình (TP. Thủ Đức)", "Phường Thủ Đức (TP. Thủ Đức)", "Phường Tam Bình (TP. Thủ Đức)", "Phường Linh Xuân (TP. Thủ Đức)", "Phường Tăng Nhơn Phú (TP. Thủ Đức)", "Phường Long Bình (TP. Thủ Đức)", "Phường Long Phước (TP. Thủ Đức)", "Phường Long Trường (TP. Thủ Đức)", "Phường Cát Lái (TP. Thủ Đức)", "Phường Bình Trưng (TP. Thủ Đức)", "Phường Phước Long (TP. Thủ Đức)", "Phường An Khánh (TP. Thủ Đức)",
+  "Phường Đông Hòa (TP. Dĩ An)", "Phường Dĩ An (TP. Dĩ An)", "Phường Tân Đông Hiệp (TP. Dĩ An)",
+  "Phường An Phú (TP. Thuận An)", "Phường Bình Hòa (TP. Thuận An)", "Phường Lái Thiêu (TP. Thuận An)", "Phường Thuận An (TP. Thuận An)", "Phường Thuận Giao (TP. Thuận An)",
+  "Phường Thủ Dầu Một (TP. Thủ Dầu Một)", "Phường Phú Lợi (TP. Thủ Dầu Một)", "Phường Chánh Hiệp (TP. Thủ Dầu Một)", "Phường Bình Dương (TP. TDM)", "Phường Phú An (TP. Thủ Dầu Một)",
+  "Phường Hòa Lợi (TP. Bến Cát)", "Phường Tây Nam (TP. Bến Cát)", "Phường Long Nguyên (TP. Bến Cát)", "Phường Bến Cát (TP. Bến Cát)", "Phường Chánh Phú Hòa (TP. Bến Cát)", "Phường Thới Hòa (TP. Bến Cát)",
+  "Phường Vĩnh Tân (TP. Tân Uyên)", "Phường Bình Cơ (TP. Tân Uyên)", "Phường Tân Uyên (TP. Tân Uyên)", "Phường Tân Hiệp (TP. Tân Uyên)", "Phường Tân Khánh (TP. Tân Uyên)",
+  "Phường Vũng Tàu (TP. Vũng Tàu)", "Phường Tam Thắng (TP. Vũng Tàu)", "Phường Rạch Dừa (TP. Vũng Tàu)", "Phường Phước Thắng (TP. Vũng Tàu)", "Xã Long Sơn (TP. Vũng Tàu)",
+  "Phường Long Hương (TP. Bà Rịa)", "Phường Bà Rịa (TP. Bà Rịa)", "Phường Tam Long (TP. Bà Rịa)",
+  "Phường Tân Hải (TP. Phú Mỹ)", "Phường Tân Phước (TP. Phú Mỹ)", "Phường Phú Mỹ (TP. Phú Mỹ)", "Phường Tân Thành (TP. Phú Mỹ)", "Xã Châu Pha (TP. Phú Mỹ)",
+  "Xã Vĩnh Lộc (Huyện Bình Chánh)", "Xã Tân Vĩnh Lộc (Huyện Bình Chánh..)", "Xã Bình Lợi (Huyện Bình Chánh)", "Xã Tân Nhựt (Huyện Bình Chánh)", "Xã Bình Chánh (Huyện Bình Chánh..)", "Xã Hưng Long (Huyện Bình Chánh..)", "Xã Bình Hưng (Bình Chánh..)", "Xã Bình Khánh (ấp Bình An 1)", "Xã An Thới Đông (xã An Thới Đông)",
+  "Xã Cần Giờ (KP. Giồng Ao)", "Xã Thạnh An (Huyện Cần Giờ)",
+  "Xã Củ Chi (Huyện Củ Chi)", "Xã Tân An Hội (Huyện Củ Chi)", "Xã Thái Mỹ (Huyện Củ Chi)", "Xã An Nhơn Tây (Huyện Củ Chi)", "Xã Nhuận Đức (Huyện Củ Chi)", "Xã Phú Hòa Đông (Huyện Củ Chi)", "Xã Bình Mỹ (Huyện Củ Chi)",
+  "Xã Đông Thạnh (Huyện Hóc Môn)", "Xã Hóc Môn (Huyện Hóc Môn)", "Xã Xuân Thới Sơn (Huyện Hóc Môn)", "Xã Bà Điểm (Huyện Hóc Môn)",
+  "Xã Nhà Bè (Huyện Nhà Bè)", "Xã Hiệp Phước (Huyện Nhà Bè)",
+  "Xã Thường Tân (Huyện Bắc Tân Uyên)", "Xã Bắc Tân Uyên (Huyện Bắc Tân Uyên)",
+  "Xã Phú Giáo (Huyện Phú Giáo)", "Xã Phước Hòa (Huyện Phú Giáo)", "Xã Phước Thành (Huyện Phú Giáo)", "Xã An Long (Huyện Phú Giáo)",
+  "Xã Trừ Văn Thố (Huyện Bàu Bàng)", "Xã Bàu Bàng (Huyện Bàu Bàng)",
+  "Xã Long Hòa (Huyện Dầu Tiếng)", "Xã Thanh An (Huyện Dầu Tiếng)", "Xã Dầu Tiếng (Huyện Dầu Tiếng)", "Xã Minh Thạnh (Huyện Dầu Tiếng)",
+  "Xã Long Hải (Huyện Long Đất)", "Xã Long Điền (Huyện Long Đất)", "Xã Phước Hải (Huyện Long Đất)", "Xã Đất Đỏ (thị trấn Đất Đỏ)",
+  "Xã Nghĩa Thành (Huyện Châu Đức)", "Xã Ngãi Giao (Huyện Châu Đức)", "Xã Kim Long (Huyện Châu Đức)", "Xã Châu Đức (Huyện Châu Đức)", "Xã Bình Giã (Huyện Châu Đức)", "Xã Xuân Sơn (Huyện Châu Đức)",
+  "Xã Hồ Tràm (Huyện Xuyên Mộc)", "Xã Xuyên Mộc (Huyện Xuyên Mộc)", "Xã Hòa Hội (Huyện Xuyên Mộc)", "Xã Bàu Lâm (Huyện Xuyên Mộc)", "Xã Bình Châu (Huyện Xuyên Mộc)", "Xã Hòa Hiệp (Huyện Xuyên Mộc)",
+  "Đặc khu Côn Đảo (Huyện Côn Đảo)",
+].map(name => ({ name }));
 
 export function mapIndustryCode(rawCode: string): string {
   if (!rawCode) return rawCode;
@@ -466,27 +472,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   if (!province) {
     console.warn('⚠️  Province id=1 not found, skipping HCMC wards seed');
   } else {
-    const filePath = path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'libs', 'tts', 'data', 'hcm-districts.ts');
-    let parsedWards: { name: string; type?: string }[] = [];
-
-    if (fs.existsSync(filePath)) {
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      const regex = /\{\s*code:\s*["']\d+["']\s*,\s*name:\s*["']([^"']+)["']\s*,\s*district:\s*["']([^"']+)["']\s*\}/g;
-      let match;
-      while ((match = regex.exec(fileContent)) !== null) {
-        const name = match[1];
-        const district = match[2];
-        parsedWards.push({
-          name: `${name} (${district})`
-        });
-      }
-      console.log(`Parsed ${parsedWards.length} wards from frontend data file`);
-    }
-
-    // Fallback to static list if parsing failed or file doesn't exist
-    const wardsToSeed = parsedWards.length > 0 
-      ? parsedWards 
-      : WARDS.map(w => ({ name: w.name }));
+    const wardsToSeed = WARDS;
 
     // Clean up existing associations and wards first to prevent duplicate/stale records
     await dataSource.query('DELETE FROM tnld_contract_reports');
@@ -509,10 +495,23 @@ export async function seed(dataSource: DataSource): Promise<void> {
   if (etCount === 0) {
     const types = [
       { code: 'CP', name: 'Công ty cổ phần' },
+      { code: 'CPDC', name: 'Công ty cổ phần đại chúng' },
       { code: 'TNHH', name: 'Công ty TNHH' },
       { code: 'TNHH1TV', name: 'Công ty TNHH 1 thành viên' },
       { code: 'DNTN', name: 'Doanh nghiệp tư nhân' },
       { code: 'DNNN', name: 'Doanh nghiệp nhà nước' },
+      { code: 'FDI', name: 'Doanh nghiệp có vốn đầu tư nước ngoài' },
+      { code: 'LD', name: 'Công ty liên doanh' },
+      { code: 'VPDD', name: 'Văn phòng đại diện' },
+      { code: 'CN', name: 'Chi nhánh' },
+      { code: 'NH', name: 'Ngân hàng' },
+      { code: 'BH', name: 'Công ty bảo hiểm' },
+      { code: 'TCT', name: 'Tổng công ty' },
+      { code: 'CK', name: 'Công ty chứng khoán' },
+      { code: 'QD', name: 'Doanh nghiệp quân đội' },
+      { code: 'DNCK', name: 'Doanh nghiệp chế xuất' },
+      { code: 'HTXCP', name: 'Hợp tác xã cổ phần' },
+      { code: 'DNXH', name: 'Doanh nghiệp xã hội' },
       { code: 'HKD', name: 'Hộ kinh doanh' },
       { code: 'HTX', name: 'Hợp tác xã' },
     ];
@@ -535,34 +534,29 @@ export async function seed(dataSource: DataSource): Promise<void> {
   await dataSource.query('DELETE FROM industries');
   console.log('🗑️  Cleared existing industries, re-seeding...');
 
-  // Đọc danh sách INDUSTRIES từ frontend
-  const frontendPath = path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'libs', 'tts', 'data', 'hcm-districts.ts');
-  let parsedIndustries: { code: string; name: string }[] = [];
-
-  if (fs.existsSync(frontendPath)) {
-    const fileContent = fs.readFileSync(frontendPath, 'utf-8');
-    const regex = /["'](\d{4})\s*-\s*([^"']+)["']/g;
-    let match;
-    while ((match = regex.exec(fileContent)) !== null) {
-      parsedIndustries.push({
-        code: match[1],
-        name: match[2].trim()
-      });
-    }
-  }
-
-  // Fallback nếu không parse được
-  if (parsedIndustries.length === 0) {
-    parsedIndustries = [
-      { code: '0111', name: 'Trồng cây lương thực' },
-      { code: '0112', name: 'Trồng cây công nghiệp' },
-      { code: '0113', name: 'Trồng cây ăn quả' },
-      { code: '0141', name: 'Chăn nuôi trâu, bò' },
-      { code: '1011', name: 'Chế biến và bảo quản thịt' },
-    ];
-  }
-
-  console.log(`Parsed ${parsedIndustries.length} industries from frontend data file`);
+  const parsedIndustries: { code: string; name: string }[] = [
+    { code: '0111', name: 'Trồng cây lương thực' }, { code: '0112', name: 'Trồng cây công nghiệp' }, { code: '0113', name: 'Trồng cây ăn quả' }, { code: '0114', name: 'Trồng cây lấy sợi' }, { code: '0119', name: 'Trồng cây hàng năm khác' },
+    { code: '0121', name: 'Trồng nho và các loại quả có múi' }, { code: '0122', name: 'Trồng cây ăn quả nhiệt đới và cận nhiệt đới' }, { code: '0123', name: 'Trồng cây có múi' }, { code: '0124', name: 'Trồng cây lấy quả có hạt và quả hạch' }, { code: '0125', name: 'Trồng cây ăn quả khác' }, { code: '0126', name: 'Trồng cây lấy dầu' }, { code: '0127', name: 'Trồng cây hương liệu và dược liệu' }, { code: '0128', name: 'Trồng cây công nghiệp lâu năm khác' }, { code: '0129', name: 'Trồng cây lâu năm khác' },
+    { code: '0130', name: 'Nhân và chăm sóc cây giống nông nghiệp' },
+    { code: '0141', name: 'Chăn nuôi trâu, bò' }, { code: '0142', name: 'Chăn nuôi ngựa, lừa, la, gia cầm' }, { code: '0143', name: 'Chăn nuôi cừu, dê' }, { code: '0144', name: 'Chăn nuôi lợn' }, { code: '0145', name: 'Chăn nuôi gia cầm' }, { code: '0149', name: 'Chăn nuôi khác' },
+    { code: '0150', name: 'Trồng trọt, chăn nuôi kết hợp' },
+    { code: '0161', name: 'Hoạt động dịch vụ nông nghiệp' }, { code: '0162', name: 'Hoạt động dịch vụ sau thu hoạch' }, { code: '0163', name: 'Xử lý hạt giống' }, { code: '0164', name: 'Xử lý hạt giống phục vụ nhân giống' },
+    { code: '1011', name: 'Chế biến và bảo quản thịt' }, { code: '1012', name: 'Chế biến và bảo quản thịt gia cầm' }, { code: '1013', name: 'Sản xuất sản phẩm từ thịt, thịt gia cầm' },
+    { code: '1020', name: 'Chế biến và bảo quản thủy sản' }, { code: '1030', name: 'Chế biến và bảo quản rau quả' }, { code: '1040', name: 'Sản xuất dầu, mỡ động, thực vật' }, { code: '1050', name: 'Sản xuất sản phẩm sữa' },
+    { code: '1061', name: 'Xay xát và sản xuất bột thô' }, { code: '1062', name: 'Sản xuất tinh bột và các sản phẩm từ tinh bột' },
+    { code: '1071', name: 'Sản xuất bánh mì và bánh tươi' }, { code: '1072', name: 'Sản xuất bánh khô và bánh bảo quản được lâu' }, { code: '1073', name: 'Sản xuất mì ống, mì sợi' }, { code: '1074', name: 'Sản xuất các loại bánh từ bột' }, { code: '1075', name: 'Sản xuất bữa ăn và đồ ăn chế biến sẵn' }, { code: '1079', name: 'Sản xuất thực phẩm khác chưa được phân vào đâu' },
+    { code: '4511', name: 'Bán buôn ô tô và xe có động cơ khác' }, { code: '4512', name: 'Bán lẻ ô tô và xe có động cơ khác' },
+    { code: '4521', name: 'Bảo dưỡng và sửa chữa ô tô và xe có động cơ khác' }, { code: '4522', name: 'Bảo dưỡng và sửa chữa xe máy' },
+    { code: '4530', name: 'Bán phụ tùng và các bộ phận phụ trợ của ô tô và xe có động cơ khác' },
+    { code: '4610', name: 'Đại lý, môi giới, đấu giá' },
+    { code: '4620', name: 'Bán buôn nông, lâm sản nguyên liệu (trừ gỗ, tre, nứa) và động vật sống' },
+    { code: '4631', name: 'Bán buôn gạo, ngũ cốc, sản phẩm từ ngũ cốc' }, { code: '4632', name: 'Bán buôn thực phẩm' }, { code: '4633', name: 'Bán buôn đồ uống' }, { code: '4634', name: 'Bán buôn sản phẩm thuốc lá, thuốc lào' }, { code: '4635', name: 'Bán buôn dầu, mỡ, nhiên liệu' }, { code: '4636', name: 'Bán buôn đường, sữa và các sản phẩm sữa' }, { code: '4639', name: 'Bán buôn thực phẩm, đồ uống và thuốc lá, thuốc lào khác' },
+    { code: '4641', name: 'Bán buôn vải, hàng may mặc' }, { code: '4642', name: 'Bán buôn giày dép' }, { code: '4643', name: 'Bán buôn đồ dùng trong gia đình' }, { code: '4649', name: 'Bán buôon đồ dùng cá nhân và gia đình khác' },
+    { code: '4651', name: 'Bán buôn máy vi tính, thiết bị ngoại vi và phần mềm' }, { code: '4652', name: 'Bán buôn thiết bị và linh kiện điện tử, viễn thông' }, { code: '4659', name: 'Bán buôn máy móc, thiết bị và phụ tùng máy khác' },
+    { code: '4661', name: 'Bán buôn nhiên liệu rắn, lỏng, khí và các sản phẩm liên quan' }, { code: '4662', name: 'Bán buôn kim loại và quặng kim loại' }, { code: '4663', name: 'Bán buôn vật liệu xây dựng, thiết bị lắp đặt trong xây dựng' }, { code: '4669', name: 'Bán buôn chuyên doanh khác chưa được phân vào đâu' },
+    { code: '4690', name: 'Bán buôn tổng hợp' },
+  ];
+  console.log(`Seeding ${parsedIndustries.length} industries`);
 
   // Map to store created parent nodes to avoid duplicates and links them correctly
   const lvl1Map = new Map<string, Industry>();
