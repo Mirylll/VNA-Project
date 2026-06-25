@@ -176,12 +176,11 @@ const permissionGroups: PermissionSeed[] = [
 ];
 
 const roleSeeds = [
-  { code: 'ROLE_ADMIN', name: 'Admin' },
-  { code: 'ROLE_ENTERPRISE', name: 'Enterprise' },
-  { code: 'ADMIN', name: 'Quản trị viên' },
-  { code: 'MANAGER', name: 'Manager' },
-  { code: 'EMPLOYEE', name: 'Employee' },
-  { code: 'CEO', name: 'CEO' },
+  { code: 'ROLE_SUPER_ADMIN', name: 'Quản trị viên cấp cao' },
+  { code: 'ROLE_ADMIN',       name: 'Quản trị viên' },
+  { code: 'ROLE_MANAGER',     name: 'Trưởng phòng' },
+  { code: 'ROLE_USER',        name: 'Nhân viên' },
+  { code: 'ROLE_ENTERPRISE',  name: 'Doanh nghiệp' },
 ];
 
 const titleSeeds = [
@@ -333,82 +332,95 @@ export async function seed(dataSource: DataSource): Promise<void> {
     if (!role) {
       role = roleRepo.create({ code: r.code, name: r.name });
       role = await roleRepo.save(role);
+    } else if (role.name !== r.name) {
+      role.name = r.name;
+      role = await roleRepo.save(role);
     }
     savedRoles.set(r.code, role);
   }
   const newRoleCount = await roleRepo.count();
   console.log(`ℹ️  ${newRoleCount} roles in DB`);
 
+  // ---- Migrate old roles to new roles ----
+  const oldToNewCode: Record<string, string> = {
+    'CEO': 'ROLE_SUPER_ADMIN',
+    'MANAGER': 'ROLE_MANAGER',
+    'EMPLOYEE': 'ROLE_USER',
+  };
+  for (const [oldCode, newCode] of Object.entries(oldToNewCode)) {
+    const oldRole = await roleRepo.findOne({ where: { code: oldCode } });
+    const newRole = savedRoles.get(newCode);
+    if (oldRole && newRole) {
+      await dataSource
+        .createQueryBuilder()
+        .update(User)
+        .set({ role: newRole })
+        .where('role_id = :id', { id: oldRole.id })
+        .execute();
+      await roleRepo.remove(oldRole);
+      console.log(`↪️  Migrated role ${oldCode} → ${newCode}`);
+    }
+  }
+  const legacyAdmin = await roleRepo.findOne({ where: { code: 'ADMIN' } });
+  const roleAdmin = savedRoles.get('ROLE_ADMIN');
+  if (legacyAdmin && roleAdmin) {
+    await dataSource
+      .createQueryBuilder()
+      .update(User)
+      .set({ role: roleAdmin })
+      .where('role_id = :id', { id: legacyAdmin.id })
+      .execute();
+    await roleRepo.remove(legacyAdmin);
+    console.log('↪️  Merged legacy ADMIN → ROLE_ADMIN');
+  }
+
   // ---- Role Permissions ----
-  const rpCount = await dataSource.getRepository('role_permissions').count();
-  if (rpCount === 0) {
-    const allComps = await permissionRepo.find({ where: { type: 'Component' } });
+  const allComps = await permissionRepo.find({ where: { type: 'Component' } });
 
-    // CEO gets all permissions
-    const ceoRole = savedRoles.get('CEO');
-    if (ceoRole) {
-      ceoRole.permissions = allComps;
-      await roleRepo.save(ceoRole);
-    }
-
-    // Manager gets VIEW, CREATE, UPDATE (not DELETE) + REPORT
-    const managerRole = savedRoles.get('MANAGER');
-    if (managerRole) {
-      managerRole.permissions = allComps.filter((p) =>
-        p.code.endsWith('_VIEW') ||
-        p.code.endsWith('_CREATE') ||
-        p.code.endsWith('_UPDATE') ||
-        p.code === 'ADMIN_C_PERMISSION_ASSIGN' ||
-        p.code === 'ADMIN_C_REPORT_VIEW',
-      );
-      await roleRepo.save(managerRole);
-    }
-
-    // Employee gets VIEW only + REPORT
-    const employeeRole = savedRoles.get('EMPLOYEE');
-    if (employeeRole) {
-      employeeRole.permissions = allComps.filter((p) =>
-        p.code.endsWith('_VIEW') || p.code === 'ADMIN_C_REPORT_VIEW',
-      );
-      await roleRepo.save(employeeRole);
-    }
-
-    // Legacy Admin role gets all permissions
-    const adminRole = await roleRepo.findOne({ where: { code: 'ADMIN' } });
-    if (adminRole) {
-      adminRole.permissions = allComps;
-      await roleRepo.save(adminRole);
-    }
-
-    const roleAdmin = savedRoles.get('ROLE_ADMIN');
-    if (roleAdmin) {
-      roleAdmin.permissions = allComps;
-      await roleRepo.save(roleAdmin);
-    }
-
-    const enterpriseRole = savedRoles.get('ROLE_ENTERPRISE');
-    if (enterpriseRole) {
-      enterpriseRole.permissions = allComps.filter((p) => p.code.startsWith('ENTERPRISE_'));
-      await roleRepo.save(enterpriseRole);
-    }
-
-    console.log('✅ Seeded role_permissions');
+  // SUPER_ADMIN gets all permissions
+  const superAdminRole = savedRoles.get('ROLE_SUPER_ADMIN');
+  if (superAdminRole) {
+    superAdminRole.permissions = allComps;
+    await roleRepo.save(superAdminRole);
   }
 
-  const refreshedAllComps = await permissionRepo.find({ where: { type: 'Component' } });
-  for (const adminCode of ['ROLE_ADMIN', 'ADMIN', 'CEO']) {
-    const adminRole = savedRoles.get(adminCode);
-    if (adminRole) {
-      adminRole.permissions = refreshedAllComps;
-      await roleRepo.save(adminRole);
-    }
+  // ADMIN gets full access to all modules
+  const fullAdminRole = savedRoles.get('ROLE_ADMIN');
+  if (fullAdminRole) {
+    fullAdminRole.permissions = allComps;
+    await roleRepo.save(fullAdminRole);
   }
 
-  const enterpriseRole = savedRoles.get('ROLE_ENTERPRISE');
-  if (enterpriseRole) {
-    enterpriseRole.permissions = refreshedAllComps.filter((p) => p.code.startsWith('ENTERPRISE_'));
-    await roleRepo.save(enterpriseRole);
+  // MANAGER gets VIEW, CREATE, UPDATE (not DELETE) + ASSIGN + ACCEPT/PRINT
+  const managerRole = savedRoles.get('ROLE_MANAGER');
+  if (managerRole) {
+    managerRole.permissions = allComps.filter((p) =>
+      p.code.endsWith('_VIEW') ||
+      p.code.endsWith('_CREATE') ||
+      p.code.endsWith('_UPDATE') ||
+      p.code === 'ADMIN_C_PERMISSION_ASSIGN' ||
+      p.code === 'ADMIN_C_REPORT_VIEW' ||
+      p.code === 'ADMIN_C_TNLD_CONTRACT_ACCEPT' ||
+      p.code === 'ADMIN_C_TNLD_CONTRACT_PRINT',
+    );
+    await roleRepo.save(managerRole);
   }
+
+  // USER gets VIEW only
+  const userRole = savedRoles.get('ROLE_USER');
+  if (userRole) {
+    userRole.permissions = allComps.filter((p) => p.code.endsWith('_VIEW'));
+    await roleRepo.save(userRole);
+  }
+
+  // ENTERPRISE gets only ENTERPRISE_* permissions
+  const entRole = savedRoles.get('ROLE_ENTERPRISE');
+  if (entRole) {
+    entRole.permissions = allComps.filter((p) => p.code.startsWith('ENTERPRISE_'));
+    await roleRepo.save(entRole);
+  }
+
+  console.log('✅ Seeded role_permissions');
 
   // ---- Admin User ----
   const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
@@ -421,7 +433,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   });
 
   if (!existingAdmin) {
-    const adminRole = savedRoles.get('ROLE_ADMIN') || savedRoles.get('CEO');
+    const adminRole = savedRoles.get('ROLE_SUPER_ADMIN');
     const adminTitle = await titleRepo.findOne({ where: { name: 'Giám đốc' } });
     const passwordHash = await bcrypt.hash(adminPassword, 10);
 
@@ -477,6 +489,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
       : WARDS.map(w => ({ name: w.name }));
 
     // Clean up existing associations and wards first to prevent duplicate/stale records
+    await dataSource.query('DELETE FROM tnld_contract_reports');
     await dataSource.query('UPDATE users SET district_id = NULL');
     await dataSource.query('DELETE FROM enterprises');
     await dataSource.query('DELETE FROM districts');
@@ -515,6 +528,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   // Luôn reset industries: xóa enterprises trước, rồi industries
   const existingEnts = await dataSource.getRepository(Enterprise).count();
   if (existingEnts > 0) {
+    await dataSource.query('DELETE FROM tnld_contract_reports');
     await dataSource.query('DELETE FROM enterprises');
     console.log('🗑️  Cleared existing enterprises before re-seeding industries');
   }
