@@ -333,14 +333,15 @@ export default function EnterpriseStep1({
             </>
           )}
 
-          <div className="relative border border-slate-200 rounded-lg px-3 pt-3 pb-2">
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
+          <div className="relative w-full">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
               Ngày cấp GPKD
             </label>
             <DatePicker
               value={formData.licenseDate}
               onChange={(iso) => updateField('licenseDate', iso)}
               placeholder="dd/mm/yyyy"
+              className="w-full"
             />
           </div>
 

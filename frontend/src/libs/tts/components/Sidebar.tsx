@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, ChevronDown } from 'lucide-react';
+import { ChevronDown, HardHat, Settings } from 'lucide-react';
 import { clearAuthToken, getAuthToken, type AuthUser } from '@/libs/core/utils/auth-token';
 
 interface SubMenuItem {
@@ -120,6 +120,13 @@ export default function Sidebar() {
           }
         }).catch(() => {});
       }
+
+      const handleAvatarUpdate = (e: Event) => {
+        const { avatarUrl } = (e as CustomEvent<{ avatarUrl: string }>).detail;
+        setUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
+      };
+      window.addEventListener('user-avatar-updated', handleAvatarUpdate);
+      return () => window.removeEventListener('user-avatar-updated', handleAvatarUpdate);
     }
   }, []);
 
@@ -178,7 +185,7 @@ export default function Sidebar() {
                 className="w-full flex items-center justify-between px-5 py-3 text-slate-300 hover:text-white transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <Settings size={18} />
+                  {group.id === 'tai-nan-lao-dong' ? <HardHat size={18} /> : <Settings size={18} />}
                   <span>{group.label}</span>
                 </span>
                 <ChevronDown
@@ -199,12 +206,11 @@ export default function Sidebar() {
                           setActiveItem(item.id);
                           router.push(item.route);
                         }}
-                        className={`w-full text-left flex items-center gap-2 px-5 py-2.5 transition-colors ${
-                          activeItem === item.id
-                            ? 'bg-[#1D4ED8] text-white'
-                            : 'text-slate-300 hover:text-white'
-                        }`}
-                        style={{ paddingLeft: '3rem' }}
+                  className={`w-full text-left flex items-center gap-2 px-5 py-2.5 transition-colors ${
+                    activeItem === item.id
+                      ? 'bg-[#1D4ED8] text-white'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
                       >
                         <span className="text-xs">•</span>
                         <span>{item.label}</span>
@@ -258,7 +264,7 @@ export default function Sidebar() {
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center gap-3 border-b border-gray-100"
                     onClick={() => {
                       setOpenMenu(false);
-                      if (user?.id) router.push(`/admin/users/detail?id=${user.id}`);
+                      router.push('/admin/account-info');
                     }}
                   >
                     <img src="/icons/profile.svg" alt="" className="w-4 h-4" />
