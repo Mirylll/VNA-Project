@@ -347,7 +347,6 @@ export default function EnterpriseStep1({
             <DatePicker
               value={formData.licenseDate}
               onChange={(iso) => updateField('licenseDate', iso)}
-              placeholder="dd/mm/yyyy"
               className="w-full"
             />
           </div>
@@ -396,7 +395,6 @@ export default function EnterpriseStep1({
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
-                placeholder="162 đường số 2, khu đô thị Vạn Phúc"
                 maxLength={500}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
@@ -419,7 +417,6 @@ export default function EnterpriseStep1({
                 name="foreignName"
                 value={formData.foreignName}
                 onChange={handleInputChange}
-                placeholder="VNA International"
                 maxLength={255}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
@@ -449,7 +446,6 @@ export default function EnterpriseStep1({
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                placeholder="028 3828 2888"
                 maxLength={20}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
@@ -462,7 +458,6 @@ export default function EnterpriseStep1({
             <Autocomplete
               value={formData.operationProvinceId}
               options={provinces.map((p: any) => ({ id: p.id, name: p.name }))}
-              placeholder="Chọn tỉnh/thành phố"
               onSelect={(val) => updateField('operationProvinceId', val)}
               className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               plain
@@ -476,7 +471,6 @@ export default function EnterpriseStep1({
             <Autocomplete
               value={formData.operationWardId}
               options={wards.map((w: any) => ({ id: w.id, name: w.name }))}
-              placeholder="Chọn phường/xã"
               onSelect={(val) => updateField('operationWardId', val)}
               className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               plain
@@ -493,7 +487,6 @@ export default function EnterpriseStep1({
                 name="operationAddress"
                 value={formData.operationAddress}
                 onChange={handleInputChange}
-                placeholder="162 đường số 2, khu đô thị Vạn Phúc"
                 maxLength={500}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
@@ -507,7 +500,6 @@ export default function EnterpriseStep1({
                 name="leaderName"
                 value={formData.leaderName}
                 onChange={handleInputChange}
-                placeholder="Nguyễn Văn A"
                 maxLength={100}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
@@ -521,7 +513,6 @@ export default function EnterpriseStep1({
                 name="leaderPhone"
                 value={formData.leaderPhone}
                 onChange={handleInputChange}
-                placeholder="090 123 4567"
                 maxLength={20}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
