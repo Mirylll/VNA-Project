@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BriefcaseBusiness,
   ChevronDown,
   ChevronRight,
   HardHat,
-  Menu,
   Settings,
 } from 'lucide-react';
-import { clearAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
+import { clearAuthToken, getAuthToken, getAuthUser } from '@/libs/core/utils/auth-token';
 
 function getEnterpriseDisplayName() {
   const user = getAuthUser() as
@@ -19,13 +17,23 @@ function getEnterpriseDisplayName() {
   return user?.enterpriseName || user?.companyName || user?.fullName || user?.username || 'Doanh nghiệp';
 }
 
+const baseUrl =
+  typeof window !== 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    : '';
+
 export default function EnterpriseSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [openUserMenu, setOpenUserMenu] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([
+    'he-thong',
+  ]);
   const [enterpriseName, setEnterpriseName] = useState(getEnterpriseDisplayName);
+  const [user, setUser] = useState<{ avatarUrl?: string; fullName?: string } | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
   const isCompanyInfo = pathname.startsWith('/enterprise/company-info');
-  const isAccount = pathname.startsWith('/enterprise/account');
+  const isAccount = pathname.startsWith('/enterprise/account-info');
   const isTnldHdld = pathname.startsWith('/enterprise/tnld-hdld');
 
   useEffect(() => {
@@ -38,85 +46,146 @@ export default function EnterpriseSidebar() {
     return () => window.removeEventListener('enterprise-name-changed', handleEnterpriseNameChanged);
   }, []);
 
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    fetch(`${baseUrl}/auth/me`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setAvatarError(false);
+          setUser(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function getInitials(name: string) {
+    const words = name.split(' ').filter(Boolean);
+    const lastWord = words[words.length - 1] || '';
+    return lastWord.slice(0, 3).toUpperCase() || 'DN';
+  }
+
   function openProfile(action?: string) {
     window.dispatchEvent(new CustomEvent('open-user-popup', { detail: { action } }));
   }
 
+  function toggleExpand(menu: string) {
+    setExpandedMenus((prev) =>
+      prev.includes(menu)
+        ? prev.filter((m) => m !== menu)
+        : [...prev, menu],
+    );
+  }
+
   return (
-    <aside className="flex h-screen w-[260px] flex-shrink-0 flex-col bg-[#173B8F] text-white">
-      <div className="flex h-[92px] items-center gap-3 border-b border-white/20 px-4">
-        <img
-          src="/emblemofvietnam.png"
-          alt="Ủy ban nhân dân thành phố Hồ Chí Minh"
-          className="h-12 w-12 flex-shrink-0 object-contain"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold leading-5">
-            Ủy ban nhân dân thành phố
-          </p>
-          <p className="text-[13px] font-semibold leading-5">Hồ Chí Minh</p>
+    <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 flex flex-col bg-[#112D75] text-white shadow-lg">
+      <div className="px-5 py-4 flex items-center gap-3 border-b border-white/10">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white p-1 shrink-0 overflow-hidden shadow-sm">
+          <img
+            src="/emblemofvietnam.png"
+            alt="Emblem of Vietnam"
+            className="w-full h-full object-contain"
+          />
         </div>
-        <button
-          type="button"
-          className="rounded-md p-1.5 text-white/90 transition hover:bg-white/10"
-          aria-label="Thu gọn menu"
-        >
-          <Menu size={22} />
-        </button>
+        <div className="flex flex-col justify-center leading-tight">
+          <span className="text-sm font-semibold leading-tight">Ủy ban nhân dân</span>
+          <span className="text-sm font-semibold leading-tight">thành phố Hồ Chí Minh</span>
+        </div>
       </div>
 
-      <nav className="flex-1 py-3 text-sm">
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 px-4 py-3 text-left font-medium text-white/95 transition hover:bg-white/10"
-        >
-          <Settings size={18} />
-          <span className="flex-1">Hệ thống</span>
-          <ChevronDown size={18} />
-        </button>
+      <nav className="flex-1 overflow-auto py-4 text-sm">
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => toggleExpand('he-thong')}
+            className="w-full flex items-center justify-between px-5 py-3 text-slate-300 hover:text-white transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Settings size={18} />
+              <span>Hệ thống</span>
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${
+                expandedMenus.includes('he-thong') ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => router.push('/enterprise/company-info')}
-          className={`relative flex w-full items-center gap-3 py-3 pl-10 pr-4 text-left font-medium text-white transition hover:bg-white/10 ${
-            isCompanyInfo ? 'bg-[#2B59C3] shadow-[inset_4px_0_0_rgba(255,255,255,0.95)]' : ''
-          }`}
-        >
-          <span className={`absolute left-5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${isCompanyInfo ? 'bg-white' : 'bg-white/80'}`} />
-          <BriefcaseBusiness size={16} className="text-white/90" />
-          <span>Thông tin doanh nghiệp</span>
-        </button>
+          {expandedMenus.includes('he-thong') && (
+            <ul className="mt-1 space-y-0.5">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => router.push('/enterprise/company-info')}
+                  className={`w-full text-left flex items-center gap-2 px-5 py-2.5 transition-colors ${
+                    isCompanyInfo ? 'bg-[#1D4ED8] text-white' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs">•</span>
+                  <span>Thông tin doanh nghiệp</span>
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
 
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 px-4 py-3 text-left font-medium text-white/95 transition hover:bg-white/10"
-        >
-          <HardHat size={18} />
-          <span className="flex-1">Tai nạn lao động</span>
-          <ChevronDown size={18} />
-        </button>
+        <div className="mb-2">
+          <button
+            type="button"
+            onClick={() => toggleExpand('tai-nan-lao-dong')}
+            className="w-full flex items-center justify-between px-5 py-3 text-slate-300 hover:text-white transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <HardHat size={18} />
+              <span>Tai nạn lao động</span>
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${
+                expandedMenus.includes('tai-nan-lao-dong') ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => router.push('/enterprise/tnld-hdld')}
-          className={`relative flex w-full items-center gap-3 py-3 pl-10 pr-4 text-left text-white/95 transition hover:bg-white/10 ${
-            isTnldHdld ? 'bg-[#2B59C3] shadow-[inset_4px_0_0_rgba(255,255,255,0.95)]' : ''
-          }`}
-        >
-          <span className={`absolute left-5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${isTnldHdld ? 'bg-white' : 'bg-white/80'}`} />
-          <span>TNLD theo HĐLĐ</span>
-        </button>
+          {expandedMenus.includes('tai-nan-lao-dong') && (
+            <ul className="mt-1 space-y-0.5">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => router.push('/enterprise/tnld-hdld')}
+                  className={`w-full text-left flex items-center gap-2 px-5 py-2.5 transition-colors ${
+                    isTnldHdld ? 'bg-[#1D4ED8] text-white' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs">•</span>
+                  <span>TNLD theo HĐLĐ</span>
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
       </nav>
 
       <div className="border-t border-white/10 px-4 py-3">
         <div className="relative flex items-center gap-3">
-          <img
-            src="/avatar-placeholder.svg"
-            alt={enterpriseName}
-            className="h-10 w-10 flex-shrink-0 rounded-full border border-white/30 bg-white object-cover"
-          />
+          {user?.avatarUrl && !avatarError ? (
+            <img
+              src={`${baseUrl}${user.avatarUrl}`}
+              alt={enterpriseName}
+              onError={() => setAvatarError(true)}
+              className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-sm font-bold text-white">
+              {getInitials(user?.fullName || enterpriseName)}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-white">
+            <div className="text-sm font-semibold leading-tight text-white whitespace-normal break-words">
               {enterpriseName}
             </div>
           </div>
@@ -144,10 +213,10 @@ export default function EnterpriseSidebar() {
                   className="flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left transition hover:bg-gray-50"
                   onClick={() => {
                     setOpenUserMenu(false);
-                    router.push('/enterprise/account');
+                    router.push('/enterprise/account-info');
                   }}
                 >
-                  <span>👤</span>
+                  <img src="/icons/profile.svg" alt="" className="h-4 w-4" />
                   <span className={`text-sm ${isAccount ? 'font-semibold text-blue-700' : ''}`}>
                     Thông tin tài khoản
                   </span>
@@ -160,7 +229,7 @@ export default function EnterpriseSidebar() {
                     openProfile('changePassword');
                   }}
                 >
-                  <span>🔑</span>
+                  <img src="/icons/key.svg" alt="" className="h-4 w-4" />
                   <span className="text-sm">Đổi mật khẩu</span>
                 </button>
                 <button
@@ -171,7 +240,7 @@ export default function EnterpriseSidebar() {
                     location.href = '/login';
                   }}
                 >
-                  <span>🚪</span>
+                  <img src="/icons/log-out.svg" alt="" className="h-4 w-4" />
                   <span className="text-sm">Đăng xuất</span>
                 </button>
               </div>

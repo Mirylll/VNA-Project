@@ -3,7 +3,6 @@
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { Check, Lock, UserRound } from 'lucide-react';
 import { getAuthToken, getAuthUser, setAuthSession, type AuthUser } from '@/libs/core/utils/auth-token';
-import EnterpriseSidebar from './EnterpriseSidebar';
 
 const BASE_URL =
   typeof window !== 'undefined'
@@ -43,15 +42,9 @@ const disabledInputClass =
   'h-10 w-full cursor-not-allowed rounded border border-slate-200 bg-slate-100 px-3 text-sm text-slate-500 outline-none';
 
 function getInitials(name: string) {
-  const initials = name
-    .split(' ')
-    .filter(Boolean)
-    .slice(-2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-
-  return initials || 'DN';
+  const words = name.split(' ').filter(Boolean);
+  const lastWord = words[words.length - 1] || '';
+  return lastWord.slice(0, 3).toUpperCase() || 'DN';
 }
 
 function updateStoredAuthUser(user: AuthUser) {
@@ -71,6 +64,7 @@ export default function EnterpriseAccountPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const avatarText = useMemo(() => getInitials(form.fullName || form.enterpriseName), [form.fullName, form.enterpriseName]);
 
@@ -91,6 +85,7 @@ export default function EnterpriseAccountPage() {
           accountType: storedUser.accountType === 'enterprise' ? 'Doanh nghiệp' : 'Nội bộ',
           roleName: storedUser.role?.name || 'Doanh nghiệp',
         }));
+        setAvatarUrl(storedUser?.avatarUrl || null);
       }
 
       if (!token) {
@@ -125,6 +120,7 @@ export default function EnterpriseAccountPage() {
           enterpriseName: enterprise?.name || '',
           taxCode: enterprise?.taxCode || '',
         });
+        setAvatarUrl(nextUser?.avatarUrl || null);
       } catch {
         if (active) setError('Không tải được thông tin tài khoản.');
       } finally {
@@ -201,14 +197,12 @@ export default function EnterpriseAccountPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
-      <EnterpriseSidebar />
-
-      <main className="min-w-0 flex-1 overflow-y-auto">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <main>
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
           <div>
             <h1 className="text-lg font-semibold text-slate-900">Thông tin tài khoản</h1>
-            <p className="mt-0.5 text-sm text-slate-500">Thông tin tài khoản doanh nghiệp đang đăng nhập</p>
+            <p className="mt-0.5 text-sm text-slate-500">Thông tin tài khoản đang đăng nhập</p>
           </div>
           <button
             type="button"
@@ -236,8 +230,16 @@ export default function EnterpriseAccountPage() {
           <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="grid gap-6 p-6 lg:grid-cols-[240px_1fr]">
               <section className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
-                  {avatarText}
+                <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-2xl font-bold text-white">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl.startsWith('http') ? avatarUrl : `${BASE_URL}${avatarUrl}`}
+                      alt="avatar"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    avatarText
+                  )}
                 </div>
 
                 <div className="mt-4 text-center">
