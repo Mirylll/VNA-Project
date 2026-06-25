@@ -4,17 +4,13 @@ import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Permission } from '../modules/permissions/entities/permission.entity';
 import { Role } from '../modules/roles/entities/role.entity';
-import { User } from '../modules/users/entities/user.entity';
+import { AccountType, User } from '../modules/users/entities/user.entity';
 import { Title } from '../modules/titles/entities/title.entity';
 import { Province } from '../modules/users/entities/province.entity';
 import { District } from '../modules/users/entities/district.entity';
 import { EnterpriseType } from '../modules/enterprise-types/entities/enterprise-type.entity';
 import { Industry } from '../modules/industries/entities/industry.entity';
 import { Enterprise } from '../modules/enterprises/entities/enterprise.entity';
-import { TnldContractReport } from '../modules/tnld-contract-reports/entities/tnld-contract-report.entity';
-import { TnldContractReportOverview } from '../modules/tnld-contract-reports/entities/tnld-contract-report-overview.entity';
-import { TnldContractReportSubsidy } from '../modules/tnld-contract-reports/entities/tnld-contract-report-subsidy.entity';
-import { TnldContractReportAccidentDetail } from '../modules/tnld-contract-reports/entities/tnld-contract-report-accident-detail.entity';
 
 interface PermissionSeed {
   code: string;
@@ -74,13 +70,117 @@ const permissionGroups: PermissionSeed[] = [
       { code: 'ADMIN_C_REPORT_VIEW', name: 'View Report' },
     ],
   },
+  {
+    code: 'ADMIN_G_ENTERPRISE',
+    name: 'Enterprise Management Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_ENTERPRISE_VIEW', name: 'View Enterprise' },
+      { code: 'ADMIN_C_ENTERPRISE_CREATE', name: 'Create Enterprise' },
+      { code: 'ADMIN_C_ENTERPRISE_UPDATE', name: 'Update Enterprise' },
+      { code: 'ADMIN_C_ENTERPRISE_DELETE', name: 'Delete Enterprise' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_ENTERPRISE_TYPE',
+    name: 'Enterprise Type Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_VIEW', name: 'View Enterprise Type' },
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_CREATE', name: 'Create Enterprise Type' },
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_UPDATE', name: 'Update Enterprise Type' },
+      { code: 'ADMIN_C_ENTERPRISE_TYPE_DELETE', name: 'Delete Enterprise Type' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_INDUSTRY',
+    name: 'Industry Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_INDUSTRY_VIEW', name: 'View Industry' },
+      { code: 'ADMIN_C_INDUSTRY_CREATE', name: 'Create Industry' },
+      { code: 'ADMIN_C_INDUSTRY_UPDATE', name: 'Update Industry' },
+      { code: 'ADMIN_C_INDUSTRY_DELETE', name: 'Delete Industry' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_REPORT_PERIOD',
+    name: 'Report Period Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_REPORT_PERIOD_VIEW', name: 'View Report Period' },
+      { code: 'ADMIN_C_REPORT_PERIOD_CREATE', name: 'Create Report Period' },
+      { code: 'ADMIN_C_REPORT_PERIOD_UPDATE', name: 'Update Report Period' },
+      { code: 'ADMIN_C_REPORT_PERIOD_DELETE', name: 'Delete Report Period' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_TNLD_CATEGORY',
+    name: 'TNLD Category Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_TNLD_CATEGORY_VIEW', name: 'View TNLD Category' },
+      { code: 'ADMIN_C_TNLD_CATEGORY_CREATE', name: 'Create TNLD Category' },
+      { code: 'ADMIN_C_TNLD_CATEGORY_UPDATE', name: 'Update TNLD Category' },
+      { code: 'ADMIN_C_TNLD_CATEGORY_DELETE', name: 'Delete TNLD Category' },
+    ],
+  },
+  {
+    code: 'ADMIN_G_TNLD_CONTRACT',
+    name: 'TNLD Contract Report Group',
+    type: 'Group',
+    children: [
+      { code: 'ADMIN_C_TNLD_CONTRACT_VIEW', name: 'View TNLD Contract Report' },
+      { code: 'ADMIN_C_TNLD_CONTRACT_ACCEPT', name: 'Accept TNLD Contract Report' },
+      { code: 'ADMIN_C_TNLD_CONTRACT_PRINT', name: 'Print TNLD Contract Report' },
+    ],
+  },
+  {
+    code: 'ENTERPRISE_G_PROFILE',
+    name: 'Enterprise Profile Group',
+    type: 'Group',
+    children: [
+      { code: 'ENTERPRISE_C_PROFILE_VIEW', name: 'View Enterprise Profile' },
+      { code: 'ENTERPRISE_C_PROFILE_UPDATE', name: 'Update Enterprise Profile' },
+    ],
+  },
+  {
+    code: 'ENTERPRISE_G_ATTACHMENT',
+    name: 'Enterprise Attachment Group',
+    type: 'Group',
+    children: [
+      { code: 'ENTERPRISE_C_ATTACHMENT_VIEW', name: 'View Enterprise Attachment' },
+      { code: 'ENTERPRISE_C_ATTACHMENT_UPLOAD', name: 'Upload Enterprise Attachment' },
+      { code: 'ENTERPRISE_C_ATTACHMENT_DELETE', name: 'Delete Enterprise Attachment' },
+    ],
+  },
+  {
+    code: 'ENTERPRISE_G_CONTRACT',
+    name: 'Enterprise Contract Group',
+    type: 'Group',
+    children: [
+      { code: 'ENTERPRISE_C_CONTRACT_VIEW', name: 'View Enterprise Contract' },
+      { code: 'ENTERPRISE_C_CONTRACT_CREATE', name: 'Create Enterprise Contract' },
+      { code: 'ENTERPRISE_C_CONTRACT_UPDATE', name: 'Update Enterprise Contract' },
+    ],
+  },
+  {
+    code: 'ENTERPRISE_G_REPORT',
+    name: 'Enterprise Report Group',
+    type: 'Group',
+    children: [
+      { code: 'ENTERPRISE_C_REPORT_VIEW', name: 'View Enterprise Report' },
+      { code: 'ENTERPRISE_C_REPORT_SUBMIT', name: 'Submit Enterprise Report' },
+    ],
+  },
 ];
 
 const roleSeeds = [
-  { code: 'ADMIN', name: 'Quản trị viên' },
-  { code: 'MANAGER', name: 'Manager' },
-  { code: 'EMPLOYEE', name: 'Employee' },
-  { code: 'CEO', name: 'CEO' },
+  { code: 'ROLE_SUPER_ADMIN', name: 'Quản trị viên cấp cao' },
+  { code: 'ROLE_ADMIN',       name: 'Quản trị viên' },
+  { code: 'ROLE_MANAGER',     name: 'Trưởng phòng' },
+  { code: 'ROLE_USER',        name: 'Nhân viên' },
+  { code: 'ROLE_ENTERPRISE',  name: 'Doanh nghiệp' },
 ];
 
 const titleSeeds = [
@@ -153,33 +253,67 @@ export async function seed(dataSource: DataSource): Promise<void> {
   const titleRepo = dataSource.getRepository(Title);
 
   // ---- Permissions ----
-  const permCount = await permissionRepo.count();
-  if (permCount === 0) {
-    let sortOrder = 0;
-    for (const group of permissionGroups) {
-      const parent = permissionRepo.create({
-        code: group.code,
-        name: group.name,
-        type: 'Group',
-        sortOrder: sortOrder++,
-      });
-      const savedParent = await permissionRepo.save(parent);
+  let insertedPermissions = 0;
+  let sortOrder = 0;
+  for (const group of permissionGroups) {
+    let savedParent = await permissionRepo.findOne({
+      where: { code: group.code },
+    });
 
-      if (group.children) {
-        let childSort = 0;
-        for (const child of group.children) {
-          const childPerm = permissionRepo.create({
+    if (!savedParent) {
+      savedParent = await permissionRepo.save(
+        permissionRepo.create({
+          code: group.code,
+          name: group.name,
+          type: 'Group',
+          sortOrder,
+        }),
+      );
+      insertedPermissions++;
+    } else if (savedParent.type !== 'Group') {
+      savedParent.type = 'Group';
+      savedParent.name = group.name;
+      savedParent.sortOrder = sortOrder;
+      savedParent = await permissionRepo.save(savedParent);
+    }
+
+    let childSort = 0;
+    for (const child of group.children || []) {
+      let savedChild = await permissionRepo.findOne({
+        where: { code: child.code },
+      });
+
+      if (!savedChild) {
+        await permissionRepo.save(
+          permissionRepo.create({
             code: child.code,
             name: child.name,
             type: 'Component',
             parent: savedParent,
-            sortOrder: childSort++,
-          });
-          await permissionRepo.save(childPerm);
-        }
+            sortOrder: childSort,
+          }),
+        );
+        insertedPermissions++;
+      } else if (
+        savedChild.type !== 'Component' ||
+        savedChild.name !== child.name ||
+        savedChild.sortOrder !== childSort
+      ) {
+        savedChild.type = 'Component';
+        savedChild.name = child.name;
+        savedChild.parent = savedParent;
+        savedChild.sortOrder = childSort;
+        await permissionRepo.save(savedChild);
       }
+
+      childSort++;
     }
-    console.log('✅ Seeded permissions');
+
+    sortOrder++;
+  }
+
+  if (insertedPermissions > 0) {
+    console.log(`✅ Seeded ${insertedPermissions} missing permissions`);
   }
 
   // ---- Titles ----
@@ -198,55 +332,95 @@ export async function seed(dataSource: DataSource): Promise<void> {
     if (!role) {
       role = roleRepo.create({ code: r.code, name: r.name });
       role = await roleRepo.save(role);
+    } else if (role.name !== r.name) {
+      role.name = r.name;
+      role = await roleRepo.save(role);
     }
     savedRoles.set(r.code, role);
   }
   const newRoleCount = await roleRepo.count();
   console.log(`ℹ️  ${newRoleCount} roles in DB`);
 
-  // ---- Role Permissions ----
-  const rpCount = await dataSource.getRepository('role_permissions').count();
-  if (rpCount === 0) {
-    const allComps = await permissionRepo.find({ where: { type: 'Component' } });
-
-    // CEO gets all permissions
-    const ceoRole = savedRoles.get('CEO');
-    if (ceoRole) {
-      ceoRole.permissions = allComps;
-      await roleRepo.save(ceoRole);
+  // ---- Migrate old roles to new roles ----
+  const oldToNewCode: Record<string, string> = {
+    'CEO': 'ROLE_SUPER_ADMIN',
+    'MANAGER': 'ROLE_MANAGER',
+    'EMPLOYEE': 'ROLE_USER',
+  };
+  for (const [oldCode, newCode] of Object.entries(oldToNewCode)) {
+    const oldRole = await roleRepo.findOne({ where: { code: oldCode } });
+    const newRole = savedRoles.get(newCode);
+    if (oldRole && newRole) {
+      await dataSource
+        .createQueryBuilder()
+        .update(User)
+        .set({ role: newRole })
+        .where('role_id = :id', { id: oldRole.id })
+        .execute();
+      await roleRepo.remove(oldRole);
+      console.log(`↪️  Migrated role ${oldCode} → ${newCode}`);
     }
-
-    // Manager gets VIEW, CREATE, UPDATE (not DELETE) + REPORT
-    const managerRole = savedRoles.get('MANAGER');
-    if (managerRole) {
-      managerRole.permissions = allComps.filter((p) =>
-        p.code.endsWith('_VIEW') ||
-        p.code.endsWith('_CREATE') ||
-        p.code.endsWith('_UPDATE') ||
-        p.code === 'ADMIN_C_PERMISSION_ASSIGN' ||
-        p.code === 'ADMIN_C_REPORT_VIEW',
-      );
-      await roleRepo.save(managerRole);
-    }
-
-    // Employee gets VIEW only + REPORT
-    const employeeRole = savedRoles.get('EMPLOYEE');
-    if (employeeRole) {
-      employeeRole.permissions = allComps.filter((p) =>
-        p.code.endsWith('_VIEW') || p.code === 'ADMIN_C_REPORT_VIEW',
-      );
-      await roleRepo.save(employeeRole);
-    }
-
-    // Legacy Admin role gets all permissions
-    const adminRole = await roleRepo.findOne({ where: { code: 'ADMIN' } });
-    if (adminRole) {
-      adminRole.permissions = allComps;
-      await roleRepo.save(adminRole);
-    }
-
-    console.log('✅ Seeded role_permissions');
   }
+  const legacyAdmin = await roleRepo.findOne({ where: { code: 'ADMIN' } });
+  const roleAdmin = savedRoles.get('ROLE_ADMIN');
+  if (legacyAdmin && roleAdmin) {
+    await dataSource
+      .createQueryBuilder()
+      .update(User)
+      .set({ role: roleAdmin })
+      .where('role_id = :id', { id: legacyAdmin.id })
+      .execute();
+    await roleRepo.remove(legacyAdmin);
+    console.log('↪️  Merged legacy ADMIN → ROLE_ADMIN');
+  }
+
+  // ---- Role Permissions ----
+  const allComps = await permissionRepo.find({ where: { type: 'Component' } });
+
+  // SUPER_ADMIN gets all permissions
+  const superAdminRole = savedRoles.get('ROLE_SUPER_ADMIN');
+  if (superAdminRole) {
+    superAdminRole.permissions = allComps;
+    await roleRepo.save(superAdminRole);
+  }
+
+  // ADMIN gets full access to all modules
+  const fullAdminRole = savedRoles.get('ROLE_ADMIN');
+  if (fullAdminRole) {
+    fullAdminRole.permissions = allComps;
+    await roleRepo.save(fullAdminRole);
+  }
+
+  // MANAGER gets VIEW, CREATE, UPDATE (not DELETE) + ASSIGN + ACCEPT/PRINT
+  const managerRole = savedRoles.get('ROLE_MANAGER');
+  if (managerRole) {
+    managerRole.permissions = allComps.filter((p) =>
+      p.code.endsWith('_VIEW') ||
+      p.code.endsWith('_CREATE') ||
+      p.code.endsWith('_UPDATE') ||
+      p.code === 'ADMIN_C_PERMISSION_ASSIGN' ||
+      p.code === 'ADMIN_C_REPORT_VIEW' ||
+      p.code === 'ADMIN_C_TNLD_CONTRACT_ACCEPT' ||
+      p.code === 'ADMIN_C_TNLD_CONTRACT_PRINT',
+    );
+    await roleRepo.save(managerRole);
+  }
+
+  // USER gets VIEW only
+  const userRole = savedRoles.get('ROLE_USER');
+  if (userRole) {
+    userRole.permissions = allComps.filter((p) => p.code.endsWith('_VIEW'));
+    await roleRepo.save(userRole);
+  }
+
+  // ENTERPRISE gets only ENTERPRISE_* permissions
+  const entRole = savedRoles.get('ROLE_ENTERPRISE');
+  if (entRole) {
+    entRole.permissions = allComps.filter((p) => p.code.startsWith('ENTERPRISE_'));
+    await roleRepo.save(entRole);
+  }
+
+  console.log('✅ Seeded role_permissions');
 
   // ---- Admin User ----
   const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
@@ -259,7 +433,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   });
 
   if (!existingAdmin) {
-    const adminRole = savedRoles.get('CEO');
+    const adminRole = savedRoles.get('ROLE_SUPER_ADMIN');
     const adminTitle = await titleRepo.findOne({ where: { name: 'Giám đốc' } });
     const passwordHash = await bcrypt.hash(adminPassword, 10);
 
@@ -269,6 +443,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
       fullName: adminFullName,
       email: adminEmail,
       isActive: true,
+      accountType: AccountType.INTERNAL,
       role: adminRole || undefined,
       title: adminTitle || undefined,
     });
@@ -314,15 +489,11 @@ export async function seed(dataSource: DataSource): Promise<void> {
       : WARDS.map(w => ({ name: w.name }));
 
     // Clean up existing associations and wards first to prevent duplicate/stale records
-    await dataSource.query('UPDATE users SET district_id = NULL');
-    await dataSource.query('DELETE FROM tnld_contract_report_overviews');
-    await dataSource.query('DELETE FROM tnld_contract_report_subsidies');
-    await dataSource.query('DELETE FROM tnld_contract_report_attachments');
-    await dataSource.query('DELETE FROM tnld_contract_report_accident_details');
     await dataSource.query('DELETE FROM tnld_contract_reports');
+    await dataSource.query('UPDATE users SET district_id = NULL');
     await dataSource.query('DELETE FROM enterprises');
     await dataSource.query('DELETE FROM districts');
-    console.log('🗑️  Cleared existing districts, reports and related enterprise records');
+    console.log('🗑️  Cleared existing districts and related enterprise records');
 
     let inserted = 0;
     for (const ward of wardsToSeed) {
@@ -357,6 +528,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   // Luôn reset industries: xóa enterprises trước, rồi industries
   const existingEnts = await dataSource.getRepository(Enterprise).count();
   if (existingEnts > 0) {
+    await dataSource.query('DELETE FROM tnld_contract_reports');
     await dataSource.query('DELETE FROM enterprises');
     console.log('🗑️  Cleared existing enterprises before re-seeding industries');
   }
@@ -721,6 +893,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
     // Also create User records so enterprises can log in
     const dnCount = await userRepo.count();
     if (dnCount < 5) {
+      const enterpriseRole = savedRoles.get('ROLE_ENTERPRISE');
       for (const e of enterprises) {
         const exists = await userRepo.findOne({ where: { username: e.username } });
         if (exists) continue;
@@ -730,122 +903,12 @@ export async function seed(dataSource: DataSource): Promise<void> {
           fullName: e.name,
           email: e.email,
           isActive: true,
+          accountType: AccountType.ENTERPRISE,
+          role: enterpriseRole || undefined,
         });
         await userRepo.save(user);
       }
       console.log('✅ Seeded enterprise user accounts');
     }
-
-    // ---- TnldContractReports ----
-    const reportRepo = dataSource.getRepository(TnldContractReport);
-    const reportOverviewRepo = dataSource.getRepository(TnldContractReportOverview);
-    const reportSubsidyRepo = dataSource.getRepository(TnldContractReportSubsidy);
-    const reportAccidentDetailRepo = dataSource.getRepository(TnldContractReportAccidentDetail);
-
-    const allEnts = await enterpriseRepo.find();
-    for (let i = 0; i < Math.min(allEnts.length, 5); i++) {
-      const ent = allEnts[i];
-      const statusVal = i % 3 === 0 ? 'accepted' : i % 3 === 1 ? 'submitted' : 'draft';
-      const report = reportRepo.create({
-        enterpriseId: ent.id,
-        year: 2026,
-        period: i % 2 === 0 ? '6m' : 'y',
-        status: statusVal,
-        submittedAt: statusVal !== 'draft' ? new Date() : undefined,
-      });
-      const savedReport = await reportRepo.save(report);
-
-      await reportOverviewRepo.save(
-        reportOverviewRepo.create({
-          reportId: savedReport.id,
-          totalEmployees: 100 + i * 10,
-          femaleEmployees: 40 + i * 5,
-          payroll: '150000000',
-          totalAccidents: 2,
-          fatalAccidents: 1,
-          multiVictimAccidents: 1,
-          totalVictims: 10,
-          femaleVictims: 5,
-          deadVictims: 5,
-          severeVictims: 10,
-          workdaysLost: 20,
-          medicalCost: '6000000',
-          treatmentSalaryCost: '2000000',
-          compensationCost: '2000000',
-          assetDamage: '20000000',
-        })
-      );
-
-      await reportSubsidyRepo.save(
-        reportSubsidyRepo.create({
-          reportId: savedReport.id,
-          totalAccidents: 0,
-          fatalAccidents: 0,
-          multiVictimAccidents: 0,
-          totalVictims: 0,
-          femaleVictims: 0,
-          deadVictims: 0,
-          severeVictims: 0,
-          medicalCost: '0',
-          treatmentSalaryCost: '0',
-          compensationCost: '0',
-          totalCost: '0',
-          workdaysLost: 0,
-          assetDamage: '0',
-        })
-      );
-
-      // Seed detailed accident breakdown rows
-      await reportAccidentDetailRepo.save(
-        reportAccidentDetailRepo.create({
-          reportId: savedReport.id,
-          cause: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn',
-          injuryFactor: 'Thiết bị nâng',
-          occupation: 'Nhà lãnh đạo cơ quan Đảng Cộng sản Việt Nam cấp Trung ương',
-          totalAccidents: 1,
-          fatalAccidents: 1,
-          multiVictimAccidents: 1,
-          totalVictims: 5,
-          femaleVictims: 2,
-          deadVictims: 2,
-          severeVictims: 5,
-          unmanagedVictims: 0,
-          unmanagedFemaleVictims: 0,
-          unmanagedDeadVictims: 0,
-          unmanagedSevereVictims: 0,
-          medicalCost: '3000000',
-          treatmentSalaryCost: '1000000',
-          compensationCost: '1000000',
-          workdaysLost: 10,
-          assetDamage: '10000000',
-        })
-      );
-
-      await reportAccidentDetailRepo.save(
-        reportAccidentDetailRepo.create({
-          reportId: savedReport.id,
-          cause: 'Tổ chức lao động không hợp lý',
-          injuryFactor: 'Thiết bị nâng',
-          occupation: 'Công nhân',
-          totalAccidents: 1,
-          fatalAccidents: 0,
-          multiVictimAccidents: 0,
-          totalVictims: 5,
-          femaleVictims: 3,
-          deadVictims: 3,
-          severeVictims: 5,
-          unmanagedVictims: 0,
-          unmanagedFemaleVictims: 0,
-          unmanagedDeadVictims: 0,
-          unmanagedSevereVictims: 0,
-          medicalCost: '3000000',
-          treatmentSalaryCost: '1000000',
-          compensationCost: '1000000',
-          workdaysLost: 10,
-          assetDamage: '10000000',
-        })
-      );
-    }
-    console.log('✅ Seeded TnldContractReports mock data (including details)');
   }
 }

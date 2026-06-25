@@ -141,7 +141,7 @@ export default function Autocomplete({
         } ${className}`}
       />
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full max-h-36 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+        <ul className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
           {filtered.map((opt, idx) => (
             <li
               key={opt.id}

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { HCM_WARDS, HCM_PROVINCE, ENTERPRISE_TYPES, INDUSTRIES, Ward } from "@/libs/tts/data/hcm-districts";
-import Autocomplete from "./Autocomplete";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -21,6 +20,16 @@ const validateMST = (mst: string): string => {
 
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+const getTodayDateValue = () => new Date().toISOString().slice(0, 10);
+
+const validatePhone = (phone: string, label: string): string => {
+  const value = phone.trim();
+  if (!value) return `Vui lòng nhập ${label}`;
+  if (!/^\d+$/.test(value)) return `${label} chỉ được chứa chữ số`;
+  if (!/^0\d{8,10}$/.test(value)) return `${label} phải bắt đầu bằng 0 và có 9-11 chữ số`;
+  return "";
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FileEntry {
@@ -179,6 +188,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const handleLicenseDateChange = (value: string) => {
+    const today = getTodayDateValue();
+    setField("ngayCap", (value > today ? today : value) as FormData["ngayCap"]);
+  };
+
   // ── file handlers
   const handleFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -212,6 +226,29 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     });
   };
 
+  const uploadRegistrationFiles = async (enterpriseId: number) => {
+    const selectedFiles = files.filter((entry) => entry.file);
+    if (selectedFiles.length === 0) return;
+
+    await Promise.all(
+      selectedFiles.map(async (entry) => {
+        const body = new FormData();
+        body.append("name", entry.label);
+        body.append("file", entry.file as File);
+
+        const res = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/attachments`, {
+          method: "POST",
+          body,
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || `Không tải lên được file ${entry.file?.name}`);
+        }
+      }),
+    );
+  };
+
   // ── validate step 1
   const validateForm = (): boolean => {
     const errs: Partial<Record<keyof FormData, string>> = {};
@@ -220,12 +257,27 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     if (mstErr) errs.mst = mstErr;
     if (!form.loaiHinhKD) errs.loaiHinhKD = "Vui lòng chọn loại hình kinh doanh";
     if (!form.nganhNghe) errs.nganhNghe = "Vui lòng chọn ngành nghề kinh doanh";
+    if (!form.ngayCap) {
+      errs.ngayCap = "Vui lòng chọn ngày cấp GPKD";
+    } else if (form.ngayCap > getTodayDateValue()) {
+      errs.ngayCap = "Ngày cấp GPKD không được lớn hơn ngày hiện tại";
+    }
+    if (!form.tinhTP) errs.tinhTP = "Vui lòng chọn tỉnh/thành phố ĐKKD";
     if (!form.phuongXa) errs.phuongXa = "Vui lòng chọn phường/xã ĐKKD";
+    if (!form.diaChi.trim()) errs.diaChi = "Vui lòng nhập địa chỉ";
     if (!form.email.trim()) {
       errs.email = "Vui lòng nhập email";
     } else if (!isValidEmail(form.email.trim())) {
       errs.email = "Email không đúng định dạng";
     }
+    const officePhoneErr = validatePhone(form.sdtCoQuan, "Số điện thoại cơ quan");
+    if (officePhoneErr) errs.sdtCoQuan = officePhoneErr;
+    if (!form.nguoiDungDau.trim()) errs.nguoiDungDau = "Vui lòng nhập người đứng đầu doanh nghiệp";
+    const leaderPhoneErr = validatePhone(form.sdtNguoiDungDau, "SĐT liên hệ người đứng đầu");
+    if (leaderPhoneErr) errs.sdtNguoiDungDau = leaderPhoneErr;
+    if (!form.tinhTPHoatDong) errs.tinhTPHoatDong = "Vui lòng chọn tỉnh/thành phố hoạt động KD";
+    if (!form.phuongXaHoatDong) errs.phuongXaHoatDong = "Vui lòng chọn phường/xã hoạt động KD";
+    if (!form.diaDiemKD.trim()) errs.diaDiemKD = "Vui lòng nhập địa điểm kinh doanh";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -316,8 +368,12 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     try {
       setConfirmLoading(true);
       const selectedWardObj = registrationWards.find((w) => w.code === form.phuongXa);
+      const selectedOperationWardObj = operationWards.find((w) => w.code === form.phuongXaHoatDong);
       const phuongXaTen = selectedWardObj
         ? `${selectedWardObj.name}, ${selectedWardObj.district}`
+        : "";
+      const phuongXaHoatDongTen = selectedOperationWardObj
+        ? `${selectedOperationWardObj.name}, ${selectedOperationWardObj.district}`
         : "";
 
       const res = await fetch(`${BASE_URL}/auth/register-enterprise`, {
@@ -335,14 +391,29 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
           sdtNguoiDungDau: form.sdtNguoiDungDau,
           tenNuocNgoai: form.tenNuocNgoai,
           ngayCap: form.ngayCap,
+          tinhTP: form.tinhTP,
+          phuongXaCode: form.phuongXa,
           phuongXaTen,
+          sdtCoQuan: form.sdtCoQuan,
+          tinhTPHoatDong: form.tinhTPHoatDong,
+          phuongXaHoatDongCode: form.phuongXaHoatDong,
+          phuongXaHoatDongTen,
           diaDiemKD: form.diaDiemKD,
         }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Lỗi tạo tài khoản");
       }
+
+      if (data.enterprise?.id) {
+        try {
+          await uploadRegistrationFiles(data.enterprise.id);
+        } catch (uploadError: any) {
+          alert(uploadError?.message || "Tài khoản đã tạo nhưng chưa tải lên được file đính kèm");
+        }
+      }
+
       setStage("account");
     } catch (e: any) {
       const msg = e?.message || "";
@@ -394,7 +465,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   if (stage === "account") {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-md rounded-xl bg-white shadow-2xl overflow-hidden">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl overflow-hidden">
           {/* Header xanh */}
           <div className="bg-blue-600 px-6 py-5 text-center">
             <h2 className="text-lg font-bold text-white">Thông tin tài khoản</h2>
@@ -429,7 +500,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   if (stage === "otp") {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-md rounded-xl bg-white shadow-2xl p-6">
+        <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl p-6">
           {/* Title */}
           <h2 className="text-xl font-bold text-blue-600 text-center mb-1">
             XÁC THỰC EMAIL
@@ -510,7 +581,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   if (stage === "confirm") {
     return (
       <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4 overflow-auto">
-        <div className="w-full max-w-5xl bg-white rounded-xl shadow-2xl my-auto">
+        <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl my-auto">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
             <StepIndicator currentStep={2} />
@@ -620,7 +691,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   /* ───── FORM (Step 1/2) ───── */
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4 overflow-auto">
-      <div className="w-full max-w-6xl bg-white rounded-xl shadow-2xl my-auto">
+      <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl my-auto">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-gray-200 px-6 pt-5 pb-3">
           <div className="flex-1">
@@ -670,38 +741,42 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                 <select
                   value={form.loaiHinhKD}
                   onChange={(e) => setField("loaiHinhKD", e.target.value)}
-                  className={selectCls(!!errors.loaiHinhKD, !!form.loaiHinhKD)}
+                  className={selectCls(!!errors.loaiHinhKD)}
                 >
-                  <option value="" className="text-gray-400">-- Chọn loại hình --</option>
+                  <option value="">-- Chọn loại hình --</option>
                   {ENTERPRISE_TYPES.map((t) => (
-                    <option key={t} value={t} className="text-gray-800">{t}</option>
+                    <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               </FieldWrap>
 
               {/* Ngành nghề kinh doanh */}
               <FieldWrap label="Ngành nghề kinh doanh chính" required error={errors.nganhNghe}>
-                <Autocomplete
+                <select
                   value={form.nganhNghe}
-                  options={INDUSTRIES.map((ind) => ({ id: ind, name: ind }))}
-                  placeholder="-- Chọn ngành nghề --"
-                  onSelect={(val) => setField("nganhNghe", val)}
-                  error={!!errors.nganhNghe}
-                />
+                  onChange={(e) => setField("nganhNghe", e.target.value)}
+                  className={selectCls(!!errors.nganhNghe)}
+                >
+                  <option value="">-- Chọn ngành nghề --</option>
+                  {INDUSTRIES.map((ind) => (
+                    <option key={ind} value={ind}>{ind}</option>
+                  ))}
+                </select>
               </FieldWrap>
 
               {/* Ngày cấp GPKD */}
-              <FieldWrap label="Ngày cấp GPKD">
+              <FieldWrap label="Ngày cấp GPKD" required error={errors.ngayCap}>
                 <input
                   type="date"
                   value={form.ngayCap}
-                  onChange={(e) => setField("ngayCap", e.target.value)}
-                  className={inputCls(false)}
+                  max={getTodayDateValue()}
+                  onChange={(e) => handleLicenseDateChange(e.target.value)}
+                  className={inputCls(!!errors.ngayCap)}
                 />
               </FieldWrap>
 
               {/* Tỉnh/Thành phố ĐKKD (hardcode HCM) */}
-              <FieldWrap label="Tỉnh/Thành phố ĐKKD" required>
+              <FieldWrap label="Tỉnh/Thành phố ĐKKD" required error={errors.tinhTP}>
                 <input
                   type="text"
                   value={form.tinhTP}
@@ -712,23 +787,28 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
               {/* Phường/Xã ĐKKD */}
               <FieldWrap label="Phường/Xã ĐKKD" required error={errors.phuongXa}>
-                <Autocomplete
+                <select
                   value={form.phuongXa}
-                  options={registrationWards.map((w) => ({ id: w.code, name: `${w.name} (${w.district})` }))}
-                  placeholder="-- Chọn phường/xã --"
-                  onSelect={(val) => setField("phuongXa", val)}
-                  error={!!errors.phuongXa}
-                />
+                  onChange={(e) => setField("phuongXa", e.target.value)}
+                  className={selectCls(!!errors.phuongXa)}
+                >
+                  <option value="">-- Chọn phường/xã --</option>
+                  {registrationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
+                      {w.name} ({w.district})
+                    </option>
+                  ))}
+                </select>
               </FieldWrap>
 
               {/* Địa chỉ */}
-              <FieldWrap label="Địa chỉ" className="md:col-span-2">
+              <FieldWrap label="Địa chỉ" required error={errors.diaChi} className="md:col-span-2">
                 <input
                   type="text"
                   value={form.diaChi}
                   onChange={(e) => setField("diaChi", e.target.value)}
                   placeholder="Số nhà, đường..."
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.diaChi)}
                 />
               </FieldWrap>
             </div>
@@ -761,40 +841,40 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* SĐT cơ quan */}
-              <FieldWrap label="Số điện thoại cơ quan">
+              <FieldWrap label="Số điện thoại cơ quan" required error={errors.sdtCoQuan}>
                 <input
                   type="tel"
                   value={form.sdtCoQuan}
                   onChange={(e) => setField("sdtCoQuan", e.target.value.replace(/\D/g, "").slice(0, 11))}
                   placeholder="0XX XXX XXXX"
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.sdtCoQuan)}
                 />
               </FieldWrap>
 
               {/* Người đứng đầu */}
-              <FieldWrap label="Người đứng đầu doanh nghiệp">
+              <FieldWrap label="Người đứng đầu doanh nghiệp" required error={errors.nguoiDungDau}>
                 <input
                   type="text"
                   value={form.nguoiDungDau}
                   onChange={(e) => setField("nguoiDungDau", e.target.value)}
                   placeholder="Nguyễn Văn A"
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.nguoiDungDau)}
                 />
               </FieldWrap>
 
               {/* SĐT người đứng đầu */}
-              <FieldWrap label="SĐT liên hệ người đứng đầu">
+              <FieldWrap label="SĐT liên hệ người đứng đầu" required error={errors.sdtNguoiDungDau}>
                 <input
                   type="tel"
                   value={form.sdtNguoiDungDau}
                   onChange={(e) => setField("sdtNguoiDungDau", e.target.value.replace(/\D/g, "").slice(0, 11))}
                   placeholder="0XX XXX XXXX"
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.sdtNguoiDungDau)}
                 />
               </FieldWrap>
 
               {/* Tỉnh/TP hoạt động KD */}
-              <FieldWrap label="Tỉnh/TP hoạt động KD">
+              <FieldWrap label="Tỉnh/TP hoạt động KD" required error={errors.tinhTPHoatDong}>
                 <input
                   type="text"
                   value={form.tinhTPHoatDong}
@@ -805,23 +885,28 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
               {/* Phường/xã hoạt động KD */}
               <FieldWrap label="Phường/xã hoạt động KD" required error={errors.phuongXaHoatDong}>
-                <Autocomplete
+                <select
                   value={form.phuongXaHoatDong}
-                  options={operationWards.map((w) => ({ id: w.code, name: `${w.name} (${w.district})` }))}
-                  placeholder="-- Chọn phường/xã --"
-                  onSelect={(val) => setField("phuongXaHoatDong", val)}
-                  error={!!errors.phuongXaHoatDong}
-                />
+                  onChange={(e) => setField("phuongXaHoatDong", e.target.value)}
+                  className={selectCls(!!errors.phuongXaHoatDong)}
+                >
+                  <option value="">-- Chọn phường/xã --</option>
+                  {operationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
+                      {w.name} ({w.district})
+                    </option>
+                  ))}
+                </select>
               </FieldWrap>
 
               {/* Địa điểm kinh doanh */}
-              <FieldWrap label="Địa điểm kinh doanh" className="md:col-span-2">
+              <FieldWrap label="Địa điểm kinh doanh" required error={errors.diaDiemKD} className="md:col-span-2">
                 <input
                   type="text"
                   value={form.diaDiemKD}
                   onChange={(e) => setField("diaDiemKD", e.target.value)}
                   placeholder="Địa điểm kinh doanh..."
-                  className={inputCls(false)}
+                  className={inputCls(!!errors.diaDiemKD)}
                 />
               </FieldWrap>
             </div>
@@ -966,13 +1051,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function inputCls(hasError: boolean) {
   return `w-full rounded-lg border ${
     hasError ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-  } px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
+  } px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
 }
 
-function selectCls(hasError: boolean, hasValue: boolean = true) {
+function selectCls(hasError: boolean) {
   return `w-full rounded-lg border ${
     hasError ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-  } px-3 py-2 text-sm ${hasValue ? "text-gray-800" : "text-gray-400"} outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none`;
+  } px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none`;
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────

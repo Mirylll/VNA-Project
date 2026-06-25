@@ -811,23 +811,14 @@ export default function TnldReportFormPage() {
     [reviewCauseRows],
   );
   const reviewInjuryFactorRows = useMemo(
-    () =>
-      buildDynamicReviewRows(
-        activeAccidentDetails,
-        'injuryFactor',
-        (label) => injuryFactors.find((item) => item.name === label)?.id || '',
-      ),
-    [activeAccidentDetails, injuryFactors],
+    () => buildFixedReviewRows(activeAccidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS.map(f => ({ code: f.id, label: f.name }))),
+    [activeAccidentDetails],
   );
   const reviewOccupationRows = useMemo(
-    () =>
-      buildDynamicReviewRows(
-        activeAccidentDetails,
-        'occupation',
-        (label) => occupations.find((item) => item.name === label)?.code || '',
-      ),
-    [activeAccidentDetails, occupations],
+    () => buildFixedReviewRows(activeAccidentDetails, 'occupation', DEFAULT_OCCUPATIONS.map(o => ({ code: o.code, label: o.name }))),
+    [activeAccidentDetails],
   );
+
   const hasAccidentDetailErrors = activeAccidentDetails.some((detail) =>
     Object.values(getAccidentDetailErrors(detail)).some(Boolean),
   );

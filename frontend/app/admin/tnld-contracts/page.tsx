@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, ChevronDown, Printer, FileText, ArrowLeft, Download, Upload, X } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
-import Pagination from '@/libs/tts/components/Pagination';
 
 interface AutocompleteSelectProps {
   options: string[];
@@ -289,7 +288,7 @@ function toNumber(value: unknown): number {
 
 function formatPeriod(period?: string): string {
   if (period === '6m' || period === '6 tháng') return '6 tháng';
-  if (period === '12m' || period === 'year' || period === 'Cả năm' || period === 'y') return '1 năm';
+  if (period === '12m' || period === 'year' || period === 'Cả năm') return 'Cả năm';
   return period || '6 tháng';
 }
 
@@ -425,13 +424,9 @@ function AdminTnldReportSummaryTable({
     fatalAccidents: report.data.casesDeath,
     multiVictimAccidents: report.data.casesMultiple,
     totalVictims: report.data.peopleTotal,
-    unmanagedVictims: 0,
     femaleVictims: report.data.peopleFemale,
-    unmanagedFemaleVictims: 0,
     deadVictims: report.data.peopleDeath,
-    unmanagedDeadVictims: 0,
     severeVictims: report.data.peopleSevere,
-    unmanagedSevereVictims: 0,
     workdaysLost: report.data.daysOff,
     medicalCost: report.data.costMedical,
     treatmentSalaryCost: report.data.costSalary,
@@ -444,7 +439,7 @@ function AdminTnldReportSummaryTable({
   const accidentDetails = report.accidentDetails || [];
   const causeRows = buildDynamicRows(accidentDetails, 'cause', 1);
   const injuryFactorRows = buildDynamicRows(accidentDetails, 'injuryFactor', 101);
-  const occupationRows = buildDynamicRows(accidentDetails, 'occupation', 102);
+  const occupationRows = buildDynamicRows(accidentDetails, 'occupation', 201);
   const overviewData = report.overviewData || fallbackOverviewData;
   const subsidyData = report.subsidyData || toMetricSource();
   const damageTotals = {
@@ -454,206 +449,133 @@ function AdminTnldReportSummaryTable({
     compensationCost: overviewData.compensationCost + subsidyData.compensationCost,
     assetDamage: overviewData.assetDamage + subsidyData.assetDamage,
   };
+  const totalCost = damageTotals.medicalCost + damageTotals.treatmentSalaryCost + damageTotals.compensationCost;
 
-  // Standard employer-side cause labels (codes 1-6)
-  const EMPLOYER_CAUSES = [
-    { code: '1', label: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn' },
-    { code: '2', label: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt' },
-    { code: '3', label: 'Tổ chức lao động không hợp lý' },
-    { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn vệ sinh lao động chưa đầy đủ' },
-    { code: '5', label: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn' },
-    { code: '6', label: 'Điều kiện làm việc không tốt' },
-  ];
-
-  // Standard worker-side cause labels (codes 7-9)
-  const WORKER_CAUSES = [
-    { code: '7', label: 'Quy phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
-    { code: '8', label: 'Không sử dụng phương tiện bảo vệ cá nhân' },
-    { code: '9', label: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến' },
-  ];
-
-  // Look up dynamic cause data by fuzzy match
-  const lookupCauseMetrics = (label: string): ReviewMetricValues => {
-    const match = causeRows.find(
-      (r) => r.label.trim().toLowerCase() === label.trim().toLowerCase()
-        || r.label.toLowerCase().includes(label.slice(0, 15).toLowerCase())
-        || label.toLowerCase().includes(r.label.slice(0, 15).toLowerCase())
-    );
-    return match ? match.metrics : toMetrics();
-  };
-
-  // Shared cell styles
-  const cell = 'border border-slate-200 p-2 text-center text-[11px]';
-  const cellLabel = 'border border-slate-200 p-2 text-[11px]';
-  const sectionHeader = 'border border-slate-200 p-2 font-bold text-[11px]';
-  const subHeader = 'border border-slate-200 p-2 text-[11px]';
-
-  const renderMetrics = (metrics: ReviewMetricValues, keyPrefix: string) =>
+  const renderMetrics = (metrics: ReviewMetricValues, keyPrefix: string, className = '') =>
     metrics.map((value, index) => (
-      <td key={`${keyPrefix}-${index}`} className={cell}>
+      <td key={`${keyPrefix}-${index}`} className={`border border-slate-200 p-2 text-center ${className}`}>
         {value}
       </td>
     ));
 
-  const renderDynamicRow = (row: ReviewSummaryRow, keyPrefix: string) => (
+  const renderRow = (row: ReviewSummaryRow, keyPrefix: string, labelClassName = 'pl-6') => (
     <tr key={`${keyPrefix}-${row.label}`}>
-      <td className={`${cellLabel} pl-6`}>{row.label}</td>
-      <td className={cell}>{row.code}</td>
+      <td className={`border border-slate-200 p-2 ${labelClassName}`}>{row.label}</td>
+      <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
       {renderMetrics(row.metrics, `${keyPrefix}-${row.label}`)}
     </tr>
   );
 
   return (
-    <div className="overflow-auto max-h-[70vh] print:max-h-none print:overflow-visible">
-      {/* Table I: Main accident statistics */}
-      <table className="w-full border-collapse text-[11px] text-slate-800 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
-        <thead>
-          <tr>
-            <th rowSpan={4} className="border border-slate-300 p-2 text-left font-normal min-w-[260px] bg-slate-50 align-middle">Tên chỉ tiêu thống kê</th>
-            <th rowSpan={4} className="border border-slate-300 p-2 text-center font-normal w-14 bg-slate-50 align-middle">Mã số</th>
-            <th colSpan={11} className="border border-slate-300 p-1.5 text-center font-normal bg-slate-50">Phân loại TNLĐ theo mức độ thương tật</th>
+    <div className="overflow-auto max-h-[60vh] print:max-h-none print:overflow-visible border border-slate-200 rounded-lg shadow-inner bg-slate-50/25 p-1">
+      <table className="w-full border-collapse border border-slate-200 text-xs text-slate-700 bg-white">
+        <thead className="sticky top-0 bg-slate-100 z-10 print:static print:bg-white">
+          <tr className="border border-slate-200">
+            <th rowSpan={3} className="border border-slate-200 p-2 text-left font-bold min-w-[250px] bg-slate-100 print:bg-white">Tên chỉ tiêu thống kê</th>
+            <th rowSpan={3} className="border border-slate-200 p-2 text-center font-bold w-16 bg-slate-100 print:bg-white">Mã số</th>
+            <th colSpan={11} className="border border-slate-200 p-1.5 text-center font-bold bg-slate-100 print:bg-white">Phân loại TNLĐ theo mức độ thương tật</th>
           </tr>
-          <tr>
-            <th colSpan={3} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số vụ (Vụ)</th>
-            <th colSpan={8} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số người bị nạn (Người)</th>
+          <tr className="border border-slate-200">
+            <th colSpan={3} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Số vụ (Vụ)</th>
+            <th colSpan={8} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Số người bị nạn (Người)</th>
           </tr>
-          <tr>
-            <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
-            <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-12 bg-slate-50">Số vụ có người chết</th>
-            <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">Số vụ có từ 2 người bị nạn trở lên</th>
-            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Tổng số</th>
-            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số LĐ nữ</th>
-            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số người bị chết</th>
-            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số người bị thương nặng</th>
-          </tr>
-          <tr>
-            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
-            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
+          <tr className="border border-slate-200">
+            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Số vụ có người chết</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-14 bg-slate-50 print:bg-white">Số vụ có từ 2 người bị nạn trở lên</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-16 bg-slate-50 print:bg-white">NN không thuộc quyền quản lý</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-16 bg-slate-50 print:bg-white">NN không thuộc quyền quản lý</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-16 bg-slate-50 print:bg-white">NN không thuộc quyền quản lý</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
+            <th className="border border-slate-200 p-1 text-center font-bold w-16 bg-slate-50 print:bg-white">NN không thuộc quyền quản lý</th>
           </tr>
         </thead>
         <tbody>
-          {/* 1. Tai nạn lao động */}
-          <tr>
-            <td className={`${sectionHeader}`} colSpan={13}>1. Tai nạn lao động</td>
+          <tr className="bg-slate-100 print:bg-white font-bold">
+            <td className="border border-slate-200 p-2 font-bold">1. Tai nạn lao động</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
           </tr>
           <tr>
-            <td className={`${cellLabel} pl-4`}>Tai nạn lao động</td>
-            <td className={cell}>2</td>
+            <td className="border border-slate-200 p-2 pl-4">Tai nạn lao động</td>
+            <td className="border border-slate-200 p-2 text-center font-mono">1</td>
             {renderMetrics(overviewMetrics, 'overview')}
           </tr>
 
-          {/* 1.1 Phân theo nguyên nhân */}
-          <tr>
-            <td className={`${sectionHeader} pl-4`} colSpan={13}>1.1 Phân theo nguyên nhân xảy ra TNLĐ</td>
-          </tr>
-          <tr>
-            <td className={`${subHeader} pl-6`} colSpan={13}>a. Do người sử dụng lao động</td>
-          </tr>
-          {EMPLOYER_CAUSES.map(({ code, label }) => {
-            const metrics = lookupCauseMetrics(label);
-            return (
-              <tr key={code}>
-                <td className={`${cellLabel} pl-8`}>{label}</td>
-                <td className={cell}>{code}</td>
-                {renderMetrics(metrics, `ec-${code}`)}
+          {causeRows.length > 0 && (
+            <>
+              <tr className="bg-slate-50 print:bg-white font-bold">
+                <td className="border border-slate-200 p-2 pl-4 font-bold">1.1 Phân theo nguyên nhân xảy ra TNLĐ</td>
+                <td className="border border-slate-200 p-2 text-center" />
+                <td colSpan={11} className="border border-slate-200" />
               </tr>
-            );
-          })}
-          <tr>
-            <td className={`${subHeader} pl-6`} colSpan={13}>b. Do người lao động</td>
-          </tr>
-          {WORKER_CAUSES.map(({ code, label }) => {
-            const metrics = lookupCauseMetrics(label);
-            return (
-              <tr key={code}>
-                <td className={`${cellLabel} pl-8`}>{label}</td>
-                <td className={cell}>{code}</td>
-                {renderMetrics(metrics, `wc-${code}`)}
-              </tr>
-            );
-          })}
-
-          {/* 1.2 Phân theo yếu tố gây chấn thương */}
-          <tr>
-            <td className={`${sectionHeader} pl-4`} colSpan={13}>1.2. Phân theo yếu tố gây chấn thương</td>
-          </tr>
-          {injuryFactorRows.length > 0 ? (
-            injuryFactorRows.map((row) => renderDynamicRow(row, 'inj'))
-          ) : (
-            <tr>
-              <td className={`${cellLabel} pl-6`}>—</td>
-              <td className={cell}></td>
-              {renderMetrics(toMetrics(), 'inj-empty')}
-            </tr>
+              {causeRows.map((row) => renderRow(row, 'cause', 'pl-6'))}
+            </>
           )}
 
-          {/* 1.3 Phân theo nghề nghiệp */}
-          <tr>
-            <td className={`${sectionHeader} pl-4`} colSpan={13}>1.3 Phân theo nghề nghiệp</td>
-          </tr>
-          {occupationRows.length > 0 ? (
-            occupationRows.map((row) => renderDynamicRow(row, 'occ'))
-          ) : (
-            <tr>
-              <td className={`${cellLabel} pl-6`}>—</td>
-              <td className={cell}></td>
-              {renderMetrics(toMetrics(), 'occ-empty')}
-            </tr>
+          {injuryFactorRows.length > 0 && (
+            <>
+              <tr className="bg-slate-50 print:bg-white font-bold">
+                <td className="border border-slate-200 p-2 pl-4 font-bold">1.2 Phân theo yếu tố gây chấn thương</td>
+                <td className="border border-slate-200 p-2 text-center" />
+                <td colSpan={11} className="border border-slate-200" />
+              </tr>
+              {injuryFactorRows.map((row) => renderRow(row, 'injury-factor', 'pl-6'))}
+            </>
           )}
 
-          {/* 2. Tai nạn hưởng trợ cấp */}
-          <tr>
-            <td className={sectionHeader}>2. Tai nạn được hưởng trợ cấp theo quy định tại Khoản 2 Điều 39 Luật ATVSLĐ</td>
-            <td className={cell}>10</td>
-            {renderMetrics(subsidyMetrics, 'sub')}
+          {occupationRows.length > 0 && (
+            <>
+              <tr className="bg-slate-50 print:bg-white font-bold">
+                <td className="border border-slate-200 p-2 pl-4 font-bold">1.3 Phân theo nghề nghiệp</td>
+                <td className="border border-slate-200 p-2 text-center" />
+                <td colSpan={11} className="border border-slate-200" />
+              </tr>
+              {occupationRows.map((row) => renderRow(row, 'occupation', 'pl-6'))}
+            </>
+          )}
+
+          <tr className="bg-slate-100 print:bg-white font-bold">
+            <td className="border border-slate-200 p-2 font-bold">2. Tai nạn được hưởng trợ cấp theo quy định tại Khoản 2 Điều 39 Luật ATVSLĐ</td>
+            <td className="border border-slate-200 p-2 text-center font-mono">10</td>
+            {renderMetrics(subsidyMetrics, 'subsidy')}
           </tr>
 
-          {/* 3. Tổng số */}
-          <tr>
-            <td className={`${sectionHeader}`} colSpan={13}>3. Tổng số</td>
-          </tr>
-          <tr>
-            <td className={`${cellLabel} pl-4`}>Tổng số (3=1+2)</td>
-            <td className={cell}></td>
-            {renderMetrics(totalMetrics, 'tot')}
+          <tr className="bg-slate-50 print:bg-white font-extrabold text-[#112D75]">
+            <td className="border border-slate-200 p-2 font-bold">3. Tổng số (3=1+2)</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            {renderMetrics(totalMetrics, 'total', 'font-bold')}
           </tr>
         </tbody>
       </table>
 
-      {/* Table II: Thiệt hại */}
-      <div className="mt-4">
-        <p className="text-[11px] font-bold text-slate-800 mb-2" style={{ fontFamily: 'Arial, sans-serif' }}>II. Thiệt hại do tai nạn lao động</p>
-        <table className="w-full border-collapse text-[11px] text-slate-800 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
+      <div className="mt-6 space-y-2">
+        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">II. Thiệt hại do tai nạn lao động</h3>
+        <table className="w-full border-collapse border border-slate-200 text-xs text-slate-700 bg-white">
           <thead>
-            <tr className="bg-slate-50">
-              <th rowSpan={3} className="border border-slate-300 p-2 text-center font-normal min-w-[200px]">Tổng số  ngày nghỉ vì tai nạn lao động (kể cả ngày nghỉ chế độ )</th>
-              <th colSpan={4} className="border border-slate-300 p-1.5 text-center font-normal">Tổng số  ngày nghỉ vì TNLĐ (1.000đ)</th>
-              <th rowSpan={3} className="border border-slate-300 p-2 text-center font-normal w-36">Thiệt hại tài sản (1.000đ)</th>
+            <tr className="bg-slate-100 border-b border-slate-200 print:bg-white">
+              <th rowSpan={2} className="border border-slate-200 p-2 text-center font-bold min-w-[200px]">Tổng số ngày nghỉ vì tai nạn lao động (kể cả ngày nghỉ chế độ)</th>
+              <th colSpan={4} className="border border-slate-200 p-1.5 text-center font-bold">Tổng số ngày nghỉ vì TNLĐ (1.000đ)</th>
+              <th rowSpan={2} className="border border-slate-200 p-2 text-center font-bold w-40">Thiệt hại tài sản (1.000đ)</th>
             </tr>
-            <tr className="bg-slate-50">
-              <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-28">Tổng số</th>
-              <th colSpan={3} className="border border-slate-300 p-1 text-center font-normal">Khoảng chi cụ thể của cơ sở</th>
-            </tr>
-            <tr className="bg-slate-50">
-              <th className="border border-slate-300 p-1 text-center font-normal w-24">Y tế</th>
-              <th className="border border-slate-300 p-1 text-center font-normal w-32">Trả lương trong thời gian điều trị</th>
-              <th className="border border-slate-300 p-1 text-center font-normal w-28">Bồi thường trợ cấp</th>
+            <tr className="bg-slate-50 border-b border-slate-200 print:bg-white">
+              <th className="border border-slate-200 p-1 text-center font-bold w-28">Tổng số</th>
+              <th className="border border-slate-200 p-1 text-center font-bold w-24">Y tế</th>
+              <th className="border border-slate-200 p-1 text-center font-bold w-32">Trả lương trong thời gian điều trị</th>
+              <th className="border border-slate-200 p-1 text-center font-bold w-28">Bồi thường trợ cấp</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td className="border border-slate-300 p-3 text-center">{damageTotals.workdaysLost}</td>
-              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round((damageTotals.medicalCost + damageTotals.treatmentSalaryCost + damageTotals.compensationCost) / 1000))}</td>
-              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.medicalCost / 1000))}</td>
-              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.treatmentSalaryCost / 1000))}</td>
-              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.compensationCost / 1000))}</td>
-              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.assetDamage / 1000))}</td>
+              <td className="border border-slate-200 p-3 text-center font-bold text-slate-800">{damageTotals.workdaysLost}</td>
+              <td className="border border-slate-200 p-3 text-center font-mono">{formatNumber(totalCost)}</td>
+              <td className="border border-slate-200 p-3 text-center font-mono">{formatNumber(damageTotals.medicalCost)}</td>
+              <td className="border border-slate-200 p-3 text-center font-mono">{formatNumber(damageTotals.treatmentSalaryCost)}</td>
+              <td className="border border-slate-200 p-3 text-center font-mono">{formatNumber(damageTotals.compensationCost)}</td>
+              <td className="border border-slate-200 p-3 text-center font-mono">{formatNumber(damageTotals.assetDamage)}</td>
             </tr>
           </tbody>
         </table>
@@ -694,7 +616,7 @@ const SEED_REPORTS: CompanyReport[] = [
     taxCode: '0317118106',
     province: 'Hồ Chí Minh',
     ward: '',
-    period: '1 năm',
+    period: 'Cả năm',
     year: 2022,
     status: 'submitted',
     data: {
@@ -719,7 +641,7 @@ const SEED_REPORTS: CompanyReport[] = [
     taxCode: '0317118107',
     province: 'Hồ Chí Minh',
     ward: '',
-    period: '1 năm',
+    period: 'Cả năm',
     year: 2022,
     status: 'submitted',
     data: {
@@ -744,7 +666,7 @@ const SEED_REPORTS: CompanyReport[] = [
     taxCode: '0317118106',
     province: 'Hồ Chí Minh',
     ward: '',
-    period: '1 năm',
+    period: 'Cả năm',
     year: 2022,
     status: 'submitted',
     data: {
@@ -794,7 +716,7 @@ const SEED_REPORTS: CompanyReport[] = [
     taxCode: '0317118106',
     province: 'Hồ Chí Minh',
     ward: '',
-    period: '1 năm',
+    period: 'Cả năm',
     year: 2023,
     status: 'submitted',
     data: {
@@ -819,7 +741,7 @@ const SEED_REPORTS: CompanyReport[] = [
     taxCode: '0317118107',
     province: 'Hồ Chí Minh',
     ward: '',
-    period: '1 năm',
+    period: 'Cả năm',
     year: 2023,
     status: 'submitted',
     data: {
@@ -869,7 +791,7 @@ const SEED_REPORTS: CompanyReport[] = [
     taxCode: '0317118106',
     province: 'Hồ Chí Minh',
     ward: '',
-    period: '1 năm',
+    period: 'Cả năm',
     year: 2024,
     status: 'submitted',
     data: {
@@ -891,16 +813,14 @@ const SEED_REPORTS: CompanyReport[] = [
 ];
 
 export default function TnldContractsPage() {
+  const canAccept = hasPermission('ADMIN_C_TNLD_CONTRACT_ACCEPT');
+
   // Navigation view state: 'list' | 'detail' | 'summary'
   const [viewState, setViewState] = useState<'list' | 'detail' | 'summary'>('list');
   const [reports, setReports] = useState<CompanyReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<CompanyReport | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isAcceptingReport, setIsAcceptingReport] = useState(false);
-
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   // PDF Preview State
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -920,11 +840,6 @@ export default function TnldContractsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
   const [reportsError, setReportsError] = useState('');
-
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterYear, filterProvince, filterWard, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
 
   const baseUrl =
     typeof window !== 'undefined'
@@ -1011,12 +926,6 @@ export default function TnldContractsPage() {
       return true;
     });
   }, [reports, filterYear, filterProvince, filterWard, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
-
-  // Paginated reports list
-  const paginatedReports = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredReports.slice(startIndex, startIndex + pageSize);
-  }, [filteredReports, currentPage, pageSize]);
 
   // Open detail view
   const handleOpenDetail = async (report: CompanyReport) => {
@@ -1109,10 +1018,10 @@ export default function TnldContractsPage() {
     document.body.removeChild(link);
   };
 
-  // Dynamic calculations for aggregate summary - only from accepted (đã báo cáo) reports
+  // Dynamic calculations for aggregate summary
   const summaryCalculations = useMemo(() => {
     const submitted = reports.filter((r) => {
-      if (r.status !== 'accepted') return false; // Only fully accepted/approved reports
+      if (r.status === 'draft') return false;
       if (filterYear !== 'Tất cả' && String(r.year) !== filterYear) return false;
       if (filterProvince && normalizeLocationName(r.province) !== normalizeLocationName(filterProvince)) return false;
 
@@ -1176,11 +1085,6 @@ export default function TnldContractsPage() {
   // Formatter for values
   const formatNumber = (num: number) => {
     return num.toLocaleString('vi-VN');
-  };
-
-  // Format number in 1000đ units (divide by 1000)
-  const formatCost = (num: number) => {
-    return Math.round(num / 1000).toLocaleString('vi-VN');
   };
 
   return (
@@ -1362,7 +1266,7 @@ export default function TnldContractsPage() {
                       >
                         <option value="">Tất cả</option>
                         <option value="6 tháng">6 tháng</option>
-                        <option value="1 năm">1 năm</option>
+                        <option value="Cả năm">Cả năm</option>
                       </select>
                       <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
@@ -1398,7 +1302,7 @@ export default function TnldContractsPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedReports.map((report) => (
+                  filteredReports.map((report) => (
                   <tr key={report.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3.5 text-center">
                       <input
@@ -1456,17 +1360,22 @@ export default function TnldContractsPage() {
             </table>
 
             {/* Pagination */}
-            <Pagination
-              currentPage={currentPage}
-              totalPages={Math.ceil(filteredReports.length / pageSize) || 1}
-              totalItems={filteredReports.length}
-              itemsPerPage={pageSize}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={(size) => {
-                setPageSize(size);
-                setCurrentPage(1);
-              }}
-            />
+            <div className="flex items-center justify-end gap-4 px-6 py-3 border-t border-slate-200 bg-white text-xs text-slate-500 font-medium">
+              <div className="flex items-center gap-1">
+                <span>Hiển thị</span>
+                <div className="relative">
+                  <select className="appearance-none border border-slate-200 rounded px-2 py-0.5 pr-5 bg-white text-slate-600 font-semibold focus:outline-none">
+                    <option>10</option>
+                  </select>
+                  <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
+                </div>
+              </div>
+              <span>1 - {filteredReports.length} of {filteredReports.length}</span>
+              <div className="flex gap-1.5">
+                <button disabled className="p-1 rounded border border-slate-200 opacity-50 cursor-not-allowed">&lt;</button>
+                <button disabled className="p-1 rounded border border-slate-200 opacity-50 cursor-not-allowed">&gt;</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1486,7 +1395,7 @@ export default function TnldContractsPage() {
               >
                 Huỷ bỏ
               </button>
-              {selectedReport.status === 'submitted' && (
+              {canAccept && selectedReport.status === 'submitted' && (
                 <button
                   onClick={handleAcceptReport}
                   disabled={isAcceptingReport}
@@ -1525,7 +1434,7 @@ export default function TnldContractsPage() {
             {/* SCROLLABLE TABLE PANEL - Max height constraint in browser, full viewport during printing */}
             <AdminTnldReportSummaryTable report={selectedReport} formatNumber={formatNumber} />
 
-            {/* Legacy mock table removed - AdminTnldReportSummaryTable above uses real data */}
+            {/* Legacy mock table kept hidden while the real report table above uses submitted data. */}
             <div className="hidden">
               <table className="w-full border-collapse border border-slate-200 text-xs text-slate-700 bg-white">
                 <thead className="sticky top-0 bg-slate-100 z-10 print:static print:bg-white">
@@ -1999,11 +1908,11 @@ export default function TnldContractsPage() {
                       <td className="border border-slate-200 p-2 text-center font-mono">{summaryCalculations.totals.peopleDeath}</td>
                       <td className="border border-slate-200 p-2 text-center font-mono">{summaryCalculations.totals.peopleSevere}</td>
                       <td className="border border-slate-200 p-2 text-center font-mono">{summaryCalculations.totals.daysOff}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costTotal)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costMedical)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costSalary)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costCompensation)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.propertyDamage)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costTotal)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costMedical)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costSalary)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costCompensation)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.propertyDamage)}</td>
                     </tr>
 
                     {/* Section: Phân theo ngành nghề */}
@@ -2031,11 +1940,11 @@ export default function TnldContractsPage() {
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? summaryCalculations.totals.peopleDeath : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? summaryCalculations.totals.peopleSevere : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? summaryCalculations.totals.daysOff : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costTotal) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costMedical) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costSalary) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costCompensation) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.propertyDamage) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costTotal) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costMedical) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costSalary) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costCompensation) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.propertyDamage) : 0}</td>
                       </tr>
                     ))}
 
@@ -2062,11 +1971,11 @@ export default function TnldContractsPage() {
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? summaryCalculations.totals.peopleDeath : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? summaryCalculations.totals.peopleSevere : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? summaryCalculations.totals.daysOff : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costTotal) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costMedical) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costSalary) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costCompensation) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.propertyDamage) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costTotal) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costMedical) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costSalary) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costCompensation) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.propertyDamage) : 0}</td>
                       </tr>
                     ))}
 
@@ -2093,11 +2002,11 @@ export default function TnldContractsPage() {
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? summaryCalculations.totals.peopleDeath : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? summaryCalculations.totals.peopleSevere : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? summaryCalculations.totals.daysOff : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costTotal) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costMedical) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costSalary) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costCompensation) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.propertyDamage) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costTotal) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costMedical) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costSalary) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costCompensation) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.propertyDamage) : 0}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2177,13 +2086,13 @@ export default function TnldContractsPage() {
                   <p><strong>3. Tổng số ngày nghỉ vì tai nạn lao động:</strong> {selectedReport.data.daysOff} ngày.</p>
                   
                   <div className="space-y-1">
-                    <p><strong>4. Chi phí thiệt hại (nghìn đồng):</strong></p>
+                    <p><strong>4. Chi phí thiệt hại (VNĐ):</strong></p>
                     <ul className="list-disc pl-6 space-y-0.5">
-                      <li>Tổng chi phí: {formatCost(selectedReport.data.costMedical + selectedReport.data.costSalary + selectedReport.data.costCompensation)} (1.000đ)</li>
-                      <li>Chi phí y tế: {formatCost(selectedReport.data.costMedical)} (1.000đ)</li>
-                      <li>Trả lương thời gian điều trị: {formatCost(selectedReport.data.costSalary)} (1.000đ)</li>
-                      <li>Chi phí bồi thường trợ cấp: {formatCost(selectedReport.data.costCompensation)} (1.000đ)</li>
-                      <li>Thiệt hại tài sản: {formatCost(selectedReport.data.propertyDamage)} (1.000đ)</li>
+                      <li>Tổng chi phí: {formatNumber(selectedReport.data.costTotal)} VNĐ</li>
+                      <li>Chi phí y tế: {formatNumber(selectedReport.data.costMedical)} VNĐ</li>
+                      <li>Trả lương thời gian điều trị: {formatNumber(selectedReport.data.costSalary)} VNĐ</li>
+                      <li>Chi phí bồi thường trợ cấp: {formatNumber(selectedReport.data.costCompensation)} VNĐ</li>
+                      <li>Thiệt hại tài sản: {formatNumber(selectedReport.data.propertyDamage)} VNĐ</li>
                     </ul>
                   </div>
 

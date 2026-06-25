@@ -238,22 +238,14 @@ export default function EnterpriseModal({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
               Phường/ xã
             </label>
-            <div className="relative">
-              <select
-                value={wardId}
-                onChange={(e) => setWardId(e.target.value)}
-                className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-              >
-                <option value="" disabled>Chọn phường/ xã</option>
-                {wards.map((w: any) => (
-                  <option key={w.id} value={String(w.id)}>{w.name}</option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-              />
-            </div>
+            <Autocomplete
+              value={wardId}
+              options={wards.map((w: any) => ({ id: String(w.id), name: w.name }))}
+              placeholder="Chọn phường/ xã"
+              onSelect={(val) => setWardId(val)}
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              plain
+            />
           </div>
 
           <div className="relative border border-slate-300 rounded-lg px-3 pt-3 pb-2">
