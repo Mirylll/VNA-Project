@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Plus, Eye, Pencil, KeyRound, RefreshCw, ChevronDown, Download } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
 import Pagination from './Pagination';
 import AccountInfoModal from '@/libs/tts/components/AccountInfoModal';
@@ -98,6 +98,10 @@ export default function EnterpriseListPage() {
   const [acctModal, setAcctModal] = useState<{ open: boolean; item: any }>({ open: false, item: null });
   const [resetPwModal, setResetPwModal] = useState<{ open: boolean; enterprise: any }>({ open: false, enterprise: null });
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  const canCreate = hasPermission('ADMIN_C_ENTERPRISE_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_ENTERPRISE_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_ENTERPRISE_DELETE');
 
   function fetchItems() {
     setLoading(true);
@@ -427,18 +431,22 @@ export default function EnterpriseListPage() {
             <Download size={16} />
             Xuất danh sách
           </button>
-          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
-            <Upload size={16} />
-            Thêm từ file
-            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
-          </label>
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
+              <Upload size={16} />
+              Thêm từ file
+              <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+            </label>
+          )}
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -446,23 +454,25 @@ export default function EnterpriseListPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-slate-200">
-              <th className="w-10 px-2 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={
-                    paginatedItems.length > 0 &&
-                    selectedIds.length === paginatedItems.length
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(paginatedItems.map((r: any) => r.id));
-                    } else {
-                      setSelectedIds([]);
+              {canDelete && (
+                <th className="w-10 px-2 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={
+                      paginatedItems.length > 0 &&
+                      selectedIds.length === paginatedItems.length
                     }
-                  }}
-                  className="accent-blue-600"
-                />
-              </th>
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(paginatedItems.map((r: any) => r.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="accent-blue-600"
+                  />
+                </th>
+              )}
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Thao tác
               </th>
@@ -484,7 +494,7 @@ export default function EnterpriseListPage() {
             </tr>
 
             <tr className="border-b border-slate-200">
-              <td className="px-2 py-2" />
+              {canDelete && <td className="px-2 py-2" />}
               <td className="px-2 py-2" />
               <td className="px-3 py-2">
                 <input
@@ -535,50 +545,62 @@ export default function EnterpriseListPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Đang tải...
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-red-400">
-                  <span>{error}</span>
-                  <button
-                    onClick={fetchItems}
-                    className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    <RefreshCw size={14} /> Thử lại
-                  </button>
-                </td>
-              </tr>
-            ) : paginatedItems.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Không tìm thấy doanh nghiệp
-                </td>
-              </tr>
-            ) : (
-              paginatedItems.map((item: any) => (
+            {(() => {
+              const colSpan = (canDelete ? 1 : 0) + 6;
+              if (loading) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Đang tải...
+                    </td>
+                  </tr>
+                );
+              }
+              if (error) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-red-400">
+                      <span>{error}</span>
+                      <button
+                        onClick={fetchItems}
+                        className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <RefreshCw size={14} /> Thử lại
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
+              if (paginatedItems.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Không tìm thấy doanh nghiệp
+                    </td>
+                  </tr>
+                );
+              }
+              return paginatedItems.map((item: any) => (
                 <tr
                   key={item.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-2 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(item.id)}
-                      onChange={() => {
-                        setSelectedIds((prev) =>
-                          prev.includes(item.id)
-                            ? prev.filter((id) => id !== item.id)
-                            : [...prev, item.id],
-                        );
-                      }}
-                      className="accent-blue-600"
-                    />
-                  </td>
+                  {canDelete && (
+                    <td className="px-2 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => {
+                          setSelectedIds((prev) =>
+                            prev.includes(item.id)
+                              ? prev.filter((id) => id !== item.id)
+                              : [...prev, item.id],
+                          );
+                        }}
+                        className="accent-blue-600"
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <button
@@ -587,18 +609,22 @@ export default function EnterpriseListPage() {
                       >
                         <Eye size={15} />
                       </button>
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => handleResetPw(item)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <KeyRound size={15} />
-                      </button>
+                      {canUpdate && (
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
+                      {canUpdate && (
+                        <button
+                          onClick={() => handleResetPw(item)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <KeyRound size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-700">{item.name}</td>
@@ -612,14 +638,20 @@ export default function EnterpriseListPage() {
                     {item.industry?.name || '-'}
                   </td>
                   <td className="px-3 py-3">
-                    <ToggleSwitch
-                      checked={item.isActive}
-                      onChange={() => handleToggleStatus(item)}
-                    />
+                    {canUpdate ? (
+                      <ToggleSwitch
+                        checked={item.isActive}
+                        onChange={() => handleToggleStatus(item)}
+                      />
+                    ) : (
+                      <span className={`text-sm ${item.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                        {item.isActive ? 'Hoạt động' : 'Ngừng'}
+                      </span>
+                    )}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
@@ -633,11 +665,13 @@ export default function EnterpriseListPage() {
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
       />
 
-      <SelectionBar
-        selectedCount={selectedIds.length}
-        onClear={() => setSelectedIds([])}
-        onDelete={() => setDeleteConfirm(true)}
-      />
+      {canDelete && (
+        <SelectionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onDelete={() => setDeleteConfirm(true)}
+        />
+      )}
 
       <AccountInfoModal
         open={acctModal.open}

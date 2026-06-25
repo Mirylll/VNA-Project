@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Plus, ChevronDown, Pencil, KeyRound, RefreshCw, Download } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import SelectionBar from './SelectionBar';
 import ResetPasswordModal from './ResetPasswordModal';
 import SuccessToast from './SuccessToast';
@@ -123,6 +123,10 @@ export default function UserListPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const canCreate = hasPermission('ADMIN_C_USER_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_USER_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_USER_DELETE');
+
   const [filters, setFilters] = useState<Record<string, string>>({
     fullName: '',
     username: '',
@@ -412,18 +416,22 @@ export default function UserListPage() {
             <Download size={16} />
             Xuất danh sách
           </button>
-          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
-            <Upload size={16} />
-            Import
-            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
-          </label>
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 transition-colors cursor-pointer">
+              <Upload size={16} />
+              Import
+              <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+            </label>
+          )}
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -431,25 +439,27 @@ export default function UserListPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-slate-200">
-              <th className="w-10 px-2 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={
-                    paginatedUsers.length > 0 &&
-                    selectedIds.length === paginatedUsers.length
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(paginatedUsers.map((u) => u.id));
-                    } else {
-                      setSelectedIds([]);
+              {canDelete && (
+                <th className="w-10 px-2 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={
+                      paginatedUsers.length > 0 &&
+                      selectedIds.length === paginatedUsers.length
                     }
-                  }}
-                  className="accent-blue-600"
-                />
-              </th>
-              <th className="w-10 px-2 py-3" />
-              <th className="w-10 px-2 py-3" />
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(paginatedUsers.map((u) => u.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="accent-blue-600"
+                  />
+                </th>
+              )}
+              {canUpdate && <th className="w-10 px-2 py-3" />}
+              {canUpdate && <th className="w-10 px-2 py-3" />}
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Họ và tên
               </th>
@@ -471,9 +481,9 @@ export default function UserListPage() {
             </tr>
 
             <tr className="border-b border-slate-200">
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
+              {canDelete && <td className="px-2 py-2" />}
+              {canUpdate && <td className="px-2 py-2" />}
+              {canUpdate && <td className="px-2 py-2" />}
               <td className="px-3 py-2">
                 <input
                   placeholder="Tìm theo họ tên..."
@@ -550,66 +560,82 @@ export default function UserListPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Đang tải...
-                </td>
-              </tr>
-            ) : fetchError ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-sm text-red-400">
-                  <span>Không thể tải dữ liệu.</span>
-                  <button
-                    onClick={fetchUsers}
-                    className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    <RefreshCw size={14} /> Thử lại
-                  </button>
-                </td>
-              </tr>
-            ) : paginatedUsers.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-400">
-                  {hasFilters ? 'Không tìm thấy người dùng' : 'Chưa có người dùng nào'}
-                </td>
-              </tr>
-            ) : (
-              paginatedUsers.map((user) => (
+            {(() => {
+              const colSpan = (canDelete ? 1 : 0) + (canUpdate ? 2 : 0) + 6;
+              if (loading) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Đang tải...
+                    </td>
+                  </tr>
+                );
+              }
+              if (fetchError) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-red-400">
+                      <span>Không thể tải dữ liệu.</span>
+                      <button
+                        onClick={fetchUsers}
+                        className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <RefreshCw size={14} /> Thử lại
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
+              if (paginatedUsers.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      {hasFilters ? 'Không tìm thấy người dùng' : 'Chưa có người dùng nào'}
+                    </td>
+                  </tr>
+                );
+              }
+              return paginatedUsers.map((user) => (
                 <tr
                   key={user.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-2 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(user.id)}
-                      onChange={() => {
-                        setSelectedIds((prev) =>
-                          prev.includes(user.id)
-                            ? prev.filter((id) => id !== user.id)
-                            : [...prev, user.id],
-                        );
-                      }}
-                      className="accent-blue-600"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <button
-                      onClick={() => handleEdit(user.id)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  </td>
-                  <td className="px-2 py-3">
-                    <button
-                      onClick={() => setResetPasswordUser(user)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <KeyRound size={15} />
-                    </button>
-                  </td>
+                  {canDelete && (
+                    <td className="px-2 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(user.id)}
+                        onChange={() => {
+                          setSelectedIds((prev) =>
+                            prev.includes(user.id)
+                              ? prev.filter((id) => id !== user.id)
+                              : [...prev, user.id],
+                          );
+                        }}
+                        className="accent-blue-600"
+                      />
+                    </td>
+                  )}
+                  {canUpdate && (
+                    <td className="px-2 py-3">
+                      <button
+                        onClick={() => handleEdit(user.id)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    </td>
+                  )}
+                  {canUpdate && (
+                    <td className="px-2 py-3">
+                      <button
+                        onClick={() => setResetPasswordUser(user)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <KeyRound size={15} />
+                      </button>
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-sm text-gray-900 font-medium">
                     {user.fullName}
                   </td>
@@ -626,14 +652,20 @@ export default function UserListPage() {
                     {user.title?.name || '—'}
                   </td>
                   <td className="px-3 py-3">
-                    <ToggleSwitch
-                      checked={user.isActive}
-                      onChange={() => handleToggleStatus(user)}
-                    />
+                    {canUpdate ? (
+                      <ToggleSwitch
+                        checked={user.isActive}
+                        onChange={() => handleToggleStatus(user)}
+                      />
+                    ) : (
+                      <span className={`text-sm ${user.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                        {user.isActive ? 'Hoạt động' : 'Ngừng'}
+                      </span>
+                    )}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
@@ -647,11 +679,13 @@ export default function UserListPage() {
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
       />
 
-      <SelectionBar
-        selectedCount={selectedIds.length}
-        onClear={() => setSelectedIds([])}
-        onDelete={() => setDeleteConfirm(true)}
-      />
+      {canDelete && (
+        <SelectionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onDelete={() => setDeleteConfirm(true)}
+        />
+      )}
 
       <ResetPasswordModal
         open={!!resetPasswordUser}

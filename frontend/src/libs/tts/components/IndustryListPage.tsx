@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import { Plus, Pencil, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import IndustryModal from '@/libs/tts/components/IndustryModal';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
 import Pagination from './Pagination';
@@ -74,6 +74,10 @@ export default function IndustryListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+
+  const canCreate = hasPermission('ADMIN_C_INDUSTRY_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_INDUSTRY_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_INDUSTRY_DELETE');
 
   function fetchItems() {
     setLoading(true);
@@ -301,26 +305,28 @@ export default function IndustryListPage() {
         <Fragment key={item.id}>
           <tr className={`border-b ${depth === 0 ? 'border-slate-200' : 'border-slate-100'} hover:bg-gray-50 transition-colors`}>
             {/* Checkbox */}
-            <td className="px-2 py-3 text-center">
-              <div className={`inline-flex items-center gap-0.5 ${depth > 0 ? 'ml-6' : ''}`}>
-                {hasChildren ? (
-                  <button
-                    onClick={() => toggleGroup(item.code)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </button>
-                ) : depth > 0 ? (
-                  <span className="w-[14px]" />
-                ) : null}
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(item.id)}
-                  onChange={() => toggleSelect(item.id)}
-                  className="accent-blue-600 ml-0.5"
-                />
-              </div>
-            </td>
+            {canDelete && (
+              <td className="px-2 py-3 text-center">
+                <div className={`inline-flex items-center gap-0.5 ${depth > 0 ? 'ml-6' : ''}`}>
+                  {hasChildren ? (
+                    <button
+                      onClick={() => toggleGroup(item.code)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                  ) : depth > 0 ? (
+                    <span className="w-[14px]" />
+                  ) : null}
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                    className="accent-blue-600 ml-0.5"
+                  />
+                </div>
+              </td>
+            )}
             {/* STT */}
             <td className="px-2 py-3 text-center">
               <span className={`text-xs ${isRoot ? 'font-semibold text-blue-600' : 'text-slate-500'}`}>
@@ -328,14 +334,16 @@ export default function IndustryListPage() {
               </span>
             </td>
             {/* Edit */}
-            <td className="px-2 py-3">
-              <button
-                onClick={() => handleEdit(item)}
-                className="text-gray-400 hover:text-blue-600 transition-colors"
-              >
-                <Pencil size={15} />
-              </button>
-            </td>
+            {canUpdate && (
+              <td className="px-2 py-3">
+                <button
+                  onClick={() => handleEdit(item)}
+                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                >
+                  <Pencil size={15} />
+                </button>
+              </td>
+            )}
             {/* Mã ngành */}
             <td
               className={`px-3 py-3 text-sm font-mono ${depth === 0 ? 'font-semibold text-blue-600 break-all' : 'text-slate-600'}`}
@@ -356,10 +364,16 @@ export default function IndustryListPage() {
             </td>
             {/* Trạng thái */}
             <td className="px-3 py-3">
-              <ToggleSwitch
-                checked={item.isActive}
-                onChange={() => handleToggleStatus(item)}
-              />
+              {canUpdate ? (
+                <ToggleSwitch
+                  checked={item.isActive}
+                  onChange={() => handleToggleStatus(item)}
+                />
+              ) : (
+                <span className={`text-sm ${item.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                  {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
+                </span>
+              )}
             </td>
           </tr>
           {/* Recursive children */}
@@ -376,13 +390,15 @@ export default function IndustryListPage() {
           Danh sách ngành nghề kinh doanh
         </h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -390,18 +406,20 @@ export default function IndustryListPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-slate-200">
-              <th className="w-10 px-2 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={allPageSelected}
-                  onChange={handleSelectAll}
-                  className="accent-blue-600"
-                />
-              </th>
+              {canDelete && (
+                <th className="w-10 px-2 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={handleSelectAll}
+                    className="accent-blue-600"
+                  />
+                </th>
+              )}
               <th className="w-10 px-2 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 STT
               </th>
-              <th className="w-10 px-2 py-3" />
+              {canUpdate && <th className="w-10 px-2 py-3" />}
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Mã ngành
               </th>
@@ -417,9 +435,9 @@ export default function IndustryListPage() {
             </tr>
 
             <tr className="border-b border-slate-200">
+              {canDelete && <td className="px-2 py-2" />}
               <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
+              {canUpdate && <td className="px-2 py-2" />}
               <td className="px-3 py-2">
                 <input
                   placeholder="Tìm theo mã ngành..."
@@ -461,33 +479,43 @@ export default function IndustryListPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Đang tải...
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-red-400">
-                  <span>{error}</span>
-                  <button
-                    onClick={fetchItems}
-                    className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    <RefreshCw size={14} /> Thử lại
-                  </button>
-                </td>
-              </tr>
-            ) : paginatedGroups.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Không tìm thấy ngành nghề
-                </td>
-              </tr>
-            ) : (
-              renderTreeRows(paginatedGroups, 0)
-            )}
+            {(() => {
+              const colSpan = (canDelete ? 1 : 0) + 1 + (canUpdate ? 1 : 0) + 4;
+              if (loading) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Đang tải...
+                    </td>
+                  </tr>
+                );
+              }
+              if (error) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-red-400">
+                      <span>{error}</span>
+                      <button
+                        onClick={fetchItems}
+                        className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <RefreshCw size={14} /> Thử lại
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
+              if (paginatedGroups.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Không tìm thấy ngành nghề
+                    </td>
+                  </tr>
+                );
+              }
+              return renderTreeRows(paginatedGroups, 0);
+            })()}
           </tbody>
         </table>
       </div>
@@ -501,11 +529,13 @@ export default function IndustryListPage() {
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
       />
 
-      <SelectionBar
-        selectedCount={selectedIds.length}
-        onClear={() => setSelectedIds([])}
-        onDelete={() => setDeleteConfirm(true)}
-      />
+      {canDelete && (
+        <SelectionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onDelete={() => setDeleteConfirm(true)}
+        />
+      )}
 
       <IndustryModal
         open={showModal}

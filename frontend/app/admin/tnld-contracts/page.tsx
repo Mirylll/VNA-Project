@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, ChevronDown, Printer, FileText, ArrowLeft, Download, Upload, X } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
 
 interface AutocompleteSelectProps {
@@ -813,6 +813,8 @@ const SEED_REPORTS: CompanyReport[] = [
 ];
 
 export default function TnldContractsPage() {
+  const canAccept = hasPermission('ADMIN_C_TNLD_CONTRACT_ACCEPT');
+
   // Navigation view state: 'list' | 'detail' | 'summary'
   const [viewState, setViewState] = useState<'list' | 'detail' | 'summary'>('list');
   const [reports, setReports] = useState<CompanyReport[]>([]);
@@ -1393,7 +1395,7 @@ export default function TnldContractsPage() {
               >
                 Huỷ bỏ
               </button>
-              {selectedReport.status === 'submitted' && (
+              {canAccept && selectedReport.status === 'submitted' && (
                 <button
                   onClick={handleAcceptReport}
                   disabled={isAcceptingReport}

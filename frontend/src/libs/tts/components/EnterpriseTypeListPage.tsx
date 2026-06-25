@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, RefreshCw } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import AddEnterpriseTypeModal from '@/libs/tts/components/AddEnterpriseTypeModal';
 import SelectionBar from '@/libs/tts/components/SelectionBar';
 import Pagination from './Pagination';
@@ -50,6 +50,10 @@ export default function EnterpriseTypeListPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const canCreate = hasPermission('ADMIN_C_ENTERPRISE_TYPE_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_ENTERPRISE_TYPE_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_ENTERPRISE_TYPE_DELETE');
 
   function fetchItems() {
     setLoading(true);
@@ -204,13 +208,15 @@ export default function EnterpriseTypeListPage() {
           Danh sách loại hình kinh doanh
         </h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -218,24 +224,26 @@ export default function EnterpriseTypeListPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-slate-200">
-              <th className="w-10 px-2 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={
-                    paginatedItems.length > 0 &&
-                    selectedIds.length === paginatedItems.length
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(paginatedItems.map((r: any) => r.id));
-                    } else {
-                      setSelectedIds([]);
+              {canDelete && (
+                <th className="w-10 px-2 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={
+                      paginatedItems.length > 0 &&
+                      selectedIds.length === paginatedItems.length
                     }
-                  }}
-                  className="accent-blue-600"
-                />
-              </th>
-              <th className="w-10 px-2 py-3" />
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(paginatedItems.map((r: any) => r.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="accent-blue-600"
+                  />
+                </th>
+              )}
+              {canUpdate && <th className="w-10 px-2 py-3" />}
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Mã loại hình
               </th>
@@ -248,8 +256,8 @@ export default function EnterpriseTypeListPage() {
             </tr>
 
             <tr className="border-b border-slate-200">
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
+              {canDelete && <td className="px-2 py-2" />}
+              {canUpdate && <td className="px-2 py-2" />}
               <td className="px-3 py-2">
                 <input
                   placeholder="Tìm theo mã loại hình..."
@@ -282,58 +290,72 @@ export default function EnterpriseTypeListPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Đang tải...
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-red-400">
-                  <span>{error}</span>
-                  <button
-                    onClick={fetchItems}
-                    className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    <RefreshCw size={14} /> Thử lại
-                  </button>
-                </td>
-              </tr>
-            ) : paginatedItems.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
-                  Không tìm thấy loại hình
-                </td>
-              </tr>
-            ) : (
-              paginatedItems.map((item: any) => (
+            {(() => {
+              const colSpan = (canDelete ? 1 : 0) + (canUpdate ? 1 : 0) + 3;
+              if (loading) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Đang tải...
+                    </td>
+                  </tr>
+                );
+              }
+              if (error) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-red-400">
+                      <span>{error}</span>
+                      <button
+                        onClick={fetchItems}
+                        className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <RefreshCw size={14} /> Thử lại
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
+              if (paginatedItems.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Không tìm thấy loại hình
+                    </td>
+                  </tr>
+                );
+              }
+              return paginatedItems.map((item: any) => (
                 <tr
                   key={item.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-2 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(item.id)}
-                      onChange={() => {
-                        setSelectedIds((prev) =>
-                          prev.includes(item.id)
-                            ? prev.filter((id) => id !== item.id)
-                            : [...prev, item.id],
-                        );
-                      }}
-                      className="accent-blue-600"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  </td>
+                  {canDelete && (
+                    <td className="px-2 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => {
+                          setSelectedIds((prev) =>
+                            prev.includes(item.id)
+                              ? prev.filter((id) => id !== item.id)
+                              : [...prev, item.id],
+                          );
+                        }}
+                        className="accent-blue-600"
+                      />
+                    </td>
+                  )}
+                  {canUpdate && (
+                    <td className="px-2 py-3">
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-sm text-gray-700 font-mono">
                     {item.code}
                   </td>
@@ -341,14 +363,20 @@ export default function EnterpriseTypeListPage() {
                     {item.name}
                   </td>
                   <td className="px-3 py-3">
-                    <ToggleSwitch
-                      checked={item.isActive}
-                      onChange={() => handleToggleStatus(item)}
-                    />
+                    {canUpdate ? (
+                      <ToggleSwitch
+                        checked={item.isActive}
+                        onChange={() => handleToggleStatus(item)}
+                      />
+                    ) : (
+                      <span className={`text-sm ${item.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                        {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
+                      </span>
+                    )}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
@@ -362,11 +390,13 @@ export default function EnterpriseTypeListPage() {
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
       />
 
-      <SelectionBar
-        selectedCount={selectedIds.length}
-        onClear={() => setSelectedIds([])}
-        onDelete={() => setDeleteConfirm(true)}
-      />
+      {canDelete && (
+        <SelectionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onDelete={() => setDeleteConfirm(true)}
+        />
+      )}
 
       <AddEnterpriseTypeModal
         open={showModal}

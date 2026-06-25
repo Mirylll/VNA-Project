@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { Pencil, Plus, ChevronDown, ChevronRight, X, Save, FileText, Upload } from 'lucide-react';
+import { hasPermission } from '@/libs/core/utils/auth-token';
 
 // Interfaces for our 3 category types
 interface InjuryFactor {
@@ -56,6 +57,10 @@ const DEFAULT_OCCUPATIONS: Occupation[] = [
 ];
 
 export default function TnldCategoriesPage() {
+  const canCreate = hasPermission('ADMIN_C_TNLD_CATEGORY_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_TNLD_CATEGORY_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_TNLD_CATEGORY_DELETE');
+
   // Category tab state: 'factor' | 'type' | 'occupation'
   const [activeCategory, setActiveCategory] = useState<'factor' | 'type' | 'occupation'>('factor');
 
@@ -563,18 +568,22 @@ export default function TnldCategoriesPage() {
           >
             Xuất danh sách
           </button>
-          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-medium bg-white hover:bg-blue-50 transition-colors cursor-pointer">
-            <Upload size={16} />
-            Thêm từ file
-            <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
-          </label>
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-medium bg-white hover:bg-blue-50 transition-colors cursor-pointer">
+              <Upload size={16} />
+              Thêm từ file
+              <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
+            </label>
+          )}
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -601,20 +610,24 @@ export default function TnldCategoriesPage() {
             {/* Columns headers */}
             {activeCategory === 'factor' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                <th className="w-12 px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={filteredFactors.length > 0 && selectedIds.length === filteredFactors.length}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedIds(filteredFactors.map((f) => f.id));
-                      else setSelectedIds([]);
-                    }}
-                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                  />
-                </th>
-                <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Thao tác
-                </th>
+                {canDelete && (
+                  <th className="w-12 px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredFactors.length > 0 && selectedIds.length === filteredFactors.length}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedIds(filteredFactors.map((f) => f.id));
+                        else setSelectedIds([]);
+                      }}
+                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                    />
+                  </th>
+                )}
+                {canUpdate && (
+                  <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Thao tác
+                  </th>
+                )}
                 <th className="w-48 px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Mã yếu tố
                 </th>
@@ -629,20 +642,24 @@ export default function TnldCategoriesPage() {
 
             {activeCategory === 'type' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                <th className="w-12 px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={filteredTypes.length > 0 && selectedIds.length === filteredTypes.length}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedIds(filteredTypes.map((t) => t.code));
-                      else setSelectedIds([]);
-                    }}
-                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                  />
-                </th>
-                <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Thao tác
-                </th>
+                {canDelete && (
+                  <th className="w-12 px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredTypes.length > 0 && selectedIds.length === filteredTypes.length}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedIds(filteredTypes.map((t) => t.code));
+                        else setSelectedIds([]);
+                      }}
+                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                    />
+                  </th>
+                )}
+                {canUpdate && (
+                  <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Thao tác
+                  </th>
+                )}
                 <th className="w-48 px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Mã số
                 </th>
@@ -657,20 +674,24 @@ export default function TnldCategoriesPage() {
 
             {activeCategory === 'occupation' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                <th className="w-12 px-4 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={filteredOccupations.length > 0 && selectedIds.length === filteredOccupations.length}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedIds(filteredOccupations.map((o) => o.code));
-                      else setSelectedIds([]);
-                    }}
-                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                  />
-                </th>
-                <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Thao tác
-                </th>
+                {canDelete && (
+                  <th className="w-12 px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredOccupations.length > 0 && selectedIds.length === filteredOccupations.length}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedIds(filteredOccupations.map((o) => o.code));
+                        else setSelectedIds([]);
+                      }}
+                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                    />
+                  </th>
+                )}
+                {canUpdate && (
+                  <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Thao tác
+                  </th>
+                )}
                 <th className="w-48 px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Mã nghề
                 </th>
@@ -685,8 +706,8 @@ export default function TnldCategoriesPage() {
 
             {/* Filter inputs row */}
             <tr className="border-b border-slate-200 bg-white">
-              <td className="px-4 py-2" />
-              <td className="px-2 py-2" />
+              {canDelete && <td className="px-4 py-2" />}
+              {canUpdate && <td className="px-2 py-2" />}
               <td className="px-2 py-2">
                 <input
                   type="text"
@@ -742,33 +763,37 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'factor' && (
               filteredFactors.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={3 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy yếu tố nào
                   </td>
                 </tr>
               ) : (
                 filteredFactors.map((item) => (
                   <tr key={item.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item.id)}
-                        onChange={() => {
-                          setSelectedIds((prev) =>
-                            prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
-                          );
-                        }}
-                        className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                      />
-                    </td>
-                    <td className="px-2 py-3 text-center">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-slate-400 hover:text-[#1D4ED8] transition"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    </td>
+                    {canDelete && (
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(item.id)}
+                          onChange={() => {
+                            setSelectedIds((prev) =>
+                              prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+                            );
+                          }}
+                          className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                        />
+                      </td>
+                    )}
+                    {canUpdate && (
+                      <td className="px-2 py-3 text-center">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="text-slate-400 hover:text-[#1D4ED8] transition"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </td>
+                    )}
                     <td className="px-3 py-3 text-sm text-slate-700 font-mono">
                       {item.id}
                     </td>
@@ -776,19 +801,25 @@ export default function TnldCategoriesPage() {
                       {item.name}
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleFactorActive(item.id)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                          item.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                            item.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                      {canUpdate ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFactorActive(item.id)}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
+                            item.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                              item.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                            }`}
+                          />
+                        </button>
+                      ) : (
+                        <span className={`text-xs font-medium ${item.isActive ? 'text-green-600' : 'text-slate-400'}`}>
+                          {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -799,7 +830,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'type' && (
               filteredTypes.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={3 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy loại chấn thương nào
                   </td>
                 </tr>
@@ -813,14 +844,18 @@ export default function TnldCategoriesPage() {
                   if (filterCode || filterName || filterLevel) {
                     return filteredTypes.map(item => (
                       <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-center">
-                          <input type="checkbox" checked={selectedIds.includes(item.code)}
-                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
-                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                        </td>
-                        <td className="px-2 py-3 text-center">
-                          <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
-                        </td>
+                        {canDelete && (
+                          <td className="px-4 py-3 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(item.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
+                        )}
+                        {canUpdate && (
+                          <td className="px-2 py-3 text-center">
+                            <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                          </td>
+                        )}
                         <td className="px-3 py-3 text-sm text-slate-700 font-mono">{item.code}</td>
                         <td className="px-3 py-3 text-sm text-slate-700 font-medium">
                           <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
@@ -838,14 +873,18 @@ export default function TnldCategoriesPage() {
                       <Fragment key={group.code}>
                         {/* Group (Cấp 1) row */}
                         <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
-                          <td className="px-4 py-3.5 text-center">
-                            <input type="checkbox" checked={selectedIds.includes(group.code)}
-                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
-                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                          </td>
-                          <td className="px-2 py-3.5 text-center">
-                            <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
-                          </td>
+                          {canDelete && (
+                            <td className="px-4 py-3.5 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(group.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
+                          )}
+                          {canUpdate && (
+                            <td className="px-2 py-3.5 text-center">
+                              <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                            </td>
+                          )}
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-1.5">
                               <button
@@ -863,14 +902,18 @@ export default function TnldCategoriesPage() {
                         {/* Children rows */}
                         {isOpen && children.map(child => (
                           <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3 text-center">
-                              <input type="checkbox" checked={selectedIds.includes(child.code)}
-                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
-                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                            </td>
-                            <td className="px-2 py-3 text-center">
-                              <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
-                            </td>
+                            {canDelete && (
+                              <td className="px-4 py-3 text-center">
+                                <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                  onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                  className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                              </td>
+                            )}
+                            {canUpdate && (
+                              <td className="px-2 py-3 text-center">
+                                <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                              </td>
+                            )}
                             <td className="px-3 py-3 text-sm text-slate-600 font-mono pl-8">{child.code}</td>
                             <td className="px-3 py-3 text-sm text-slate-700 font-medium pl-4">
                               <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
@@ -889,7 +932,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'occupation' && (
               filteredOccupations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={3 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy nghề nghiệp nào
                   </td>
                 </tr>
@@ -902,14 +945,18 @@ export default function TnldCategoriesPage() {
                   if (filterCode || filterName || filterLevel) {
                     return filteredOccupations.map(item => (
                       <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-center">
-                          <input type="checkbox" checked={selectedIds.includes(item.code)}
-                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
-                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                        </td>
-                        <td className="px-2 py-3 text-center">
-                          <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
-                        </td>
+                        {canDelete && (
+                          <td className="px-4 py-3 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(item.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
+                        )}
+                        {canUpdate && (
+                          <td className="px-2 py-3 text-center">
+                            <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                          </td>
+                        )}
                         <td className="px-3 py-3 text-sm text-slate-700 font-mono">{item.code}</td>
                         <td className="px-3 py-3 text-sm text-slate-700 font-medium">
                           <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
@@ -927,14 +974,18 @@ export default function TnldCategoriesPage() {
                       <Fragment key={group.code}>
                         {/* Group (Cấp 1) row */}
                         <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
-                          <td className="px-4 py-3.5 text-center">
-                            <input type="checkbox" checked={selectedIds.includes(group.code)}
-                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
-                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                          </td>
-                          <td className="px-2 py-3.5 text-center">
-                            <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
-                          </td>
+                          {canDelete && (
+                            <td className="px-4 py-3.5 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(group.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
+                          )}
+                          {canUpdate && (
+                            <td className="px-2 py-3.5 text-center">
+                              <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                            </td>
+                          )}
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-1.5">
                               <button
@@ -952,14 +1003,18 @@ export default function TnldCategoriesPage() {
                         {/* Children rows */}
                         {isOpen && children.map(child => (
                           <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            <td className="px-4 py-3 text-center">
-                              <input type="checkbox" checked={selectedIds.includes(child.code)}
-                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
-                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                            </td>
-                            <td className="px-2 py-3 text-center">
-                              <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
-                            </td>
+                            {canDelete && (
+                              <td className="px-4 py-3 text-center">
+                                <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                  onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                  className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                              </td>
+                            )}
+                            {canUpdate && (
+                              <td className="px-2 py-3 text-center">
+                                <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
+                              </td>
+                            )}
                             <td className="px-3 py-3 text-sm text-slate-600 font-mono pl-8">{child.code}</td>
                             <td className="px-3 py-3 text-sm text-slate-700 font-medium pl-4">
                               <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
@@ -1008,7 +1063,7 @@ export default function TnldCategoriesPage() {
       </div>
 
       {/* Floating Selection Bar for bulk actions */}
-      {selectedIds.length > 0 && (
+      {canDelete && selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-slate-900/95 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-800 animate-in slide-in-from-bottom duration-200">
           <span className="text-xs font-semibold">Đang chọn {selectedIds.length} mục</span>
           <div className="h-4 w-[1px] bg-slate-700" />
@@ -1028,7 +1083,7 @@ export default function TnldCategoriesPage() {
       )}
 
       {/* Delete Confirmation Alert Overlay */}
-      {showDeleteConfirm && (
+      {canDelete && showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
           <div className="w-full max-w-sm bg-white rounded-xl shadow-xl p-6 border border-slate-100 animate-in zoom-in-95 duration-150">
             <h3 className="text-slate-800 font-bold text-base mb-2">Xác nhận xoá</h3>
