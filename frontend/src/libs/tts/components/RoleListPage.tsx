@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, RefreshCw } from 'lucide-react';
-import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
 import RoleModal from './RoleModal';
 import Pagination from './Pagination';
 import SelectionBar from './SelectionBar';
@@ -34,6 +34,10 @@ export default function RoleListPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const canCreate = hasPermission('ADMIN_C_ROLE_CREATE');
+  const canUpdate = hasPermission('ADMIN_C_ROLE_UPDATE');
+  const canDelete = hasPermission('ADMIN_C_ROLE_DELETE');
 
   function fetchRoles() {
     setLoading(true);
@@ -182,13 +186,15 @@ export default function RoleListPage() {
           Danh sách vai trò
         </h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={16} />
-            Thêm mới
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={16} />
+              Thêm mới
+            </button>
+          )}
         </div>
       </div>
 
@@ -196,24 +202,26 @@ export default function RoleListPage() {
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-slate-200">
-              <th className="w-10 px-2 py-3 text-left">
-                <input
-                  type="checkbox"
-                  checked={
-                    paginatedRoles.length > 0 &&
-                    selectedIds.length === paginatedRoles.length
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(paginatedRoles.map((r: any) => r.id));
-                    } else {
-                      setSelectedIds([]);
+              {canDelete && (
+                <th className="w-10 px-2 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={
+                      paginatedRoles.length > 0 &&
+                      selectedIds.length === paginatedRoles.length
                     }
-                  }}
-                  className="accent-blue-600"
-                />
-              </th>
-              <th className="w-10 px-2 py-3" />
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(paginatedRoles.map((r: any) => r.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                    className="accent-blue-600"
+                  />
+                </th>
+              )}
+              {canUpdate && <th className="w-10 px-2 py-3" />}
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Mã vai trò
               </th>
@@ -223,8 +231,8 @@ export default function RoleListPage() {
             </tr>
 
             <tr className="border-b border-slate-200">
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2" />
+              {canDelete && <td className="px-2 py-2" />}
+              {canUpdate && <td className="px-2 py-2" />}
               <td className="px-3 py-2">
                 <input
                   placeholder="Tìm theo mã vai trò..."
@@ -244,67 +252,73 @@ export default function RoleListPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-4 py-10 text-center text-sm text-gray-400"
-                >
-                  Đang tải...
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-4 py-10 text-center text-sm text-red-400"
-                >
-                  <span>{error}</span>
-                  <button
-                    onClick={fetchRoles}
-                    className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    <RefreshCw size={14} /> Thử lại
-                  </button>
-                </td>
-              </tr>
-            ) : paginatedRoles.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={3}
-                  className="px-4 py-10 text-center text-sm text-gray-400"
-                >
-                  Không tìm thấy vai trò phù hợp
-                </td>
-              </tr>
-            ) : (
-              paginatedRoles.map((role: any) => (
+            {(() => {
+              const colSpan = (canDelete ? 1 : 0) + (canUpdate ? 1 : 0) + 2;
+              if (loading) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Đang tải...
+                    </td>
+                  </tr>
+                );
+              }
+              if (error) {
+                return (
+                  <tr>
+                    <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-red-400">
+                      <span>{error}</span>
+                      <button
+                        onClick={fetchRoles}
+                        className="ml-2 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        <RefreshCw size={14} /> Thử lại
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
+              if (paginatedRoles.length === 0) {
+                const emptyColSpan = colSpan < 2 ? 2 : colSpan;
+                return (
+                  <tr>
+                    <td colSpan={emptyColSpan} className="px-4 py-10 text-center text-sm text-gray-400">
+                      Không tìm thấy vai trò phù hợp
+                    </td>
+                  </tr>
+                );
+              }
+              return paginatedRoles.map((role: any) => (
                 <tr
                   key={role.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-2 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(role.id)}
-                      onChange={() => {
-                        setSelectedIds((prev) =>
-                          prev.includes(role.id)
-                            ? prev.filter((id) => id !== role.id)
-                            : [...prev, role.id],
-                        );
-                      }}
-                      className="accent-blue-600"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <button
-                      onClick={() => handleEdit(role)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  </td>
+                  {canDelete && (
+                    <td className="px-2 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(role.id)}
+                        onChange={() => {
+                          setSelectedIds((prev) =>
+                            prev.includes(role.id)
+                              ? prev.filter((id) => id !== role.id)
+                              : [...prev, role.id],
+                          );
+                        }}
+                        className="accent-blue-600"
+                      />
+                    </td>
+                  )}
+                  {canUpdate && (
+                    <td className="px-2 py-3">
+                      <button
+                        onClick={() => handleEdit(role)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-sm text-gray-700 font-mono">
                     {role.code}
                   </td>
@@ -312,8 +326,8 @@ export default function RoleListPage() {
                     {role.name}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
@@ -327,11 +341,13 @@ export default function RoleListPage() {
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
       />
 
-      <SelectionBar
-        selectedCount={selectedIds.length}
-        onClear={() => setSelectedIds([])}
-        onDelete={() => setDeleteConfirm(true)}
-      />
+      {canDelete && (
+        <SelectionBar
+          selectedCount={selectedIds.length}
+          onClear={() => setSelectedIds([])}
+          onDelete={() => setDeleteConfirm(true)}
+        />
+      )}
 
       <RoleModal
         open={showModal}
