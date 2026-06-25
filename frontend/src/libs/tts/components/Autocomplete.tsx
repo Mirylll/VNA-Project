@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 interface Option {
-  id: number;
+  id: string | number;
   name: string;
 }
 
@@ -131,7 +131,7 @@ export default function Autocomplete({
         className={`${
           plain
             ? ""
-            : "w-full rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2"
+            : "w-full rounded-lg border px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 outline-none transition focus:ring-2"
         } ${
           plain
             ? ""

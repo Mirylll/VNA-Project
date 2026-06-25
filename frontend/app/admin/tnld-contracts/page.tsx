@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, ChevronDown, Printer, FileText, ArrowLeft, Download, Upload, X } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
+import Pagination from '@/libs/tts/components/Pagination';
 
 interface AutocompleteSelectProps {
   options: string[];
@@ -140,14 +141,525 @@ interface ReportData {
   propertyDamage: number;
 }
 
+type ReportMetricSource = {
+  totalAccidents: number;
+  fatalAccidents: number;
+  multiVictimAccidents: number;
+  totalVictims: number;
+  unmanagedVictims: number;
+  femaleVictims: number;
+  unmanagedFemaleVictims: number;
+  deadVictims: number;
+  unmanagedDeadVictims: number;
+  severeVictims: number;
+  unmanagedSevereVictims: number;
+  workdaysLost: number;
+  medicalCost: number;
+  treatmentSalaryCost: number;
+  compensationCost: number;
+  assetDamage: number;
+};
+
+type ReportDetail = ReportMetricSource & {
+  cause?: string;
+  injuryFactor?: string;
+  occupation?: string;
+};
+
+type ReviewMetricValues = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
+type ReviewSummaryRow = {
+  code: string;
+  label: string;
+  metrics: ReviewMetricValues;
+};
+
 interface CompanyReport {
   id: string;
   name: string;
   taxCode: string;
+  province: string;
+  ward: string;
   period: string; // e.g. "6 tháng", "Cả năm"
   year: number; // e.g. 2022
-  status: 'draft' | 'submitted'; // draft = Đang báo cáo, submitted = Đã tiếp nhận
+  status: 'draft' | 'submitted' | 'accepted'; // draft = Đang báo cáo, submitted = Đã tiếp nhận, accepted = Đã báo cáo
   data: ReportData;
+  overviewData?: ReportMetricSource;
+  subsidyData?: ReportMetricSource;
+  accidentDetails?: ReportDetail[];
+  attachmentFileName?: string;
+}
+
+type TnldReportApi = {
+  id: number;
+  year: number;
+  period?: string;
+  status?: string;
+  enterprise?: {
+    name?: string;
+    taxCode?: string;
+    province?: { name?: string };
+    ward?: { name?: string };
+    operationProvince?: { name?: string };
+    operationWard?: { name?: string };
+  };
+  overview?: {
+    totalAccidents?: number | string;
+    fatalAccidents?: number | string;
+    multiVictimAccidents?: number | string;
+    totalVictims?: number | string;
+    unmanagedVictims?: number | string;
+    femaleVictims?: number | string;
+    unmanagedFemaleVictims?: number | string;
+    deadVictims?: number | string;
+    unmanagedDeadVictims?: number | string;
+    severeVictims?: number | string;
+    unmanagedSevereVictims?: number | string;
+    workdaysLost?: number | string;
+    medicalCost?: number | string;
+    treatmentSalaryCost?: number | string;
+    compensationCost?: number | string;
+    assetDamage?: number | string;
+  };
+  subsidy?: {
+    totalAccidents?: number | string;
+    fatalAccidents?: number | string;
+    multiVictimAccidents?: number | string;
+    totalVictims?: number | string;
+    unmanagedVictims?: number | string;
+    femaleVictims?: number | string;
+    unmanagedFemaleVictims?: number | string;
+    deadVictims?: number | string;
+    unmanagedDeadVictims?: number | string;
+    severeVictims?: number | string;
+    unmanagedSevereVictims?: number | string;
+    workdaysLost?: number | string;
+    medicalCost?: number | string;
+    treatmentSalaryCost?: number | string;
+    compensationCost?: number | string;
+    assetDamage?: number | string;
+    totalCost?: number | string;
+  };
+  accidentDetails?: Array<{
+    cause?: string;
+    injuryFactor?: string;
+    occupation?: string;
+    totalAccidents?: number | string;
+    fatalAccidents?: number | string;
+    multiVictimAccidents?: number | string;
+    totalVictims?: number | string;
+    femaleVictims?: number | string;
+    deadVictims?: number | string;
+    severeVictims?: number | string;
+    unmanagedVictims?: number | string;
+    unmanagedFemaleVictims?: number | string;
+    unmanagedDeadVictims?: number | string;
+    unmanagedSevereVictims?: number | string;
+    workdaysLost?: number | string;
+    medicalCost?: number | string;
+    treatmentSalaryCost?: number | string;
+    compensationCost?: number | string;
+    assetDamage?: number | string;
+  }>;
+  attachments?: Array<{
+    fileName?: string;
+    fileUrl?: string | null;
+  }>;
+};
+
+function toNumber(value: unknown): number {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const normalized = String(value).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function formatPeriod(period?: string): string {
+  if (period === '6m' || period === '6 tháng') return '6 tháng';
+  if (period === '12m' || period === 'year' || period === 'Cả năm' || period === 'y') return '1 năm';
+  return period || '6 tháng';
+}
+
+function normalizeReportStatus(status?: string): 'draft' | 'submitted' | 'accepted' {
+  if (status === 'accepted') return 'accepted';
+  return status === 'submitted' ? 'submitted' : 'draft';
+}
+
+function addReportData(first?: TnldReportApi['overview'], second?: TnldReportApi['subsidy']): ReportData {
+  return {
+    casesTotal: toNumber(first?.totalAccidents) + toNumber(second?.totalAccidents),
+    casesDeath: toNumber(first?.fatalAccidents) + toNumber(second?.fatalAccidents),
+    casesMultiple: toNumber(first?.multiVictimAccidents) + toNumber(second?.multiVictimAccidents),
+    peopleTotal: toNumber(first?.totalVictims) + toNumber(second?.totalVictims),
+    peopleFemale: toNumber(first?.femaleVictims) + toNumber(second?.femaleVictims),
+    peopleDeath: toNumber(first?.deadVictims) + toNumber(second?.deadVictims),
+    peopleSevere: toNumber(first?.severeVictims) + toNumber(second?.severeVictims),
+    daysOff: toNumber(first?.workdaysLost) + toNumber(second?.workdaysLost),
+    costMedical: toNumber(first?.medicalCost) + toNumber(second?.medicalCost),
+    costSalary: toNumber(first?.treatmentSalaryCost) + toNumber(second?.treatmentSalaryCost),
+    costCompensation: toNumber(first?.compensationCost) + toNumber(second?.compensationCost),
+    costTotal:
+      toNumber(first?.medicalCost) +
+      toNumber(first?.treatmentSalaryCost) +
+      toNumber(first?.compensationCost) +
+      toNumber(second?.medicalCost) +
+      toNumber(second?.treatmentSalaryCost) +
+      toNumber(second?.compensationCost),
+    propertyDamage: toNumber(first?.assetDamage) + toNumber(second?.assetDamage),
+  };
+}
+
+function toMetricSource(source?: Partial<ReportMetricSource> | TnldReportApi['overview'] | TnldReportApi['subsidy']): ReportMetricSource {
+  return {
+    totalAccidents: toNumber(source?.totalAccidents),
+    fatalAccidents: toNumber(source?.fatalAccidents),
+    multiVictimAccidents: toNumber(source?.multiVictimAccidents),
+    totalVictims: toNumber(source?.totalVictims),
+    unmanagedVictims: toNumber(source?.unmanagedVictims),
+    femaleVictims: toNumber(source?.femaleVictims),
+    unmanagedFemaleVictims: toNumber(source?.unmanagedFemaleVictims),
+    deadVictims: toNumber(source?.deadVictims),
+    unmanagedDeadVictims: toNumber(source?.unmanagedDeadVictims),
+    severeVictims: toNumber(source?.severeVictims),
+    unmanagedSevereVictims: toNumber(source?.unmanagedSevereVictims),
+    workdaysLost: toNumber(source?.workdaysLost),
+    medicalCost: toNumber(source?.medicalCost),
+    treatmentSalaryCost: toNumber(source?.treatmentSalaryCost),
+    compensationCost: toNumber(source?.compensationCost),
+    assetDamage: toNumber(source?.assetDamage),
+  };
+}
+
+function toMetrics(source?: Partial<ReportMetricSource>): ReviewMetricValues {
+  return [
+    toNumber(source?.totalAccidents),
+    toNumber(source?.fatalAccidents),
+    toNumber(source?.multiVictimAccidents),
+    toNumber(source?.totalVictims),
+    toNumber(source?.unmanagedVictims),
+    toNumber(source?.femaleVictims),
+    toNumber(source?.unmanagedFemaleVictims),
+    toNumber(source?.deadVictims),
+    toNumber(source?.unmanagedDeadVictims),
+    toNumber(source?.severeVictims),
+    toNumber(source?.unmanagedSevereVictims),
+  ];
+}
+
+function addMetrics(first: ReviewMetricValues, second: ReviewMetricValues): ReviewMetricValues {
+  return first.map((value, index) => value + second[index]) as ReviewMetricValues;
+}
+
+function hasMetrics(metrics: ReviewMetricValues) {
+  return metrics.some((value) => value > 0);
+}
+
+function buildDynamicRows(details: ReportDetail[], field: 'cause' | 'injuryFactor' | 'occupation', codeStart: number): ReviewSummaryRow[] {
+  const groupedDetails = new Map<string, ReportDetail[]>();
+
+  details.forEach((detail) => {
+    const label = detail[field]?.trim();
+    if (!label) return;
+    groupedDetails.set(label, [...(groupedDetails.get(label) || []), detail]);
+  });
+
+  return Array.from(groupedDetails.entries())
+    .map(([label, group], index) => ({
+      code: String(codeStart + index),
+      label,
+      metrics: group.reduce((total, detail) => addMetrics(total, toMetrics(detail)), toMetrics()),
+    }))
+    .filter((row) => hasMetrics(row.metrics));
+}
+
+function mapApiReport(report: TnldReportApi): CompanyReport {
+  const enterprise = report.enterprise;
+  const overviewData = toMetricSource(report.overview);
+  const subsidyData = toMetricSource(report.subsidy);
+  const accidentDetails = (report.accidentDetails || []).map((detail) => ({
+    ...toMetricSource(detail),
+    cause: detail.cause,
+    injuryFactor: detail.injuryFactor,
+    occupation: detail.occupation,
+  }));
+
+  return {
+    id: String(report.id),
+    name: enterprise?.name || 'Chưa có tên doanh nghiệp',
+    taxCode: enterprise?.taxCode || '',
+    province: enterprise?.operationProvince?.name || enterprise?.province?.name || '',
+    ward: enterprise?.operationWard?.name || enterprise?.ward?.name || '',
+    period: formatPeriod(report.period),
+    year: Number(report.year) || new Date().getFullYear(),
+    status: normalizeReportStatus(report.status),
+    data: addReportData(report.overview, report.subsidy),
+    overviewData,
+    subsidyData,
+    accidentDetails,
+    attachmentFileName: report.attachments?.[0]?.fileName,
+  };
+}
+
+function AdminTnldReportSummaryTable({
+  report,
+  formatNumber,
+}: {
+  report: CompanyReport;
+  formatNumber: (num: number) => string;
+}) {
+  const fallbackOverviewData = toMetricSource({
+    totalAccidents: report.data.casesTotal,
+    fatalAccidents: report.data.casesDeath,
+    multiVictimAccidents: report.data.casesMultiple,
+    totalVictims: report.data.peopleTotal,
+    unmanagedVictims: 0,
+    femaleVictims: report.data.peopleFemale,
+    unmanagedFemaleVictims: 0,
+    deadVictims: report.data.peopleDeath,
+    unmanagedDeadVictims: 0,
+    severeVictims: report.data.peopleSevere,
+    unmanagedSevereVictims: 0,
+    workdaysLost: report.data.daysOff,
+    medicalCost: report.data.costMedical,
+    treatmentSalaryCost: report.data.costSalary,
+    compensationCost: report.data.costCompensation,
+    assetDamage: report.data.propertyDamage,
+  });
+  const overviewMetrics = toMetrics(report.overviewData || fallbackOverviewData);
+  const subsidyMetrics = toMetrics(report.subsidyData);
+  const totalMetrics = addMetrics(overviewMetrics, subsidyMetrics);
+  const accidentDetails = report.accidentDetails || [];
+  const causeRows = buildDynamicRows(accidentDetails, 'cause', 1);
+  const injuryFactorRows = buildDynamicRows(accidentDetails, 'injuryFactor', 101);
+  const occupationRows = buildDynamicRows(accidentDetails, 'occupation', 102);
+  const overviewData = report.overviewData || fallbackOverviewData;
+  const subsidyData = report.subsidyData || toMetricSource();
+  const damageTotals = {
+    workdaysLost: overviewData.workdaysLost + subsidyData.workdaysLost,
+    medicalCost: overviewData.medicalCost + subsidyData.medicalCost,
+    treatmentSalaryCost: overviewData.treatmentSalaryCost + subsidyData.treatmentSalaryCost,
+    compensationCost: overviewData.compensationCost + subsidyData.compensationCost,
+    assetDamage: overviewData.assetDamage + subsidyData.assetDamage,
+  };
+
+  // Standard employer-side cause labels (codes 1-6)
+  const EMPLOYER_CAUSES = [
+    { code: '1', label: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn' },
+    { code: '2', label: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt' },
+    { code: '3', label: 'Tổ chức lao động không hợp lý' },
+    { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn vệ sinh lao động chưa đầy đủ' },
+    { code: '5', label: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn' },
+    { code: '6', label: 'Điều kiện làm việc không tốt' },
+  ];
+
+  // Standard worker-side cause labels (codes 7-9)
+  const WORKER_CAUSES = [
+    { code: '7', label: 'Quy phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
+    { code: '8', label: 'Không sử dụng phương tiện bảo vệ cá nhân' },
+    { code: '9', label: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến' },
+  ];
+
+  // Look up dynamic cause data by fuzzy match
+  const lookupCauseMetrics = (label: string): ReviewMetricValues => {
+    const match = causeRows.find(
+      (r) => r.label.trim().toLowerCase() === label.trim().toLowerCase()
+        || r.label.toLowerCase().includes(label.slice(0, 15).toLowerCase())
+        || label.toLowerCase().includes(r.label.slice(0, 15).toLowerCase())
+    );
+    return match ? match.metrics : toMetrics();
+  };
+
+  // Shared cell styles
+  const cell = 'border border-slate-200 p-2 text-center text-[11px]';
+  const cellLabel = 'border border-slate-200 p-2 text-[11px]';
+  const sectionHeader = 'border border-slate-200 p-2 font-bold text-[11px]';
+  const subHeader = 'border border-slate-200 p-2 text-[11px]';
+
+  const renderMetrics = (metrics: ReviewMetricValues, keyPrefix: string) =>
+    metrics.map((value, index) => (
+      <td key={`${keyPrefix}-${index}`} className={cell}>
+        {value}
+      </td>
+    ));
+
+  const renderDynamicRow = (row: ReviewSummaryRow, keyPrefix: string) => (
+    <tr key={`${keyPrefix}-${row.label}`}>
+      <td className={`${cellLabel} pl-6`}>{row.label}</td>
+      <td className={cell}>{row.code}</td>
+      {renderMetrics(row.metrics, `${keyPrefix}-${row.label}`)}
+    </tr>
+  );
+
+  return (
+    <div className="overflow-auto max-h-[70vh] print:max-h-none print:overflow-visible">
+      {/* Table I: Main accident statistics */}
+      <table className="w-full border-collapse text-[11px] text-slate-800 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
+        <thead>
+          <tr>
+            <th rowSpan={4} className="border border-slate-300 p-2 text-left font-normal min-w-[260px] bg-slate-50 align-middle">Tên chỉ tiêu thống kê</th>
+            <th rowSpan={4} className="border border-slate-300 p-2 text-center font-normal w-14 bg-slate-50 align-middle">Mã số</th>
+            <th colSpan={11} className="border border-slate-300 p-1.5 text-center font-normal bg-slate-50">Phân loại TNLĐ theo mức độ thương tật</th>
+          </tr>
+          <tr>
+            <th colSpan={3} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số vụ (Vụ)</th>
+            <th colSpan={8} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số người bị nạn (Người)</th>
+          </tr>
+          <tr>
+            <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
+            <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-12 bg-slate-50">Số vụ có người chết</th>
+            <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">Số vụ có từ 2 người bị nạn trở lên</th>
+            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Tổng số</th>
+            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số LĐ nữ</th>
+            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số người bị chết</th>
+            <th colSpan={2} className="border border-slate-300 p-1 text-center font-normal bg-slate-50">Số người bị thương nặng</th>
+          </tr>
+          <tr>
+            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-10 bg-slate-50">Tổng số</th>
+            <th className="border border-slate-300 p-1 text-center font-normal w-14 bg-slate-50">NN không thuộc quyền quản lý</th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* 1. Tai nạn lao động */}
+          <tr>
+            <td className={`${sectionHeader}`} colSpan={13}>1. Tai nạn lao động</td>
+          </tr>
+          <tr>
+            <td className={`${cellLabel} pl-4`}>Tai nạn lao động</td>
+            <td className={cell}>2</td>
+            {renderMetrics(overviewMetrics, 'overview')}
+          </tr>
+
+          {/* 1.1 Phân theo nguyên nhân */}
+          <tr>
+            <td className={`${sectionHeader} pl-4`} colSpan={13}>1.1 Phân theo nguyên nhân xảy ra TNLĐ</td>
+          </tr>
+          <tr>
+            <td className={`${subHeader} pl-6`} colSpan={13}>a. Do người sử dụng lao động</td>
+          </tr>
+          {EMPLOYER_CAUSES.map(({ code, label }) => {
+            const metrics = lookupCauseMetrics(label);
+            return (
+              <tr key={code}>
+                <td className={`${cellLabel} pl-8`}>{label}</td>
+                <td className={cell}>{code}</td>
+                {renderMetrics(metrics, `ec-${code}`)}
+              </tr>
+            );
+          })}
+          <tr>
+            <td className={`${subHeader} pl-6`} colSpan={13}>b. Do người lao động</td>
+          </tr>
+          {WORKER_CAUSES.map(({ code, label }) => {
+            const metrics = lookupCauseMetrics(label);
+            return (
+              <tr key={code}>
+                <td className={`${cellLabel} pl-8`}>{label}</td>
+                <td className={cell}>{code}</td>
+                {renderMetrics(metrics, `wc-${code}`)}
+              </tr>
+            );
+          })}
+
+          {/* 1.2 Phân theo yếu tố gây chấn thương */}
+          <tr>
+            <td className={`${sectionHeader} pl-4`} colSpan={13}>1.2. Phân theo yếu tố gây chấn thương</td>
+          </tr>
+          {injuryFactorRows.length > 0 ? (
+            injuryFactorRows.map((row) => renderDynamicRow(row, 'inj'))
+          ) : (
+            <tr>
+              <td className={`${cellLabel} pl-6`}>—</td>
+              <td className={cell}></td>
+              {renderMetrics(toMetrics(), 'inj-empty')}
+            </tr>
+          )}
+
+          {/* 1.3 Phân theo nghề nghiệp */}
+          <tr>
+            <td className={`${sectionHeader} pl-4`} colSpan={13}>1.3 Phân theo nghề nghiệp</td>
+          </tr>
+          {occupationRows.length > 0 ? (
+            occupationRows.map((row) => renderDynamicRow(row, 'occ'))
+          ) : (
+            <tr>
+              <td className={`${cellLabel} pl-6`}>—</td>
+              <td className={cell}></td>
+              {renderMetrics(toMetrics(), 'occ-empty')}
+            </tr>
+          )}
+
+          {/* 2. Tai nạn hưởng trợ cấp */}
+          <tr>
+            <td className={sectionHeader}>2. Tai nạn được hưởng trợ cấp theo quy định tại Khoản 2 Điều 39 Luật ATVSLĐ</td>
+            <td className={cell}>10</td>
+            {renderMetrics(subsidyMetrics, 'sub')}
+          </tr>
+
+          {/* 3. Tổng số */}
+          <tr>
+            <td className={`${sectionHeader}`} colSpan={13}>3. Tổng số</td>
+          </tr>
+          <tr>
+            <td className={`${cellLabel} pl-4`}>Tổng số (3=1+2)</td>
+            <td className={cell}></td>
+            {renderMetrics(totalMetrics, 'tot')}
+          </tr>
+        </tbody>
+      </table>
+
+      {/* Table II: Thiệt hại */}
+      <div className="mt-4">
+        <p className="text-[11px] font-bold text-slate-800 mb-2" style={{ fontFamily: 'Arial, sans-serif' }}>II. Thiệt hại do tai nạn lao động</p>
+        <table className="w-full border-collapse text-[11px] text-slate-800 bg-white" style={{ fontFamily: 'Arial, sans-serif' }}>
+          <thead>
+            <tr className="bg-slate-50">
+              <th rowSpan={3} className="border border-slate-300 p-2 text-center font-normal min-w-[200px]">Tổng số  ngày nghỉ vì tai nạn lao động (kể cả ngày nghỉ chế độ )</th>
+              <th colSpan={4} className="border border-slate-300 p-1.5 text-center font-normal">Tổng số  ngày nghỉ vì TNLĐ (1.000đ)</th>
+              <th rowSpan={3} className="border border-slate-300 p-2 text-center font-normal w-36">Thiệt hại tài sản (1.000đ)</th>
+            </tr>
+            <tr className="bg-slate-50">
+              <th rowSpan={2} className="border border-slate-300 p-1 text-center font-normal w-28">Tổng số</th>
+              <th colSpan={3} className="border border-slate-300 p-1 text-center font-normal">Khoảng chi cụ thể của cơ sở</th>
+            </tr>
+            <tr className="bg-slate-50">
+              <th className="border border-slate-300 p-1 text-center font-normal w-24">Y tế</th>
+              <th className="border border-slate-300 p-1 text-center font-normal w-32">Trả lương trong thời gian điều trị</th>
+              <th className="border border-slate-300 p-1 text-center font-normal w-28">Bồi thường trợ cấp</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-slate-300 p-3 text-center">{damageTotals.workdaysLost}</td>
+              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round((damageTotals.medicalCost + damageTotals.treatmentSalaryCost + damageTotals.compensationCost) / 1000))}</td>
+              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.medicalCost / 1000))}</td>
+              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.treatmentSalaryCost / 1000))}</td>
+              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.compensationCost / 1000))}</td>
+              <td className="border border-slate-300 p-3 text-center">{formatNumber(Math.round(damageTotals.assetDamage / 1000))}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 const SEED_REPORTS: CompanyReport[] = [
@@ -155,6 +667,8 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '1',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
     taxCode: '0317118106',
+    province: 'Hồ Chí Minh',
+    ward: '',
     period: '6 tháng',
     year: 2022,
     status: 'draft',
@@ -178,7 +692,9 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '2',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
     taxCode: '0317118106',
-    period: 'Cả năm',
+    province: 'Hồ Chí Minh',
+    ward: '',
+    period: '1 năm',
     year: 2022,
     status: 'submitted',
     data: {
@@ -201,7 +717,9 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '3',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN',
     taxCode: '0317118107',
-    period: 'Cả năm',
+    province: 'Hồ Chí Minh',
+    ward: '',
+    period: '1 năm',
     year: 2022,
     status: 'submitted',
     data: {
@@ -224,7 +742,9 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '4',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN',
     taxCode: '0317118106',
-    period: 'Cả năm',
+    province: 'Hồ Chí Minh',
+    ward: '',
+    period: '1 năm',
     year: 2022,
     status: 'submitted',
     data: {
@@ -247,6 +767,8 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '5',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
     taxCode: '0317118106',
+    province: 'Hồ Chí Minh',
+    ward: '',
     period: '6 tháng',
     year: 2023,
     status: 'draft',
@@ -270,7 +792,9 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '6',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
     taxCode: '0317118106',
-    period: 'Cả năm',
+    province: 'Hồ Chí Minh',
+    ward: '',
+    period: '1 năm',
     year: 2023,
     status: 'submitted',
     data: {
@@ -293,7 +817,9 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '7',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN',
     taxCode: '0317118107',
-    period: 'Cả năm',
+    province: 'Hồ Chí Minh',
+    ward: '',
+    period: '1 năm',
     year: 2023,
     status: 'submitted',
     data: {
@@ -316,6 +842,8 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '8',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
     taxCode: '0317118106',
+    province: 'Hồ Chí Minh',
+    ward: '',
     period: '6 tháng',
     year: 2024,
     status: 'draft',
@@ -339,7 +867,9 @@ const SEED_REPORTS: CompanyReport[] = [
     id: '9',
     name: 'CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ VẬN TẢI PHẠM THIÊN ÂN',
     taxCode: '0317118106',
-    period: 'Cả năm',
+    province: 'Hồ Chí Minh',
+    ward: '',
+    period: '1 năm',
     year: 2024,
     status: 'submitted',
     data: {
@@ -365,12 +895,18 @@ export default function TnldContractsPage() {
   const [viewState, setViewState] = useState<'list' | 'detail' | 'summary'>('list');
   const [reports, setReports] = useState<CompanyReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<CompanyReport | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  const [isAcceptingReport, setIsAcceptingReport] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // PDF Preview State
   const [showPdfPreview, setShowPdfPreview] = useState(false);
 
   // Filters for listing
-  const [filterYear, setFilterYear] = useState('2022');
+  const [filterYear, setFilterYear] = useState('Tất cả');
   const [filterProvince, setFilterProvince] = useState('Hồ Chí Minh');
   const [filterWard, setFilterWard] = useState('Tất cả');
 
@@ -382,9 +918,13 @@ export default function TnldContractsPage() {
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
+  const [reportsError, setReportsError] = useState('');
 
-  // Enterprise Wards state
-  const [enterpriseWards, setEnterpriseWards] = useState<Record<string, string>>({});
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterYear, filterProvince, filterWard, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
 
   const baseUrl =
     typeof window !== 'undefined'
@@ -392,69 +932,72 @@ export default function TnldContractsPage() {
       : '';
 
   const wardOptions = useMemo(() => {
-    return ['Tất cả', ...HCM_WARDS.map((w) => `${w.name} (${w.district})`)];
-  }, []);
+    const wardsFromReports = reports
+      .filter((report) => !filterProvince || normalizeLocationName(report.province) === normalizeLocationName(filterProvince))
+      .map((report) => report.ward)
+      .filter(Boolean);
+    const fallbackWards = HCM_WARDS.map((w) => `${w.name} (${w.district})`);
+    return ['Tất cả', ...Array.from(new Set([...wardsFromReports, ...fallbackWards]))];
+  }, [filterProvince, reports]);
 
-  // Load database and fetch enterprise wards
+  const provinceOptions = useMemo(() => {
+    const provinces = reports.map((report) => report.province).filter(Boolean);
+    return Array.from(new Set(['Hồ Chí Minh', ...provinces]));
+  }, [reports]);
+
+  const availableYears = useMemo(() => {
+    const years = reports.map((report) => String(report.year)).filter(Boolean);
+    return ['Tất cả', ...Array.from(new Set([...years, '2026', '2025', '2024', '2023', '2022'])).sort((a, b) => Number(b) - Number(a))];
+  }, [reports]);
+
+  // Load real reports from backend
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('vna_tnld_contracts');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          // Check if parsed data is valid and contains the necessary 'data' field
-          const needsUpgrade = !Array.isArray(parsed) || parsed.length < SEED_REPORTS.length || parsed.some(r => !r || !r.data || typeof r.data.casesTotal !== 'number');
-          if (needsUpgrade) {
-            setReports(SEED_REPORTS);
-            localStorage.setItem('vna_tnld_contracts', JSON.stringify(SEED_REPORTS));
-          } else {
-            setReports(parsed);
-          }
-        } catch (e) {
-          setReports(SEED_REPORTS);
-          localStorage.setItem('vna_tnld_contracts', JSON.stringify(SEED_REPORTS));
-        }
-      } else {
-        setReports(SEED_REPORTS);
-        localStorage.setItem('vna_tnld_contracts', JSON.stringify(SEED_REPORTS));
-      }
+    async function loadReports() {
+      if (!baseUrl) return;
 
-      // Fetch enterprise wards mapping
-      const token = getAuthToken();
-      if (token) {
-        fetch(`${baseUrl}/enterprises`, {
-          headers: { authorization: `Bearer ${token}` },
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (Array.isArray(data)) {
-              const map: Record<string, string> = {};
-              data.forEach((ent: any) => {
-                if (ent.taxCode && ent.ward?.name) {
-                  map[ent.taxCode] = ent.ward.name;
-                }
-              });
-              setEnterpriseWards(map);
-            }
-          })
-          .catch(() => {});
+      setIsLoadingReports(true);
+      setReportsError('');
+
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${baseUrl}/tnld-contract-reports`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const data = await response.json().catch(() => []);
+
+        if (!response.ok) {
+          throw new Error(data?.message || 'Không tải được danh sách báo cáo');
+        }
+
+        const mappedReports = Array.isArray(data) ? data.map(mapApiReport) : [];
+        setReports(mappedReports);
+
+      } catch (error) {
+        setReports([]);
+        setReportsError(error instanceof Error ? error.message : 'Lỗi kết nối backend');
+      } finally {
+        setIsLoadingReports(false);
       }
     }
-  }, []);
+
+    loadReports();
+  }, [baseUrl]);
 
   // Filtered reports list
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
       // Top filter year check
-      if (filterYear && String(r.year) !== filterYear) return false;
+      if (filterYear !== 'Tất cả' && String(r.year) !== filterYear) return false;
+
+      // Top filter province check
+      if (filterProvince && normalizeLocationName(r.province) !== normalizeLocationName(filterProvince)) return false;
 
       // Top filter ward check
       if (filterWard && filterWard !== 'Tất cả') {
-        const entWard = enterpriseWards[r.taxCode];
-        if (!entWard) return false;
+        if (!r.ward) return false;
         
         const selectedWardClean = filterWard.split('(')[0].trim();
-        const normEntWard = normalizeLocationName(entWard);
+        const normEntWard = normalizeLocationName(r.ward);
         const normFilterWard = normalizeLocationName(selectedWardClean);
         if (normEntWard !== normFilterWard) return false;
       }
@@ -467,17 +1010,71 @@ export default function TnldContractsPage() {
 
       return true;
     });
-  }, [reports, filterYear, filterWard, enterpriseWards, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
+  }, [reports, filterYear, filterProvince, filterWard, tableFilterName, tableFilterTax, tableFilterPeriod, tableFilterStatus]);
+
+  // Paginated reports list
+  const paginatedReports = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredReports.slice(startIndex, startIndex + pageSize);
+  }, [filteredReports, currentPage, pageSize]);
 
   // Open detail view
-  const handleOpenDetail = (report: CompanyReport) => {
-    setSelectedReport(report);
-    setViewState('detail');
+  const handleOpenDetail = async (report: CompanyReport) => {
+    setIsLoadingDetail(true);
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${baseUrl}/tnld-contract-reports/${report.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        throw new Error(data?.message || 'Không tải được chi tiết báo cáo');
+      }
+
+      setSelectedReport(mapApiReport(data));
+    } catch {
+      setSelectedReport(report);
+    } finally {
+      setIsLoadingDetail(false);
+      setViewState('detail');
+    }
   };
 
   // Switch to summary report
   const handleOpenSummary = () => {
     setViewState('summary');
+  };
+
+  const handleAcceptReport = async () => {
+    if (!selectedReport || selectedReport.status !== 'submitted') return;
+
+    setIsAcceptingReport(true);
+    setReportsError('');
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${baseUrl}/tnld-contract-reports/${selectedReport.id}/accept`, {
+        method: 'PATCH',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        throw new Error(data?.message || 'Không duyệt được báo cáo');
+      }
+
+      const acceptedReport = mapApiReport(data);
+      setSelectedReport(acceptedReport);
+      setReports((current) =>
+        current.map((report) => (report.id === acceptedReport.id ? acceptedReport : report)),
+      );
+    } catch (error) {
+      setReportsError(error instanceof Error ? error.message : 'Lỗi kết nối backend');
+    } finally {
+      setIsAcceptingReport(false);
+    }
   };
 
   const handleExportSummary = () => {
@@ -512,19 +1109,19 @@ export default function TnldContractsPage() {
     document.body.removeChild(link);
   };
 
-  // Dynamic calculations for aggregate summary
+  // Dynamic calculations for aggregate summary - only from accepted (đã báo cáo) reports
   const summaryCalculations = useMemo(() => {
     const submitted = reports.filter((r) => {
-      if (r.status !== 'submitted') return false;
-      if (filterYear && String(r.year) !== filterYear) return false;
+      if (r.status !== 'accepted') return false; // Only fully accepted/approved reports
+      if (filterYear !== 'Tất cả' && String(r.year) !== filterYear) return false;
+      if (filterProvince && normalizeLocationName(r.province) !== normalizeLocationName(filterProvince)) return false;
 
       // Top filter ward check
       if (filterWard && filterWard !== 'Tất cả') {
-        const entWard = enterpriseWards[r.taxCode];
-        if (!entWard) return false;
-        
+        if (!r.ward) return false;
+
         const selectedWardClean = filterWard.split('(')[0].trim();
-        const normEntWard = normalizeLocationName(entWard);
+        const normEntWard = normalizeLocationName(r.ward);
         const normFilterWard = normalizeLocationName(selectedWardClean);
         if (normEntWard !== normFilterWard) return false;
       }
@@ -574,11 +1171,16 @@ export default function TnldContractsPage() {
       countSubmitted,
       totals
     };
-  }, [reports, filterYear, filterWard, enterpriseWards]);
+  }, [reports, filterYear, filterProvince, filterWard]);
 
   // Formatter for values
   const formatNumber = (num: number) => {
     return num.toLocaleString('vi-VN');
+  };
+
+  // Format number in 1000đ units (divide by 1000)
+  const formatCost = (num: number) => {
+    return Math.round(num / 1000).toLocaleString('vi-VN');
   };
 
   return (
@@ -637,9 +1239,11 @@ export default function TnldContractsPage() {
                   onChange={(e) => setFilterYear(e.target.value)}
                   className="appearance-none border border-slate-200 rounded-lg px-4 py-2 pr-10 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-700 shadow-sm"
                 >
-                  <option value="2022">2022</option>
-                  <option value="2023">2023</option>
-                  <option value="2024">2024</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
               </div>
@@ -659,12 +1263,17 @@ export default function TnldContractsPage() {
             <div className="relative">
               <select
                 value={filterProvince}
-                onChange={(e) => setFilterProvince(e.target.value)}
+                onChange={(e) => {
+                  setFilterProvince(e.target.value);
+                  setFilterWard('Tất cả');
+                }}
                 className="w-full appearance-none rounded-lg border border-slate-200 px-3 py-2 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 bg-white"
               >
-                <option value="Hồ Chí Minh">Hồ Chí Minh</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="Đà Nẵng">Đà Nẵng</option>
+                {provinceOptions.map((province) => (
+                  <option key={province} value={province}>
+                    {province}
+                  </option>
+                ))}
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
               <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
@@ -686,6 +1295,11 @@ export default function TnldContractsPage() {
 
           {/* Table Container */}
           <div className="w-full overflow-hidden border border-slate-200 rounded-xl bg-white shadow-sm">
+            {reportsError && (
+              <div className="border-b border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                {reportsError}
+              </div>
+            )}
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-50/75 border-b border-slate-200">
@@ -748,7 +1362,7 @@ export default function TnldContractsPage() {
                       >
                         <option value="">Tất cả</option>
                         <option value="6 tháng">6 tháng</option>
-                        <option value="Cả năm">Cả năm</option>
+                        <option value="1 năm">1 năm</option>
                       </select>
                       <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
@@ -763,6 +1377,7 @@ export default function TnldContractsPage() {
                         <option value="">Tất cả</option>
                         <option value="draft">Đang báo cáo</option>
                         <option value="submitted">Đã tiếp nhận</option>
+                        <option value="accepted">Đã báo cáo</option>
                       </select>
                       <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
@@ -770,7 +1385,20 @@ export default function TnldContractsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredReports.map((report) => (
+                {isLoadingReports ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
+                      Đang tải danh sách báo cáo...
+                    </td>
+                  </tr>
+                ) : filteredReports.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
+                      Không tìm thấy báo cáo phù hợp
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedReports.map((report) => (
                   <tr key={report.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3.5 text-center">
                       <input
@@ -787,8 +1415,9 @@ export default function TnldContractsPage() {
                     <td className="px-2 py-3.5 text-center">
                       <button
                         onClick={() => handleOpenDetail(report)}
+                        disabled={isLoadingDetail}
                         className="text-slate-400 hover:text-blue-600 transition"
-                        title="Xem báo cáo"
+                        title={isLoadingDetail ? 'Đang tải chi tiết báo cáo' : 'Xem báo cáo'}
                       >
                         <Eye size={16} />
                       </button>
@@ -803,40 +1432,41 @@ export default function TnldContractsPage() {
                       {report.period}
                     </td>
                     <td className="px-3 py-3.5 text-sm">
-                      {report.status === 'draft' ? (
+                      {report.status === 'accepted' ? (
+                        <span className="inline-flex items-center gap-1.5 text-blue-600 font-medium">
+                          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                          Đã báo cáo
+                        </span>
+                      ) : report.status === 'submitted' ? (
+                        <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium">
+                          <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+                          Đã tiếp nhận
+                        </span>
+                      ) : (
                         <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium">
                           <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
                           Đang báo cáo
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-blue-600 font-medium">
-                          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                          Đã tiếp nhận
-                        </span>
                       )}
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
 
             {/* Pagination */}
-            <div className="flex items-center justify-end gap-4 px-6 py-3 border-t border-slate-200 bg-white text-xs text-slate-500 font-medium">
-              <div className="flex items-center gap-1">
-                <span>Hiển thị</span>
-                <div className="relative">
-                  <select className="appearance-none border border-slate-200 rounded px-2 py-0.5 pr-5 bg-white text-slate-600 font-semibold focus:outline-none">
-                    <option>10</option>
-                  </select>
-                  <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
-                </div>
-              </div>
-              <span>1 - {filteredReports.length} of {filteredReports.length}</span>
-              <div className="flex gap-1.5">
-                <button disabled className="p-1 rounded border border-slate-200 opacity-50 cursor-not-allowed">&lt;</button>
-                <button disabled className="p-1 rounded border border-slate-200 opacity-50 cursor-not-allowed">&gt;</button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredReports.length / pageSize) || 1}
+              totalItems={filteredReports.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+            />
           </div>
         </div>
       )}
@@ -856,6 +1486,15 @@ export default function TnldContractsPage() {
               >
                 Huỷ bỏ
               </button>
+              {selectedReport.status === 'submitted' && (
+                <button
+                  onClick={handleAcceptReport}
+                  disabled={isAcceptingReport}
+                  className="px-4 py-2 rounded-lg border border-blue-600 text-blue-600 text-sm font-semibold hover:bg-blue-50 transition disabled:cursor-not-allowed disabled:border-blue-200 disabled:text-blue-300"
+                >
+                  {isAcceptingReport ? 'Đang duyệt...' : 'Duyệt báo cáo'}
+                </button>
+              )}
               <button
                 onClick={() => window.print()}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1D4ED8] text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
@@ -884,7 +1523,10 @@ export default function TnldContractsPage() {
             </div>
 
             {/* SCROLLABLE TABLE PANEL - Max height constraint in browser, full viewport during printing */}
-            <div className="overflow-auto max-h-[60vh] print:max-h-none print:overflow-visible border border-slate-200 rounded-lg shadow-inner bg-slate-50/25 p-1">
+            <AdminTnldReportSummaryTable report={selectedReport} formatNumber={formatNumber} />
+
+            {/* Legacy mock table removed - AdminTnldReportSummaryTable above uses real data */}
+            <div className="hidden">
               <table className="w-full border-collapse border border-slate-200 text-xs text-slate-700 bg-white">
                 <thead className="sticky top-0 bg-slate-100 z-10 print:static print:bg-white">
                   <tr className="border border-slate-200">
@@ -1357,11 +1999,11 @@ export default function TnldContractsPage() {
                       <td className="border border-slate-200 p-2 text-center font-mono">{summaryCalculations.totals.peopleDeath}</td>
                       <td className="border border-slate-200 p-2 text-center font-mono">{summaryCalculations.totals.peopleSevere}</td>
                       <td className="border border-slate-200 p-2 text-center font-mono">{summaryCalculations.totals.daysOff}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costTotal)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costMedical)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costSalary)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.costCompensation)}</td>
-                      <td className="border border-slate-200 p-2 text-center font-mono">{formatNumber(summaryCalculations.totals.propertyDamage)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costTotal)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costMedical)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costSalary)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.costCompensation)}</td>
+                      <td className="border border-slate-200 p-2 text-center font-mono">{formatCost(summaryCalculations.totals.propertyDamage)}</td>
                     </tr>
 
                     {/* Section: Phân theo ngành nghề */}
@@ -1389,11 +2031,11 @@ export default function TnldContractsPage() {
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? summaryCalculations.totals.peopleDeath : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? summaryCalculations.totals.peopleSevere : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? summaryCalculations.totals.daysOff : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costTotal) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costMedical) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costSalary) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.costCompensation) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatNumber(summaryCalculations.totals.propertyDamage) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costTotal) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costMedical) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costSalary) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.costCompensation) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 2 ? formatCost(summaryCalculations.totals.propertyDamage) : 0}</td>
                       </tr>
                     ))}
 
@@ -1420,11 +2062,11 @@ export default function TnldContractsPage() {
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? summaryCalculations.totals.peopleDeath : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? summaryCalculations.totals.peopleSevere : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? summaryCalculations.totals.daysOff : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costTotal) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costMedical) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costSalary) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.costCompensation) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatNumber(summaryCalculations.totals.propertyDamage) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costTotal) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costMedical) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costSalary) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.costCompensation) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 0 ? formatCost(summaryCalculations.totals.propertyDamage) : 0}</td>
                       </tr>
                     ))}
 
@@ -1451,11 +2093,11 @@ export default function TnldContractsPage() {
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? summaryCalculations.totals.peopleDeath : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? summaryCalculations.totals.peopleSevere : 0}</td>
                         <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? summaryCalculations.totals.daysOff : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costTotal) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costMedical) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costSalary) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.costCompensation) : 0}</td>
-                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatNumber(summaryCalculations.totals.propertyDamage) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costTotal) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costMedical) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costSalary) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.costCompensation) : 0}</td>
+                        <td className="border border-slate-200 p-2 text-center font-mono">{idx === 1 ? formatCost(summaryCalculations.totals.propertyDamage) : 0}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1535,13 +2177,13 @@ export default function TnldContractsPage() {
                   <p><strong>3. Tổng số ngày nghỉ vì tai nạn lao động:</strong> {selectedReport.data.daysOff} ngày.</p>
                   
                   <div className="space-y-1">
-                    <p><strong>4. Chi phí thiệt hại (VNĐ):</strong></p>
+                    <p><strong>4. Chi phí thiệt hại (nghìn đồng):</strong></p>
                     <ul className="list-disc pl-6 space-y-0.5">
-                      <li>Tổng chi phí: {formatNumber(selectedReport.data.costTotal)} VNĐ</li>
-                      <li>Chi phí y tế: {formatNumber(selectedReport.data.costMedical)} VNĐ</li>
-                      <li>Trả lương thời gian điều trị: {formatNumber(selectedReport.data.costSalary)} VNĐ</li>
-                      <li>Chi phí bồi thường trợ cấp: {formatNumber(selectedReport.data.costCompensation)} VNĐ</li>
-                      <li>Thiệt hại tài sản: {formatNumber(selectedReport.data.propertyDamage)} VNĐ</li>
+                      <li>Tổng chi phí: {formatCost(selectedReport.data.costMedical + selectedReport.data.costSalary + selectedReport.data.costCompensation)} (1.000đ)</li>
+                      <li>Chi phí y tế: {formatCost(selectedReport.data.costMedical)} (1.000đ)</li>
+                      <li>Trả lương thời gian điều trị: {formatCost(selectedReport.data.costSalary)} (1.000đ)</li>
+                      <li>Chi phí bồi thường trợ cấp: {formatCost(selectedReport.data.costCompensation)} (1.000đ)</li>
+                      <li>Thiệt hại tài sản: {formatCost(selectedReport.data.propertyDamage)} (1.000đ)</li>
                     </ul>
                   </div>
 

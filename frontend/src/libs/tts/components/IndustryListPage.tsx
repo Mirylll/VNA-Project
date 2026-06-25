@@ -94,9 +94,23 @@ export default function IndustryListPage() {
         return res.json();
       })
       .then((data) => {
-        setItems(data);
-        // Auto-expand all groups that have children
-        const roots = data.filter((i: any) => !i.parent);
+        const itemMap = new Map<number, any>();
+        data.forEach((item: any) => {
+          itemMap.set(item.id, { ...item, children: [] });
+        });
+
+        data.forEach((item: any) => {
+          const mappedItem = itemMap.get(item.id);
+          const parentId = item.parent?.id;
+          if (parentId && itemMap.has(parentId)) {
+            itemMap.get(parentId).children.push(mappedItem);
+          }
+        });
+
+        const builtFlatList = Array.from(itemMap.values());
+        setItems(builtFlatList);
+
+        const roots = builtFlatList.filter((i: any) => !i.parent);
         roots.forEach((r: any, i: number) => { r.stt = String(i + 1); });
         setExpandedGroups(roots.filter((r: any) => r.children?.length > 0).map((r: any) => r.code));
       })

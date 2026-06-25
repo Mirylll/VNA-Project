@@ -313,23 +313,20 @@ export default function EnterpriseStep1({
               <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
                 Ngành nghề kinh doanh chính <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <select
-                  name="industryId"
-                  value={formData.industryId}
-                  onChange={handleInputChange}
-                  className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-                >
-                  <option value="" disabled>Chọn ngành nghề</option>
-                  {industries.map((ind: any) => (
-                    <option key={ind.id} value={String(ind.id)}>{ind.code} - {ind.name}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-                />
-              </div>
+              <Autocomplete
+                value={formData.industryId}
+                options={industries.map((ind: any) => ({ id: ind.id, name: `${ind.code} - ${ind.name}` }))}
+                placeholder="Chọn ngành nghề"
+                onSelect={(val) => {
+                  updateField('industryId', val);
+                  if (errors.industryId) {
+                    setErrors((prev) => { const n = { ...prev }; delete n.industryId; return n; });
+                  }
+                }}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+                error={!!errors.industryId}
+                plain
+              />
             </>
           )}
 
@@ -340,7 +337,8 @@ export default function EnterpriseStep1({
             <DatePicker
               value={formData.licenseDate}
               onChange={(iso) => updateField('licenseDate', iso)}
-              placeholder="dd/mm/yyyy"
+              placeholder="dd/MM/yyyy"
+              className="w-full"
             />
           </div>
 

@@ -19,7 +19,7 @@ const DEFAULT_REPORT_PERIODS: ReportPeriod[] = [
     id: 1,
     year: 2022,
     name: 'Báo cáo tai nạn lao động',
-    period: 'Cả năm',
+    period: '1 năm',
     startDate: '2023-12-15',
     endDate: '2024-01-10',
     isActive: true,
@@ -28,7 +28,7 @@ const DEFAULT_REPORT_PERIODS: ReportPeriod[] = [
     id: 2,
     year: 2023,
     name: 'Báo cáo tai nạn lao động',
-    period: 'Cả năm',
+    period: '1 năm',
     startDate: '2024-12-15',
     endDate: '2025-01-10',
     isActive: false,
@@ -41,7 +41,7 @@ const REPORT_NAME_OPTIONS = [
 
 const PERIOD_OPTIONS = [
   '6 tháng đầu năm',
-  'Cả năm'
+  '1 năm'
 ];
 
 function formatDateForDisplay(isoString: string): string {
@@ -80,7 +80,7 @@ export default function ReportPeriodsPage() {
     if (period === '6 tháng đầu năm') {
       setFormStart(`${year}-01-01`);
       setFormEnd(`${year}-06-30`);
-    } else if (period === 'Cả năm') {
+    } else if (period === 'Cả năm' || period === '1 năm') {
       setFormStart(`${year}-01-01`);
       setFormEnd(`${year}-12-31`);
     }
@@ -93,7 +93,20 @@ export default function ReportPeriodsPage() {
       const stored = localStorage.getItem('vna_report_periods');
       if (stored) {
         try {
-          setItems(JSON.parse(stored));
+          const parsed = JSON.parse(stored) as ReportPeriod[];
+          const filtered = parsed.filter((item) => {
+            const matches2026_2027 =
+              String(item.year).includes('2026-2027') ||
+              String(item.name).includes('2026-2027') ||
+              String(item.period).includes('2026-2027') ||
+              (item.startDate && String(item.startDate).includes('2026-2027')) ||
+              (item.endDate && String(item.endDate).includes('2026-2027'));
+            return !matches2026_2027;
+          });
+          setItems(filtered);
+          if (filtered.length !== parsed.length) {
+            localStorage.setItem('vna_report_periods', JSON.stringify(filtered));
+          }
         } catch {
           setItems(DEFAULT_REPORT_PERIODS);
         }
@@ -187,7 +200,7 @@ export default function ReportPeriodsPage() {
       const isDuplicate = items.some(
         (item) =>
           item.year === parseInt(formYear) &&
-          item.period === formPeriod &&
+          (item.period === formPeriod || (item.period === 'Cả năm' && formPeriod === '1 năm') || (item.period === '1 năm' && formPeriod === 'Cả năm')) &&
           item.name === formName
       );
       if (isDuplicate) {
@@ -380,7 +393,7 @@ export default function ReportPeriodsPage() {
                     {item.name}
                   </td>
                   <td className="px-3 py-3 text-sm text-slate-700">
-                    {item.period}
+                    {item.period === 'Cả năm' ? '1 năm' : item.period}
                   </td>
                   <td className="px-3 py-3 text-sm text-slate-700">
                     {formatDateForDisplay(item.startDate)}

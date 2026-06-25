@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, Save } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -158,7 +159,7 @@ export default function EnterpriseModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg bg-white rounded-xl shadow-xl overflow-hidden">
+      <div className="w-full max-w-2xl bg-white rounded-xl shadow-xl overflow-hidden">
         <div className="bg-blue-600 px-6 py-3">
           <h2 className="text-white font-semibold text-base">
             {isEdit ? 'Cập nhật doanh nghiệp' : 'Thêm mới doanh nghiệp'}
@@ -223,22 +224,14 @@ export default function EnterpriseModal({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
               Ngành nghề kinh doanh <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <select
-                value={industryId}
-                onChange={(e) => setIndustryId(e.target.value)}
-                className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-              >
-                <option value="" disabled>Chọn ngành nghề</option>
-                {industries.map((ind: any) => (
-                  <option key={ind.id} value={String(ind.id)}>{ind.code} - {ind.name}</option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-              />
-            </div>
+            <Autocomplete
+              value={industryId}
+              options={industries.map((ind: any) => ({ id: ind.id, name: `${ind.code} - ${ind.name}` }))}
+              placeholder="Chọn ngành nghề"
+              onSelect={(val) => setIndustryId(val)}
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              plain
+            />
           </div>
 
           <div className="relative border border-slate-300 rounded-lg px-3 pt-3 pb-2">

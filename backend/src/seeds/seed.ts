@@ -11,6 +11,10 @@ import { District } from '../modules/users/entities/district.entity';
 import { EnterpriseType } from '../modules/enterprise-types/entities/enterprise-type.entity';
 import { Industry } from '../modules/industries/entities/industry.entity';
 import { Enterprise } from '../modules/enterprises/entities/enterprise.entity';
+import { TnldContractReport } from '../modules/tnld-contract-reports/entities/tnld-contract-report.entity';
+import { TnldContractReportOverview } from '../modules/tnld-contract-reports/entities/tnld-contract-report-overview.entity';
+import { TnldContractReportSubsidy } from '../modules/tnld-contract-reports/entities/tnld-contract-report-subsidy.entity';
+import { TnldContractReportAccidentDetail } from '../modules/tnld-contract-reports/entities/tnld-contract-report-accident-detail.entity';
 
 interface PermissionSeed {
   code: string;
@@ -311,9 +315,14 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
     // Clean up existing associations and wards first to prevent duplicate/stale records
     await dataSource.query('UPDATE users SET district_id = NULL');
+    await dataSource.query('DELETE FROM tnld_contract_report_overviews');
+    await dataSource.query('DELETE FROM tnld_contract_report_subsidies');
+    await dataSource.query('DELETE FROM tnld_contract_report_attachments');
+    await dataSource.query('DELETE FROM tnld_contract_report_accident_details');
+    await dataSource.query('DELETE FROM tnld_contract_reports');
     await dataSource.query('DELETE FROM enterprises');
     await dataSource.query('DELETE FROM districts');
-    console.log('🗑️  Cleared existing districts and related enterprise records');
+    console.log('🗑️  Cleared existing districts, reports and related enterprise records');
 
     let inserted = 0;
     for (const ward of wardsToSeed) {
@@ -726,5 +735,117 @@ export async function seed(dataSource: DataSource): Promise<void> {
       }
       console.log('✅ Seeded enterprise user accounts');
     }
+
+    // ---- TnldContractReports ----
+    const reportRepo = dataSource.getRepository(TnldContractReport);
+    const reportOverviewRepo = dataSource.getRepository(TnldContractReportOverview);
+    const reportSubsidyRepo = dataSource.getRepository(TnldContractReportSubsidy);
+    const reportAccidentDetailRepo = dataSource.getRepository(TnldContractReportAccidentDetail);
+
+    const allEnts = await enterpriseRepo.find();
+    for (let i = 0; i < Math.min(allEnts.length, 5); i++) {
+      const ent = allEnts[i];
+      const statusVal = i % 3 === 0 ? 'accepted' : i % 3 === 1 ? 'submitted' : 'draft';
+      const report = reportRepo.create({
+        enterpriseId: ent.id,
+        year: 2026,
+        period: i % 2 === 0 ? '6m' : 'y',
+        status: statusVal,
+        submittedAt: statusVal !== 'draft' ? new Date() : undefined,
+      });
+      const savedReport = await reportRepo.save(report);
+
+      await reportOverviewRepo.save(
+        reportOverviewRepo.create({
+          reportId: savedReport.id,
+          totalEmployees: 100 + i * 10,
+          femaleEmployees: 40 + i * 5,
+          payroll: '150000000',
+          totalAccidents: 2,
+          fatalAccidents: 1,
+          multiVictimAccidents: 1,
+          totalVictims: 10,
+          femaleVictims: 5,
+          deadVictims: 5,
+          severeVictims: 10,
+          workdaysLost: 20,
+          medicalCost: '6000000',
+          treatmentSalaryCost: '2000000',
+          compensationCost: '2000000',
+          assetDamage: '20000000',
+        })
+      );
+
+      await reportSubsidyRepo.save(
+        reportSubsidyRepo.create({
+          reportId: savedReport.id,
+          totalAccidents: 0,
+          fatalAccidents: 0,
+          multiVictimAccidents: 0,
+          totalVictims: 0,
+          femaleVictims: 0,
+          deadVictims: 0,
+          severeVictims: 0,
+          medicalCost: '0',
+          treatmentSalaryCost: '0',
+          compensationCost: '0',
+          totalCost: '0',
+          workdaysLost: 0,
+          assetDamage: '0',
+        })
+      );
+
+      // Seed detailed accident breakdown rows
+      await reportAccidentDetailRepo.save(
+        reportAccidentDetailRepo.create({
+          reportId: savedReport.id,
+          cause: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn',
+          injuryFactor: 'Thiết bị nâng',
+          occupation: 'Nhà lãnh đạo cơ quan Đảng Cộng sản Việt Nam cấp Trung ương',
+          totalAccidents: 1,
+          fatalAccidents: 1,
+          multiVictimAccidents: 1,
+          totalVictims: 5,
+          femaleVictims: 2,
+          deadVictims: 2,
+          severeVictims: 5,
+          unmanagedVictims: 0,
+          unmanagedFemaleVictims: 0,
+          unmanagedDeadVictims: 0,
+          unmanagedSevereVictims: 0,
+          medicalCost: '3000000',
+          treatmentSalaryCost: '1000000',
+          compensationCost: '1000000',
+          workdaysLost: 10,
+          assetDamage: '10000000',
+        })
+      );
+
+      await reportAccidentDetailRepo.save(
+        reportAccidentDetailRepo.create({
+          reportId: savedReport.id,
+          cause: 'Tổ chức lao động không hợp lý',
+          injuryFactor: 'Thiết bị nâng',
+          occupation: 'Công nhân',
+          totalAccidents: 1,
+          fatalAccidents: 0,
+          multiVictimAccidents: 0,
+          totalVictims: 5,
+          femaleVictims: 3,
+          deadVictims: 3,
+          severeVictims: 5,
+          unmanagedVictims: 0,
+          unmanagedFemaleVictims: 0,
+          unmanagedDeadVictims: 0,
+          unmanagedSevereVictims: 0,
+          medicalCost: '3000000',
+          treatmentSalaryCost: '1000000',
+          compensationCost: '1000000',
+          workdaysLost: 10,
+          assetDamage: '10000000',
+        })
+      );
+    }
+    console.log('✅ Seeded TnldContractReports mock data (including details)');
   }
 }

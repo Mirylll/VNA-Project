@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { HCM_WARDS, HCM_PROVINCE, ENTERPRISE_TYPES, INDUSTRIES, Ward } from "@/libs/tts/data/hcm-districts";
+import Autocomplete from "./Autocomplete";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -393,7 +394,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   if (stage === "account") {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl overflow-hidden">
+        <div className="w-full max-w-md rounded-xl bg-white shadow-2xl overflow-hidden">
           {/* Header xanh */}
           <div className="bg-blue-600 px-6 py-5 text-center">
             <h2 className="text-lg font-bold text-white">Thông tin tài khoản</h2>
@@ -428,7 +429,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   if (stage === "otp") {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
-        <div className="w-full max-w-sm rounded-xl bg-white shadow-2xl p-6">
+        <div className="w-full max-w-md rounded-xl bg-white shadow-2xl p-6">
           {/* Title */}
           <h2 className="text-xl font-bold text-blue-600 text-center mb-1">
             XÁC THỰC EMAIL
@@ -509,7 +510,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   if (stage === "confirm") {
     return (
       <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4 overflow-auto">
-        <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl my-auto">
+        <div className="w-full max-w-5xl bg-white rounded-xl shadow-2xl my-auto">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
             <StepIndicator currentStep={2} />
@@ -619,7 +620,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   /* ───── FORM (Step 1/2) ───── */
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4 overflow-auto">
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl my-auto">
+      <div className="w-full max-w-6xl bg-white rounded-xl shadow-2xl my-auto">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-gray-200 px-6 pt-5 pb-3">
           <div className="flex-1">
@@ -669,27 +670,24 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                 <select
                   value={form.loaiHinhKD}
                   onChange={(e) => setField("loaiHinhKD", e.target.value)}
-                  className={selectCls(!!errors.loaiHinhKD)}
+                  className={selectCls(!!errors.loaiHinhKD, !!form.loaiHinhKD)}
                 >
-                  <option value="">-- Chọn loại hình --</option>
+                  <option value="" className="text-gray-400">-- Chọn loại hình --</option>
                   {ENTERPRISE_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t} className="text-gray-800">{t}</option>
                   ))}
                 </select>
               </FieldWrap>
 
               {/* Ngành nghề kinh doanh */}
               <FieldWrap label="Ngành nghề kinh doanh chính" required error={errors.nganhNghe}>
-                <select
+                <Autocomplete
                   value={form.nganhNghe}
-                  onChange={(e) => setField("nganhNghe", e.target.value)}
-                  className={selectCls(!!errors.nganhNghe)}
-                >
-                  <option value="">-- Chọn ngành nghề --</option>
-                  {INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>{ind}</option>
-                  ))}
-                </select>
+                  options={INDUSTRIES.map((ind) => ({ id: ind, name: ind }))}
+                  placeholder="-- Chọn ngành nghề --"
+                  onSelect={(val) => setField("nganhNghe", val)}
+                  error={!!errors.nganhNghe}
+                />
               </FieldWrap>
 
               {/* Ngày cấp GPKD */}
@@ -714,18 +712,13 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
               {/* Phường/Xã ĐKKD */}
               <FieldWrap label="Phường/Xã ĐKKD" required error={errors.phuongXa}>
-                <select
+                <Autocomplete
                   value={form.phuongXa}
-                  onChange={(e) => setField("phuongXa", e.target.value)}
-                  className={selectCls(!!errors.phuongXa)}
-                >
-                  <option value="">-- Chọn phường/xã --</option>
-                  {registrationWards.map((w) => (
-                    <option key={w.code} value={w.code}>
-                      {w.name} ({w.district})
-                    </option>
-                  ))}
-                </select>
+                  options={registrationWards.map((w) => ({ id: w.code, name: `${w.name} (${w.district})` }))}
+                  placeholder="-- Chọn phường/xã --"
+                  onSelect={(val) => setField("phuongXa", val)}
+                  error={!!errors.phuongXa}
+                />
               </FieldWrap>
 
               {/* Địa chỉ */}
@@ -811,19 +804,14 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               </FieldWrap>
 
               {/* Phường/xã hoạt động KD */}
-              <FieldWrap label="Phường/xã hoạt động KD">
-                <select
+              <FieldWrap label="Phường/xã hoạt động KD" required error={errors.phuongXaHoatDong}>
+                <Autocomplete
                   value={form.phuongXaHoatDong}
-                  onChange={(e) => setField("phuongXaHoatDong", e.target.value)}
-                  className={selectCls(false)}
-                >
-                  <option value="">-- Chọn phường/xã --</option>
-                  {operationWards.map((w) => (
-                    <option key={w.code} value={w.code}>
-                      {w.name} ({w.district})
-                    </option>
-                  ))}
-                </select>
+                  options={operationWards.map((w) => ({ id: w.code, name: `${w.name} (${w.district})` }))}
+                  placeholder="-- Chọn phường/xã --"
+                  onSelect={(val) => setField("phuongXaHoatDong", val)}
+                  error={!!errors.phuongXaHoatDong}
+                />
               </FieldWrap>
 
               {/* Địa điểm kinh doanh */}
@@ -978,13 +966,13 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function inputCls(hasError: boolean) {
   return `w-full rounded-lg border ${
     hasError ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-  } px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
+  } px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
 }
 
-function selectCls(hasError: boolean) {
+function selectCls(hasError: boolean, hasValue: boolean = true) {
   return `w-full rounded-lg border ${
     hasError ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-  } px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none`;
+  } px-3 py-2 text-sm ${hasValue ? "text-gray-800" : "text-gray-400"} outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none`;
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────

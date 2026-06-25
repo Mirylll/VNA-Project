@@ -472,7 +472,7 @@ export default function UserDetailClient({
                       onChange={(iso) =>
                         setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
                       }
-                      placeholder="dd/mm/yyyy"
+                      placeholder="dd/MM/yyyy"
                       minYear={1900}
                       className={errors.dateOfBirth ? 'border-red-500' : ''}
                     />
@@ -605,7 +605,7 @@ export default function UserDetailClient({
                       onChange={(iso) =>
                         setFormData((prev) => ({ ...prev, dateOfBirth: iso }))
                       }
-                      placeholder="dd/mm/yyyy"
+                      placeholder="dd/MM/yyyy"
                       minYear={1900}
                       className={errors.dateOfBirth ? 'border-red-500' : ''}
                     />
