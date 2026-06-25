@@ -31,25 +31,24 @@ npm install
 npm run dev
 ```
 
-## 📂 Database Sharing
+## 📂 Database Initialization
 
-The project uses `dump-data.sql` (data-only) to synchronize database state:
+Reference data (permissions, roles, enterprise types, industries, districts, etc.) is managed via TypeORM migrations + seed:
 
-### Dump (before push — automatic)
-Pre-push hook auto-dumps the database:
 ```bash
-git config core.hooksPath .githooks    # already set
-# Just push normally — hook runs automatically
+cd backend
+npm run seed
 ```
 
-### Restore (after pull)
-```bash
-bash scripts/restore-db.sh
-```
-Or manually:
-```bash
-docker exec -i vna-postgres psql -U vna_user vna_db < dump-data.sql
-```
+This seeds:
+- Permissions & role-permission assignments
+- Roles & titles
+- Enterprises (14 sample companies) + enterprise user accounts
+- Enterprise types, industries (hierarchical)
+- Province (TP. HCM) & wards
+- Admin user (default: `admin` / `admin123`)
+
+> For full reset: run migrations first, then seed.
 
 ---
 

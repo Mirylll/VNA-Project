@@ -27,3 +27,4 @@ src/**/*.js.map
 *.js.map
 uploads/
 *.tsbuildinfo
+dump-data.sql
