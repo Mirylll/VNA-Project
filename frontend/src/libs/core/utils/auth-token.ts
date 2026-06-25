@@ -3,6 +3,7 @@ export type AuthUser = {
   username: string;
   email?: string | null;
   fullName: string;
+  avatarUrl?: string | null;
   accountType?: 'internal' | 'enterprise';
   role?: {
     id: string;

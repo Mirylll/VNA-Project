@@ -3,7 +3,6 @@
 import { Edit3, Eye, Search, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import EnterpriseSidebar from '@/libs/tts/components/enterprise/EnterpriseSidebar';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 type ReportStatus = 'CHO_BAO_CAO' | 'DANG_BAO_CAO' | 'CHO_TIEP_NHAN' | 'DA_BAO_CAO';
@@ -203,10 +202,8 @@ export default function TnldReportListPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100 text-gray-900">
-      <EnterpriseSidebar />
-
-      <main className="flex min-w-0 flex-1 flex-col">
+    <div className="flex h-screen flex-col bg-gray-100 text-gray-900">
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 shadow-sm">
           <h1 className="text-base font-semibold text-gray-900">Báo cáo định kỳ Tai nạn lao động</h1>
           <div className="flex items-center gap-3">

@@ -1,8 +1,9 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import { Check, Lock, ShieldCheck, UserRound } from "lucide-react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Check, Lock, ShieldCheck, UserRound } from "lucide-react";
 import {
+  clearAuthToken,
   getAuthToken,
   getAuthUser,
   setAuthSession,
@@ -80,6 +81,10 @@ export default function AccountPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof AccountForm, string>>>({});
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const avatarText = useMemo(
     () => getInitials(form.fullName || form.username),
@@ -96,6 +101,7 @@ export default function AccountPage() {
       if (storedUser) {
         setAuthUser(storedUser);
         setFormFromUser(storedUser);
+        setAvatarUrl(storedUser.avatarUrl || null);
       }
 
       if (!token) {
@@ -118,6 +124,7 @@ export default function AccountPage() {
 
         setAuthUser(data);
         setFormFromUser(data);
+        setAvatarUrl(data.avatarUrl || null);
         updateStoredAuthUser(data);
       } catch (loadError: any) {
         if (active) {
@@ -234,6 +241,56 @@ export default function AccountPage() {
     }
   }
 
+  async function handleAvatarUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = getAuthToken();
+    const user = authUser || getAuthUser();
+    if (!token || !user?.id) {
+      setAvatarError("Không thể tải ảnh. Vui lòng đăng nhập lại.");
+      return;
+    }
+
+    setAvatarUploading(true);
+    setAvatarError("");
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch(`${BASE_URL}/users/${user.id}/avatar`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      if (res.status === 401) {
+        clearAuthToken();
+        window.location.href = "/login";
+        return;
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Tải ảnh thất bại");
+      }
+
+      const updated = await res.json();
+      setAvatarUrl(updated.avatarUrl);
+      window.dispatchEvent(new CustomEvent("user-avatar-updated", { detail: { avatarUrl: updated.avatarUrl } }));
+    } catch (err: any) {
+      setAvatarError(err.message);
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  const displayUrl = avatarUrl
+    ? avatarUrl.startsWith("http") ? avatarUrl : `${BASE_URL}${avatarUrl}`
+    : null;
+
   return (
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
       <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -268,9 +325,38 @@ export default function AccountPage() {
 
         <div className="grid gap-6 p-6 lg:grid-cols-[240px_1fr]">
           <section className="rounded-lg border border-slate-200 bg-slate-50 p-5">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
-              {avatarText}
+            <div className="relative mx-auto h-24 w-24">
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-blue-600 text-2xl font-bold text-white">
+                {displayUrl ? (
+                  <img src={displayUrl} alt="avatar" className="h-full w-full object-cover" />
+                ) : (
+                  avatarText
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarUploading}
+                className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                <Camera size={14} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
             </div>
+
+            {avatarError && (
+              <p className="mt-2 text-center text-xs text-red-500">{avatarError}</p>
+            )}
+
+            {avatarUploading && (
+              <p className="mt-2 text-center text-xs text-blue-500">Đang tải ảnh...</p>
+            )}
 
             <div className="mt-4 text-center">
               <div className="font-semibold text-slate-900">

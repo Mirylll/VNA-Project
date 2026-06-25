@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, User } from 'lucide-react';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
@@ -30,6 +30,14 @@ const WARD_OPTIONS = HCM_WARDS.map((w) => ({
   code: w.code,
 }));
 
+function removeAccents(str: string) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
+function normalizeWardName(name: string): string {
+  return name.replace(/^(Phường|Xã|Đặc khu)\s+/i, '').replace(/\s*\(.*?\)\s*$/, '');
+}
+
 
 interface UserFormData {
   username: string;
@@ -41,7 +49,8 @@ interface UserFormData {
   roleId: number | '';
   email: string;
   provinceId: number;
-  wardCode: string;  // ward code string from HCM_WARDS
+  wardCode: string;  // HCM_WARDS code for display
+  wardId: number | '';  // DB district.id
   address: string;
   isActive: boolean;
 }
@@ -56,7 +65,8 @@ const emptyForm: UserFormData = {
   roleId: '',
   email: '',
   provinceId: 1,
-  wardCode: '',  // ward code
+  wardCode: '',  // HCM_WARDS code
+  wardId: '',    // DB district id
   address: '',
   isActive: true,
 };
@@ -86,6 +96,7 @@ export default function UserDetailClient({
   const [pendingPreview, setPendingPreview] = useState('');
 
   const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [districts, setDistricts] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
@@ -112,6 +123,9 @@ export default function UserDetailClient({
       fetch(`${baseUrl}/roles`, { headers })
         .then((r) => (r.ok ? r.json() : []))
         .then((data: RoleItem[]) => setRoles(data.filter(r => !isDummyRole(r.name)))),
+      fetch(`${baseUrl}/districts?provinceId=1`, { headers })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data: { id: number; name: string }[]) => setDistricts(data)),
     ];
 
     if (!isAdd) {
@@ -121,6 +135,13 @@ export default function UserDetailClient({
           .then((user) => {
             if (!user) return;
             setAvatarUrl(user.avatarUrl || null);
+            // Match user's district name (e.g. "Bến Thành") to HCM_WARDS entry (e.g. "Phường Bến Thành")
+            const userDistrictName = (user.district?.name || '').trim();
+            const matchingWard = userDistrictName
+              ? HCM_WARDS.find(w =>
+                  removeAccents(normalizeWardName(w.name).trim().toLowerCase()) ===
+                  removeAccents(normalizeWardName(userDistrictName).trim().toLowerCase())
+                ) : undefined;
             setFormData({
               username: user.username || '',
               password: '',
@@ -131,7 +152,8 @@ export default function UserDetailClient({
               roleId: user.role?.id ?? '',
               email: user.email || '',
               provinceId: user.province?.id ?? 1,
-              wardCode: user.district?.code || '',
+              wardCode: matchingWard?.code || '',
+              wardId: user.district?.id ?? '',
               address: user.address || '',
               isActive: user.isActive ?? true,
             });
@@ -213,8 +235,7 @@ export default function UserDetailClient({
       if (formData.roleId !== '') body.roleId = Number(formData.roleId);
       if (formData.titleName.trim()) body.titleName = formData.titleName.trim();
       if (formData.provinceId) body.provinceId = Number(formData.provinceId);
-      // Send wardCode as districtCode so backend can resolve
-      if (formData.wardCode) body.districtCode = formData.wardCode;
+      if (formData.wardId) body.districtId = Number(formData.wardId);
 
       if (isAdd) {
         body.password = formData.password;
@@ -323,6 +344,7 @@ export default function UserDetailClient({
 
       const updated = await res.json();
       setAvatarUrl(updated.avatarUrl);
+      window.dispatchEvent(new CustomEvent('user-avatar-updated', { detail: { avatarUrl: updated.avatarUrl } }));
     } catch (err: any) {
       setAvatarError(err.message);
     } finally {
@@ -560,26 +582,29 @@ export default function UserDetailClient({
                     </label>
                     {errMsg('username')}
                   </div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      maxLength={100}
-                      placeholder="Mật khẩu"
-                      className={`${fieldClass('password')} pr-10`}
-                    />
-                    <label className={labelClass}>
-                      Mật khẩu <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
+                  <div>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        maxLength={100}
+                        placeholder="Mật khẩu"
+                        autoComplete="off"
+                        className={`${fieldClass('password')} pr-10`}
+                      />
+                      <label className={labelClass}>
+                        Mật khẩu <span className="text-red-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                     {errMsg('password')}
                   </div>
 
@@ -706,9 +731,15 @@ export default function UserDetailClient({
               placeholder="-- Chọn phường/xã --"
               onSelect={(val) => {
                 const ward = WARD_OPTIONS.find(w => String(w.id) === val);
+                const wardName = ward?.name || '';
+                const matchedDistrict = districts.find(d =>
+                  removeAccents(normalizeWardName(wardName).trim().toLowerCase()) ===
+                  removeAccents(normalizeWardName(d.name).trim().toLowerCase())
+                );
                 setFormData((prev) => ({
                   ...prev,
                   wardCode: ward?.code ?? '',
+                  wardId: matchedDistrict?.id ?? '',
                 }));
               }}
               className={errors.wardCode ? 'border-red-500' : ''}

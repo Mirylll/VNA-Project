@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ILike, Repository } from 'typeorm';
@@ -9,6 +10,8 @@ import { Attachment } from './entities/attachment.entity';
 import { EnterpriseType } from '../enterprise-types/entities/enterprise-type.entity';
 import { Industry } from '../industries/entities/industry.entity';
 import { District } from '../users/entities/district.entity';
+import { User, AccountType } from '../users/entities/user.entity';
+import { Role } from '../roles/entities/role.entity';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
 
@@ -25,6 +28,10 @@ export class EnterprisesService {
     private readonly industryRepo: Repository<Industry>,
     @InjectRepository(District)
     private readonly districtRepo: Repository<District>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepo: Repository<Role>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -189,6 +196,16 @@ export class EnterprisesService {
   async create(dto: CreateEnterpriseDto): Promise<Enterprise> {
     this.assertLicenseDateNotInFuture(dto.licenseDate);
 
+    const username = dto.username || dto.taxCode;
+    if (!username) {
+      throw new BadRequestException('Cần có tên đăng nhập hoặc mã số thuế để tạo tài khoản');
+    }
+
+    const existingUser = await this.userRepo.findOne({ where: { username } });
+    if (existingUser) {
+      throw new BadRequestException(`Tên đăng nhập "${username}" đã tồn tại`);
+    }
+
     const entity = new Enterprise();
     entity.name = dto.name;
     entity.taxCode = dto.taxCode;
@@ -200,8 +217,8 @@ export class EnterprisesService {
     entity.operationAddress = dto.operationAddress;
     entity.leaderName = dto.leaderName;
     entity.leaderPhone = dto.leaderPhone;
-    entity.username = dto.username;
-    entity.password = dto.password;
+    entity.username = username;
+    entity.password = dto.password || '12345678';
     entity.isActive = dto.isActive ?? true;
     if (dto.enterpriseTypeId) entity.enterpriseType = { id: dto.enterpriseTypeId } as any;
     if (dto.industryId) entity.industry = { id: dto.industryId } as any;
@@ -209,6 +226,21 @@ export class EnterprisesService {
     if (dto.wardId) entity.ward = { id: dto.wardId } as any;
     if (dto.operationProvinceId) entity.operationProvince = { id: dto.operationProvinceId } as any;
     if (dto.operationWardId) entity.operationWard = { id: dto.operationWardId } as any;
+
+    const enterpriseRole = await this.roleRepo.findOne({ where: { code: 'ROLE_ENTERPRISE' } });
+    const passwordHash = await bcrypt.hash(entity.password, 10);
+
+    const user = this.userRepo.create({
+      username,
+      passwordHash,
+      fullName: dto.name,
+      email: dto.email || undefined,
+      isActive: dto.isActive ?? true,
+      accountType: AccountType.ENTERPRISE,
+      role: enterpriseRole || undefined,
+    });
+
+    await this.userRepo.save(user);
     return this.repo.save(entity) as unknown as Promise<Enterprise>;
   }
 

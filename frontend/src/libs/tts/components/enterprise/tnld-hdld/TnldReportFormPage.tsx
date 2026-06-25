@@ -3,7 +3,6 @@
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronUp, Eye, Save, Send, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import EnterpriseSidebar from '@/libs/tts/components/enterprise/EnterpriseSidebar';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 type StepId = 'company' | 'accident' | 'subsidy' | 'review';
@@ -1447,10 +1446,8 @@ export default function TnldReportFormPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100 text-gray-900">
-      <EnterpriseSidebar />
-
-      <main className="relative flex min-w-0 flex-1 flex-col">
+    <div className="flex h-screen flex-col bg-gray-100 text-gray-900">
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-5 shadow-sm">
           <div className="flex min-w-0 items-center gap-3">
             <button

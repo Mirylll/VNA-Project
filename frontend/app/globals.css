@@ -87,4 +87,15 @@ html,body{font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Helvetica
 .login-illustration-wrap .decor-2{left:45%; top:8%}
 .login-illustration-wrap .decor-3{left:70%; top:28%}
 
+/* Hide browser-native password reveal icons (Edge/IE/Chrome) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 

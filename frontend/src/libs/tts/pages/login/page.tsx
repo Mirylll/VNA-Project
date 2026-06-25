@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import { getAuthToken } from "@/libs/core/utils/auth-token";
+import { getAuthToken, getAuthUser, setAuthSession } from "@/libs/core/utils/auth-token";
 import BusinessRegistrationModal from "@/libs/tts/components/BusinessRegistrationModal";
 import SuccessToast from "@/libs/tts/components/SuccessToast";
 
@@ -20,6 +20,8 @@ export default function LoginPage() {
   >("login");
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showRegModal, setShowRegModal] = useState(false);
 
   // login
@@ -50,9 +52,12 @@ export default function LoginPage() {
   // ===== CHECK LOGIN =====
   useEffect(() => {
     const token = getAuthToken();
-
-    if (token) {
-      router.push("/admin/permissions");
+    if (!token) return;
+    const storedUser = getAuthUser();
+    if (storedUser?.accountType === 'enterprise' || storedUser?.role?.code === 'ROLE_ENTERPRISE') {
+      router.push('/enterprise/company-info');
+    } else {
+      router.push('/admin/permissions');
     }
   }, [router]);
 
@@ -97,10 +102,13 @@ export default function LoginPage() {
         sessionStorage.setItem("token", data.accessToken);
       }
 
+      setAuthSession(data.accessToken, data.user, remember);
+
       setToastMsg("Đăng nhập thành công");
       setToastVisible(true);
       setTimeout(() => {
-        router.push("/admin/permissions");
+        const isEnterprise = data.user?.accountType === 'enterprise' || data.user?.role?.code === 'ROLE_ENTERPRISE';
+        router.push(isEnterprise ? '/enterprise/company-info' : '/admin/permissions');
       }, 1500);
     } catch (error) {
       setMessage("Lỗi kết nối backend");
@@ -320,6 +328,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="off"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -438,10 +447,11 @@ export default function LoginPage() {
 
               <div className="relative mb-4">
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showNewPassword ? "text" : "password"}
                   placeholder="••••••"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="off"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -449,18 +459,20 @@ export default function LoginPage() {
                 </label>
                 <button
                   type="button"
+                  onClick={() => setShowNewPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <EyeOff size={18} />
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 
               <div className="relative mb-4">
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="off"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-700 placeholder-gray-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
                 <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-400">
@@ -468,9 +480,10 @@ export default function LoginPage() {
                 </label>
                 <button
                   type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <EyeOff size={18} />
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 

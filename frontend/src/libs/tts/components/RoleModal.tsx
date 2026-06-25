@@ -58,7 +58,7 @@ export default function RoleModal({
   const [saving, setSaving] = useState(false);
 
   const isEdit = !!initialData;
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
 
   const allPermissionIds = permissions.flatMap((g: any) =>
     (g.children || []).map((c: any) => c.id),
@@ -369,9 +369,15 @@ export default function RoleModal({
             <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-200 bg-white text-sm text-gray-500">
               <select
                 value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
                 className="border border-slate-200 rounded px-1.5 py-0.5 text-xs outline-none"
               >
                 <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
               </select>
               <span>
                 {flatItems.length === 0
