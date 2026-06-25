@@ -1104,12 +1104,15 @@ export default function TnldReportFormPage() {
 
       try {
         const token = getAuthToken();
-        const response = await fetch(`${BASE_URL}/tnld-contract-reports/${reportId}`, {
+        const response = await fetch(`${BASE_URL}/tnld-contract-reports/enterprise-report/${reportId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         const data = await response.json().catch(() => null);
 
-        if (!response.ok || !data) return;
+        if (!response.ok || !data) {
+          setSaveMessage(data?.message || 'Không tải được dữ liệu báo cáo đã lưu');
+          return;
+        }
 
         const overview = data.overview || {};
         const subsidy = data.subsidy || {};
@@ -1190,6 +1193,7 @@ export default function TnldReportFormPage() {
           setAccidentDetails(mappedDetails);
         }
       } catch {
+        setSaveMessage('Không kết nối được backend để tải dữ liệu báo cáo đã lưu');
         // Keep current form values if the saved report cannot be loaded.
       }
     }

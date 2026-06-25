@@ -21,6 +21,11 @@ export class TnldContractReportsController {
     return this.service.findByEnterprise(enterpriseId);
   }
 
+  @Get('enterprise-report/:id')
+  async findEnterpriseReport(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
+  }
+
   @Get(':id')
   @RequirePermission('ADMIN_C_TNLD_CONTRACT_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
