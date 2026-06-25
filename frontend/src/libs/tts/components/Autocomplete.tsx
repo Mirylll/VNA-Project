@@ -15,6 +15,7 @@ interface AutocompleteProps {
   className?: string;
   error?: boolean;
   plain?: boolean;
+  disabled?: boolean;
 }
 
 function removeAccents(str: string) {
@@ -33,6 +34,7 @@ export default function Autocomplete({
   className = "",
   error,
   plain,
+  disabled,
 }: AutocompleteProps) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
@@ -123,10 +125,11 @@ export default function Autocomplete({
         type="text"
         value={input}
         onChange={handleInputChange}
-        onFocus={() => setOpen(true)}
+        onFocus={() => !disabled && setOpen(true)}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         placeholder={placeholder}
+        disabled={disabled}
         autoComplete="off"
         className={`${
           plain
@@ -138,7 +141,7 @@ export default function Autocomplete({
             : error
               ? "border-red-500 focus:border-red-500 focus:ring-red-200"
               : "border-slate-200 focus:border-blue-500 focus:ring-blue-200"
-        } ${className}`}
+        } ${disabled ? "bg-gray-50 cursor-not-allowed" : ""} ${className}`}
       />
       {open && filtered.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full max-h-36 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">

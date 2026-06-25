@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, Eye, Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, ChevronDown, Eye, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
 import DatePicker from '@/libs/tts/components/DatePicker';
-import { ENTERPRISE_TYPES } from '@/libs/tts/data/hcm-districts';
 import AttachmentTable, { AttachmentFile, initialAttachmentFiles } from './AttachmentTable';
 
 const BASE_URL =
@@ -48,20 +48,6 @@ function Field({
   error,
   onChange,
 }: FieldProps) {
-  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const autocompleteOptions = options || [];
-  const isAutocomplete = select && autocompleteOptions.length > 10;
-  const selectedOption = autocompleteOptions.find((option) => option.value === value);
-  const filteredOptions = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return autocompleteOptions.slice(0, 80);
-
-    return autocompleteOptions
-      .filter((option) => option.label.toLowerCase().includes(keyword))
-      .slice(0, 80);
-  }, [autocompleteOptions, searchTerm]);
-
   return (
     <label className={`relative block ${className}`}>
       <span className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
@@ -77,65 +63,7 @@ function Field({
               : 'border-slate-200'
         }`}
       >
-        {isAutocomplete ? (
-          <div
-            className="relative"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                setAutocompleteOpen(false);
-              }
-            }}
-          >
-            {autocompleteOpen ? (
-              <input
-                type="text"
-                autoFocus
-                value={searchTerm}
-                disabled={disabled}
-                placeholder={placeholder || `Tìm ${label.toLowerCase()}`}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300 disabled:cursor-not-allowed"
-              />
-            ) : (
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => {
-                  setSearchTerm('');
-                  setAutocompleteOpen(true);
-                }}
-                className="w-full truncate border-none bg-transparent text-left text-sm py-0.5 outline-none disabled:cursor-not-allowed"
-              >
-                {selectedOption?.label || placeholder || `Chọn ${label.toLowerCase()}`}
-              </button>
-            )}
-            {autocompleteOpen && (
-              <div className="absolute left-[-13px] right-[-13px] top-8 z-40 max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-                {filteredOptions.length > 0 ? (
-                  filteredOptions.map((option) => (
-                    <button
-                      key={`${option.value}-${option.label}`}
-                      type="button"
-                      className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-blue-50 ${
-                        option.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700'
-                      }`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        onChange?.(option.value);
-                        setAutocompleteOpen(false);
-                        setSearchTerm('');
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-2 text-sm text-gray-400">Không tìm thấy dữ liệu</div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : select && options ? (
+        {select && options ? (
           <div className="relative">
             <select
               value={value}
@@ -370,7 +298,11 @@ function updateStoredAuthEmail(newEmail: string) {
 function mergeEnterpriseTypeOptions(apiTypes: EnterpriseTypeOption[]) {
   const byName = new Map<string, EnterpriseTypeOption>();
 
-  ENTERPRISE_TYPES.forEach((name) => {
+  const fallbackNames = [
+    "Công ty cổ phần", "Công ty TNHH", "Doanh nghiệp tư nhân",
+    "Hộ kinh doanh", "Hợp tác xã",
+  ];
+  fallbackNames.forEach((name) => {
     byName.set(name, { name });
   });
 
@@ -380,10 +312,6 @@ function mergeEnterpriseTypeOptions(apiTypes: EnterpriseTypeOption[]) {
   });
 
   return Array.from(byName.values());
-}
-
-function enterpriseTypeOptionValue(type: EnterpriseTypeOption) {
-  return type.id ? String(type.id) : `name:${type.name}`;
 }
 
 function getTodayDateValue() {
@@ -448,7 +376,7 @@ export default function EnterpriseCompanyInfoPage() {
   const [saveMessage, setSaveMessage] = useState('');
   const [enterpriseTypes, setEnterpriseTypes] = useState<EnterpriseTypeOption[]>([]);
   const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([]);
-  const [provinceOptions, setProvinceOptions] = useState<SelectOption[]>(ADMIN_PROVINCES);
+
   const [registeredWardOptions, setRegisteredWardOptions] = useState<SelectOption[]>([]);
   const [wardOptions, setWardOptions] = useState<SelectOption[]>([]);
   const [registeredWardCode, setRegisteredWardCode] = useState('');
@@ -705,8 +633,9 @@ export default function EnterpriseCompanyInfoPage() {
     updateField('licenseDate', value > today ? today : value);
   }
 
-  function handleBusinessTypeChange(typeId: string) {
-    const selectedType = enterpriseTypes.find((type) => enterpriseTypeOptionValue(type) === typeId);
+  function handleBusinessTypeChange(autoId: string) {
+    const idx = Number(autoId);
+    const selectedType = enterpriseTypes[idx];
     setForm((current) => ({
       ...current,
       businessTypeId: selectedType?.id ? String(selectedType.id) : '',
@@ -722,8 +651,10 @@ export default function EnterpriseCompanyInfoPage() {
     updateField('registeredWard', ward?.name || '');
   }
 
-  function handleIndustryChange(industryValue: string) {
-    updateField('mainIndustry', industryValue);
+  function handleIndustryChange(autoId: string) {
+    const idx = Number(autoId);
+    const selectedIndustry = industries[idx];
+    updateField('mainIndustry', selectedIndustry ? `${selectedIndustry.code} - ${selectedIndustry.name}` : '');
   }
 
   function validateEnterpriseForm() {
@@ -855,10 +786,11 @@ export default function EnterpriseCompanyInfoPage() {
     void saveEnterpriseChanges();
   }
 
-  function handleOperatingProvinceChange(provinceCode: string) {
-    const province = provinceOptions.find((option) => option.value === provinceCode);
+  function handleOperatingProvinceChange(autoId: string) {
+    const idx = Number(autoId);
+    const province = ADMIN_PROVINCES[idx];
 
-    setOperatingProvinceCode(provinceCode);
+    setOperatingProvinceCode(province?.value || '');
     setOperatingWardCode('');
     updateField('operatingProvince', province?.name || '');
     updateField('operatingWard', '');
@@ -910,16 +842,6 @@ export default function EnterpriseCompanyInfoPage() {
   const operatingAddress =
     [form.businessLocation, form.operatingWard, form.operatingProvince].filter(Boolean).join(', ') ||
     registeredAddress;
-  const enterpriseTypeOptions = enterpriseTypes.map((type) => ({
-    value: enterpriseTypeOptionValue(type),
-    label: type.name,
-    name: type.name,
-  }));
-  const industryOptions = industries.map((industry) => {
-    const label = `${industry.code} - ${industry.name}`;
-    return { value: label, label };
-  });
-  const selectedEnterpriseTypeValue = form.businessTypeId || (form.businessType ? `name:${form.businessType}` : '');
   const todayDateValue = getTodayDateValue();
   const officePhoneError = formErrors.officePhone || getPhoneError(form.officePhone);
   const representativePhoneError = formErrors.representativePhone || getPhoneError(form.representativePhone);
@@ -978,31 +900,59 @@ export default function EnterpriseCompanyInfoPage() {
                       onChange={(value) => updateField('companyName', value)}
                     />
                     <Field label="Mã số thuế" required disabled value={form.taxCode} error={formErrors.taxCode} />
-                    <Field
-                      label="Loại hình kinh doanh"
-                      required
-                      select
-                      value={selectedEnterpriseTypeValue}
-                      options={enterpriseTypeOptions}
-                      placeholder={
-                        enterpriseTypeOptions.length === 0
-                          ? form.businessType || 'Chưa có loại hình doanh nghiệp'
-                          : 'Chọn loại hình kinh doanh'
-                      }
-                      error={formErrors.businessType}
-                      onChange={handleBusinessTypeChange}
-                    />
+                    <div className="relative">
+                      <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+                        Loại hình kinh doanh <span className="text-red-500">*</span>
+                      </label>
+                      <Autocomplete
+                        value={
+                          enterpriseTypes.length > 0
+                            ? String(
+                                enterpriseTypes.findIndex(
+                                  (t) => String(t.id) === form.businessTypeId || t.name === form.businessType,
+                                ),
+                              )
+                            : ''
+                        }
+                        options={enterpriseTypes.map((t, i) => ({ id: i, name: t.name }))}
+                        placeholder={
+                          enterpriseTypes.length === 0
+                            ? form.businessType || 'Chưa có loại hình doanh nghiệp'
+                            : 'Chọn loại hình kinh doanh'
+                        }
+                        onSelect={handleBusinessTypeChange}
+                        className={formErrors.businessType ? 'border-red-500' : ''}
+                        error={!!formErrors.businessType}
+                      />
+                      {formErrors.businessType && (
+                        <p className="text-red-500 text-xs mt-1">{formErrors.businessType}</p>
+                      )}
+                    </div>
 
-                    <Field
-                      label="Ngành nghề kinh doanh chính"
-                      required
-                      select
-                      value={form.mainIndustry}
-                      options={industryOptions}
-                      placeholder="Chọn ngành nghề kinh doanh chính"
-                      error={formErrors.mainIndustry}
-                      onChange={handleIndustryChange}
-                    />
+                    <div className="relative">
+                      <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+                        Ngành nghề kinh doanh chính <span className="text-red-500">*</span>
+                      </label>
+                      <Autocomplete
+                        value={
+                          industries.length > 0
+                            ? String(
+                                industries.findIndex(
+                                  (ind) => `${ind.code} - ${ind.name}` === form.mainIndustry,
+                                ),
+                              )
+                            : ''
+                        }
+                        options={industries.map((ind, i) => ({ id: i, name: `${ind.code} - ${ind.name}` }))}
+                        placeholder="Chọn ngành nghề kinh doanh chính"
+                        onSelect={handleIndustryChange}
+                        className={formErrors.mainIndustry ? 'border-red-500' : ''}
+                        error={!!formErrors.mainIndustry}
+                      />
+                      {formErrors.mainIndustry && (
+                        <p className="text-red-500 text-xs mt-1">{formErrors.mainIndustry}</p>
+                      )}
+                    </div>
                     <div className="relative w-full">
                       <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
                         Ngày cấp GPKD <span className="text-red-500">*</span>
@@ -1023,16 +973,22 @@ export default function EnterpriseCompanyInfoPage() {
                       error={formErrors.registeredProvince}
                     />
 
-                    <Field
-                      label="Phường/Xã ĐKKD"
-                      required
-                      select
-                      value={registeredWardCode}
-                      options={registeredWardOptions}
-                      placeholder="Chọn Phường/Xã ĐKKD"
-                      error={formErrors.registeredWard}
-                      onChange={handleRegisteredWardChange}
-                    />
+                    <div className="relative">
+                      <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+                        Phường/Xã ĐKKD <span className="text-red-500">*</span>
+                      </label>
+                      <Autocomplete
+                        value={registeredWardCode}
+                        options={registeredWardOptions.map((w) => ({ id: Number(w.value), name: w.name }))}
+                        placeholder="Chọn Phường/Xã ĐKKD"
+                        onSelect={handleRegisteredWardChange}
+                        className={formErrors.registeredWard ? 'border-red-500' : ''}
+                        error={!!formErrors.registeredWard}
+                      />
+                      {formErrors.registeredWard && (
+                        <p className="text-red-500 text-xs mt-1">{formErrors.registeredWard}</p>
+                      )}
+                    </div>
                     <Field
                       label="Địa chỉ"
                       required
@@ -1072,33 +1028,47 @@ export default function EnterpriseCompanyInfoPage() {
                       onChange={(value) => updateField('officePhone', cleanPhone(value))}
                     />
 
-                    <Field
-                      label="Tỉnh/TP hoạt động KD"
-                      select
-                      placeholder="Chọn Tỉnh/TP hoạt động KD"
-                      value={operatingProvinceCode}
-                      options={provinceOptions}
-                      required
-                      error={formErrors.operatingProvince}
-                      onChange={handleOperatingProvinceChange}
-                    />
-                    <Field
-                      label="Phường/xã hoạt động KD"
-                      select
-                      placeholder={
-                        operatingProvinceCode
-                          ? loadingWards
-                            ? 'Đang tải phường/xã...'
-                            : 'Chọn Phường/xã hoạt động KD'
-                          : 'Chọn tỉnh/thành trước'
-                      }
-                      value={operatingWardCode}
-                      options={wardOptions}
-                      disabled={!operatingProvinceCode || loadingWards}
-                      required
-                      error={formErrors.operatingWard}
-                      onChange={handleOperatingWardChange}
-                    />
+                    <div className="relative">
+                      <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+                        Tỉnh/TP hoạt động KD <span className="text-red-500">*</span>
+                      </label>
+                      <Autocomplete
+                        value={String(
+                          ADMIN_PROVINCES.findIndex((p) => p.value === operatingProvinceCode),
+                        )}
+                        options={ADMIN_PROVINCES.map((p, i) => ({ id: i, name: p.name }))}
+                        placeholder="Chọn Tỉnh/TP hoạt động KD"
+                        onSelect={handleOperatingProvinceChange}
+                        className={formErrors.operatingProvince ? 'border-red-500' : ''}
+                        error={!!formErrors.operatingProvince}
+                      />
+                      {formErrors.operatingProvince && (
+                        <p className="text-red-500 text-xs mt-1">{formErrors.operatingProvince}</p>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+                        Phường/xã hoạt động KD <span className="text-red-500">*</span>
+                      </label>
+                      <Autocomplete
+                        value={operatingWardCode}
+                        options={wardOptions.map((w) => ({ id: Number(w.value), name: w.name }))}
+                        placeholder={
+                          !operatingProvinceCode
+                            ? 'Chọn tỉnh/thành trước'
+                            : loadingWards
+                              ? 'Đang tải...'
+                              : 'Chọn Phường/xã hoạt động KD'
+                        }
+                        onSelect={handleOperatingWardChange}
+                        disabled={!operatingProvinceCode || loadingWards}
+                        className={formErrors.operatingWard ? 'border-red-500' : ''}
+                        error={!!formErrors.operatingWard}
+                      />
+                      {formErrors.operatingWard && (
+                        <p className="text-red-500 text-xs mt-1">{formErrors.operatingWard}</p>
+                      )}
+                    </div>
                     <Field
                       label="Địa điểm kinh doanh"
                       placeholder="Địa điểm kinh doanh"

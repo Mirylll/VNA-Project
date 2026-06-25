@@ -174,7 +174,7 @@ export default function DatePicker({
       : 'border-slate-200 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white');
 
   const inputStyle = {
-    width: '22px',
+    width: '28px',
     border: 'none',
     outline: 'none',
     boxShadow: 'none',
