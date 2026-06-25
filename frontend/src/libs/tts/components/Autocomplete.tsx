@@ -10,7 +10,7 @@ interface Option {
 interface AutocompleteProps {
   value: string | number;
   options: Option[];
-  placeholder: string;
+  placeholder?: string;
   onSelect: (value: string) => void;
   className?: string;
   error?: boolean;
