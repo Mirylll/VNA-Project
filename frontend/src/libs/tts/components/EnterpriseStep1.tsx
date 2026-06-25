@@ -290,55 +290,49 @@ export default function EnterpriseStep1({
             </>
           )}
 
-          {renderField('enterpriseTypeId',
-            <>
-              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                Loại hình kinh doanh <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  name="enterpriseTypeId"
-                  value={formData.enterpriseTypeId}
-                  onChange={handleInputChange}
-                  className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-                >
-                  <option value="" disabled>Chọn loại hình</option>
-                  {enterpriseTypes.map((et: any) => (
-                    <option key={et.id} value={String(et.id)}>{et.name}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-                />
-              </div>
-            </>
-          )}
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+              Loại hình kinh doanh <span className="text-red-500">*</span>
+            </label>
+            <Autocomplete
+              value={formData.enterpriseTypeId}
+              options={enterpriseTypes.map((et: any) => ({ id: et.id, name: et.name }))}
+              placeholder="Chọn loại hình"
+              onSelect={(val) => {
+                updateField('enterpriseTypeId', val);
+                if (errors.enterpriseTypeId) {
+                  setErrors((prev) => { const n = { ...prev }; delete n.enterpriseTypeId; return n; });
+                }
+              }}
+              className={errors.enterpriseTypeId ? 'border-red-500' : ''}
+              error={!!errors.enterpriseTypeId}
+            />
+            {errors.enterpriseTypeId && (
+              <p className="text-red-500 text-xs mt-1">{errors.enterpriseTypeId}</p>
+            )}
+          </div>
 
-          {renderField('industryId',
-            <>
-              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                Ngành nghề kinh doanh chính <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  name="industryId"
-                  value={formData.industryId}
-                  onChange={handleInputChange}
-                  className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-                >
-                  <option value="" disabled>Chọn ngành nghề</option>
-                  {industries.map((ind: any) => (
-                    <option key={ind.id} value={String(ind.id)}>{ind.code} - {ind.name}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-                />
-              </div>
-            </>
-          )}
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+              Ngành nghề kinh doanh chính <span className="text-red-500">*</span>
+            </label>
+            <Autocomplete
+              value={formData.industryId}
+              options={industries.map((ind: any) => ({ id: ind.id, name: `${ind.code} - ${ind.name}` }))}
+              placeholder="Chọn ngành nghề"
+              onSelect={(val) => {
+                updateField('industryId', val);
+                if (errors.industryId) {
+                  setErrors((prev) => { const n = { ...prev }; delete n.industryId; return n; });
+                }
+              }}
+              className={errors.industryId ? 'border-red-500' : ''}
+              error={!!errors.industryId}
+            />
+            {errors.industryId && (
+              <p className="text-red-500 text-xs mt-1">{errors.industryId}</p>
+            )}
+          </div>
 
           <div className="relative w-full">
             <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
@@ -351,24 +345,20 @@ export default function EnterpriseStep1({
             />
           </div>
 
-          {renderField('provinceId',
-            <>
-              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                Tỉnh/Thành phố ĐKKD <span className="text-red-500">*</span>
-              </label>
-              <Autocomplete
-                value={formData.provinceId}
-                options={provinces.map((p: any) => ({ id: p.id, name: p.name }))}
-                placeholder="Chọn tỉnh/thành phố"
-                onSelect={(val) => updateField('provinceId', val)}
-                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-                plain
-              />
-            </>
-          )}
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+              Tỉnh/Thành phố ĐKKD <span className="text-red-500">*</span>
+            </label>
+            <Autocomplete
+              value={formData.provinceId}
+              options={provinces.map((p: any) => ({ id: p.id, name: p.name }))}
+              placeholder="Chọn tỉnh/thành phố"
+              onSelect={(val) => updateField('provinceId', val)}
+            />
+          </div>
 
-          <div className={`relative border rounded-lg h-11 px-3 pt-3 pb-2 ${errors.wardId ? 'border-red-400' : 'border-slate-200'}`}>
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
               Phường/Xã ĐKKD <span className="text-red-500">*</span>
             </label>
             <Autocomplete
@@ -381,10 +371,12 @@ export default function EnterpriseStep1({
                   setErrors((prev) => { const n = { ...prev }; delete n.wardId; return n; });
                 }
               }}
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              className={errors.wardId ? 'border-red-500' : ''}
               error={!!errors.wardId}
-              plain
             />
+            {errors.wardId && (
+              <p className="text-red-500 text-xs mt-1">{errors.wardId}</p>
+            )}
           </div>
 
           <div className="col-span-2 relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
@@ -451,29 +443,25 @@ export default function EnterpriseStep1({
               />
           </div>
 
-          <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
               Tỉnh/TP hoạt động KD
             </label>
             <Autocomplete
               value={formData.operationProvinceId}
               options={provinces.map((p: any) => ({ id: p.id, name: p.name }))}
               onSelect={(val) => updateField('operationProvinceId', val)}
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-              plain
             />
           </div>
 
-          <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
+          <div className="relative">
+            <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
               Phường/xã hoạt động KD
             </label>
             <Autocomplete
               value={formData.operationWardId}
               options={wards.map((w: any) => ({ id: w.id, name: w.name }))}
               onSelect={(val) => updateField('operationWardId', val)}
-              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
-              plain
             />
           </div>
 
