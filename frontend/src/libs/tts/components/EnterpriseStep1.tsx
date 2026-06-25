@@ -34,6 +34,7 @@ export default function EnterpriseStep1({
   const [enterpriseTypes, setEnterpriseTypes] = useState<any[]>([]);
   const [industries, setIndustries] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
+  const [operationWards, setOperationWards] = useState<any[]>([]);
   const [provinces, setProvinces] = useState<any[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -183,6 +184,18 @@ export default function EnterpriseStep1({
       .then((data) => setWards(data))
       .catch(() => {});
   }, [formData.provinceId]);
+
+  useEffect(() => {
+    if (!formData.operationProvinceId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    fetch(`${baseUrl}/districts?provinceId=${formData.operationProvinceId}`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setOperationWards(data))
+      .catch(() => {});
+  }, [formData.operationProvinceId]);
 
   const handleContinue = () => {
     const newErrors: Record<string, string> = {};
@@ -460,8 +473,14 @@ export default function EnterpriseStep1({
             </label>
             <Autocomplete
               value={formData.operationWardId}
-              options={wards.map((w: any) => ({ id: w.id, name: w.name }))}
+              options={operationWards.map((w: any) => ({ id: w.id, name: w.name }))}
+              placeholder={
+                !formData.operationProvinceId
+                  ? 'Chọn tỉnh/thành trước'
+                  : 'Chọn phường/xã'
+              }
               onSelect={(val) => updateField('operationWardId', val)}
+              disabled={!formData.operationProvinceId}
             />
           </div>
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 interface Option {
-  id: number;
+  id: number | string;
   name: string;
 }
 
