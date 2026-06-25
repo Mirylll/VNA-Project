@@ -11,13 +11,11 @@ export class IndustriesController {
   constructor(private readonly service: IndustriesService) {}
 
   @Get()
-  @RequirePermission('ADMIN_C_INDUSTRY_VIEW')
   async findAll() {
     return this.service.findAll();
   }
 
   @Get(':id')
-  @RequirePermission('ADMIN_C_INDUSTRY_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
   }
