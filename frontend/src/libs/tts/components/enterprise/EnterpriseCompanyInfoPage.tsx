@@ -1,12 +1,12 @@
 "use client";
 
-import { Calendar, Check, ChevronDown, ChevronRight, Eye } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Eye, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
-import { ENTERPRISE_TYPES, HCM_WARDS, INDUSTRIES } from '@/libs/tts/data/hcm-districts';
+import DatePicker from '@/libs/tts/components/DatePicker';
+import { ENTERPRISE_TYPES } from '@/libs/tts/data/hcm-districts';
 import AttachmentTable, { AttachmentFile, initialAttachmentFiles } from './AttachmentTable';
-import EnterpriseSidebar from './EnterpriseSidebar';
 
 const BASE_URL =
   typeof window !== 'undefined'
@@ -64,22 +64,22 @@ function Field({
 
   return (
     <label className={`relative block ${className}`}>
-      <span className="absolute -top-2 left-3 z-10 bg-white px-1 text-[11px] font-medium text-gray-500">
+      <span className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </span>
       <div
-        className={`flex h-10 items-center rounded-md border px-3 text-sm shadow-[0_1px_0_rgba(16,24,40,0.02)] transition ${
+        className={`relative border rounded-lg h-11 px-3 pt-2 pb-1.5 ${
           disabled
-            ? 'border-gray-200 bg-gray-50 text-gray-400'
+            ? 'border-slate-200 bg-gray-50'
             : error
-              ? 'border-red-300 bg-white text-gray-800 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-100'
-              : 'border-gray-300 bg-white text-gray-800 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
+              ? 'border-red-400'
+              : 'border-slate-200'
         }`}
       >
         {isAutocomplete ? (
           <div
-            className="relative min-w-0 flex-1"
+            className="relative"
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
                 setAutocompleteOpen(false);
@@ -94,7 +94,7 @@ function Field({
                 disabled={disabled}
                 placeholder={placeholder || `Tìm ${label.toLowerCase()}`}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="w-full bg-transparent pr-7 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed"
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300 disabled:cursor-not-allowed"
               />
             ) : (
               <button
@@ -104,13 +104,13 @@ function Field({
                   setSearchTerm('');
                   setAutocompleteOpen(true);
                 }}
-                className="w-full truncate bg-transparent pr-7 text-left outline-none disabled:cursor-not-allowed"
+                className="w-full truncate border-none bg-transparent text-left text-sm py-0.5 outline-none disabled:cursor-not-allowed"
               >
                 {selectedOption?.label || placeholder || `Chọn ${label.toLowerCase()}`}
               </button>
             )}
             {autocompleteOpen && (
-              <div className="absolute left-[-13px] right-[-13px] top-8 z-40 max-h-64 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+              <div className="absolute left-[-13px] right-[-13px] top-8 z-40 max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg">
                 {filteredOptions.length > 0 ? (
                   filteredOptions.map((option) => (
                     <button
@@ -136,19 +136,25 @@ function Field({
             )}
           </div>
         ) : select && options ? (
-          <select
-            value={value}
-            disabled={disabled}
-            onChange={(event) => onChange?.(event.target.value)}
-            className="min-w-0 flex-1 appearance-none bg-transparent pr-7 outline-none disabled:cursor-not-allowed"
-          >
-            <option value="">{placeholder || `Chọn ${label.toLowerCase()}`}</option>
-            {options.map((option) => (
-              <option key={`${option.value}-${option.label}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={value}
+              disabled={disabled}
+              onChange={(event) => onChange?.(event.target.value)}
+              className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6 disabled:cursor-not-allowed"
+            >
+              <option value="">{placeholder || `Chọn ${label.toLowerCase()}`}</option>
+              {options.map((option) => (
+                <option key={`${option.value}-${option.label}`} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+            />
+          </div>
         ) : (
           <input
             type={inputType}
@@ -157,7 +163,7 @@ function Field({
             max={max}
             placeholder={placeholder}
             onChange={(event) => onChange?.(event.target.value)}
-            className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-gray-400 ${
+            className={`w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300 disabled:cursor-not-allowed ${
               action ? 'pr-16' : ''
             }`}
           />
@@ -166,37 +172,17 @@ function Field({
           <button
             type="button"
             onClick={onActionClick}
-            className="ml-2 whitespace-nowrap text-xs font-semibold text-blue-600 hover:text-blue-700"
+            className="absolute right-3 top-1/2 -translate-y-1/2 whitespace-nowrap text-xs font-semibold text-blue-600 hover:text-blue-700"
           >
             {action}
           </button>
         )}
-        {select && <ChevronDown size={17} className="ml-2 flex-shrink-0 text-gray-500" />}
-        {calendar && <Calendar size={17} className="ml-2 flex-shrink-0 text-gray-500" />}
+
       </div>
-      {error && <p className="mt-1 text-xs font-medium text-red-600">{error}</p>}
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </label>
   );
 }
-
-type ProvinceApiItem = {
-  code: number;
-  name: string;
-};
-
-type WardApiItem = {
-  code: number;
-  name: string;
-};
-
-type DistrictApiItem = {
-  name: string;
-  wards?: WardApiItem[];
-};
-
-type ProvinceDetailApiItem = ProvinceApiItem & {
-  districts?: DistrictApiItem[];
-};
 
 type SelectOption = {
   value: string;
@@ -238,46 +224,17 @@ type EnterpriseApiData = {
   attachments?: EnterpriseAttachment[];
 };
 
-const VIETNAM_PROVINCES_API = 'https://provinces.open-api.vn/api';
-const FALLBACK_PROVINCES: SelectOption[] = [
-  { value: '79', label: 'Thành phố Hồ Chí Minh', name: 'Thành phố Hồ Chí Minh' },
+const ADMIN_PROVINCES: SelectOption[] = [
+  { value: '1', label: 'Thành phố Hồ Chí Minh', name: 'Thành phố Hồ Chí Minh' },
+  { value: '2', label: 'Hà Nội', name: 'Hà Nội' },
+  { value: '3', label: 'Đà Nẵng', name: 'Đà Nẵng' },
 ];
-const FALLBACK_WARDS_BY_PROVINCE: Record<string, SelectOption[]> = {
-  '79': [
-    { value: '26872', label: 'Phường Hiệp Bình Phước', name: 'Phường Hiệp Bình Phước' },
-    { value: '26734', label: 'Phường Tân Định', name: 'Phường Tân Định' },
-    { value: '26740', label: 'Phường Bến Nghé', name: 'Phường Bến Nghé' },
-    { value: '26743', label: 'Phường Bến Thành', name: 'Phường Bến Thành' },
-  ],
+
+const PROVINCE_NAME_TO_ID: Record<string, string> = {
+  'Thành phố Hồ Chí Minh': '1',
+  'Hà Nội': '2',
+  'Đà Nẵng': '3',
 };
-
-function toProvinceOptions(items: ProvinceApiItem[]): SelectOption[] {
-  return items.map((item) => ({
-    value: String(item.code),
-    label: item.name,
-    name: item.name,
-  }));
-}
-
-function toWardOptions(districts: DistrictApiItem[] = []): SelectOption[] {
-  const wards = districts.flatMap((district) =>
-    (district.wards || []).map((ward) => ({
-      code: ward.code,
-      name: ward.name,
-      districtName: district.name,
-    })),
-  );
-  const nameCount = wards.reduce<Record<string, number>>((result, ward) => {
-    result[ward.name] = (result[ward.name] || 0) + 1;
-    return result;
-  }, {});
-
-  return wards.map((ward) => ({
-    value: String(ward.code),
-    label: nameCount[ward.name] > 1 ? `${ward.name} - ${ward.districtName}` : ward.name,
-    name: ward.name,
-  }));
-}
 
 function Stepper({ currentStep }: { currentStep: 1 | 2 }) {
   const isConfirmStep = currentStep === 2;
@@ -320,9 +277,12 @@ function formatDate(value: string) {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[minmax(220px,380px)_1fr] gap-8 text-sm leading-6">
-      <dt className="font-bold text-gray-900">{label} :</dt>
-      <dd className="font-semibold text-gray-800">{value || '-'}</dd>
+    <div className="flex gap-4">
+      <div className="w-56 shrink-0 text-sm font-semibold text-gray-800">
+        {label}
+        <span className="ml-0.5">:</span>
+      </div>
+      <div className="flex-1 text-sm text-gray-600">{value || '-'}</div>
     </div>
   );
 }
@@ -335,39 +295,35 @@ function ConfirmAttachmentTable({
   onViewFile: (file: AttachmentFile) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
-        <thead>
-          <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
-            <th className="px-4 py-3">Tên file</th>
-            <th className="px-4 py-3">Thông tin file</th>
-            <th className="px-4 py-3 text-center">Thao tác</th>
+    <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Tên file</th>
+          <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Thông tin file</th>
+          <th className="text-right px-4 py-2.5 text-gray-600 font-medium">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        {files.map((file) => (
+          <tr key={file.id} className="border-t border-gray-200 bg-white">
+            <td className="px-4 py-3 text-gray-700">{file.name}</td>
+            <td className="px-4 py-3 text-gray-500">{file.info || <span className="italic text-gray-300">Chưa có file</span>}</td>
+            <td className="px-4 py-3 text-right">
+              {file.url && (
+                <button
+                  type="button"
+                  onClick={() => onViewFile(file)}
+                  title="Xem file"
+                  className="text-gray-400 hover:text-blue-600 transition p-1 inline-flex"
+                >
+                  <Eye size={17} />
+                </button>
+              )}
+            </td>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 bg-white">
-          {files.map((file) => (
-            <tr key={file.id} className="text-gray-700">
-              <td className="px-4 py-3">{file.name}</td>
-              <td className="px-4 py-3">{file.info || 'Chưa có file'}</td>
-              <td className="px-4 py-3">
-                <div className="flex justify-center text-gray-400">
-                  <button
-                    type="button"
-                    className={`transition ${
-                      file.url ? 'hover:text-blue-600' : 'cursor-not-allowed opacity-50'
-                    }`}
-                    aria-label={`Xem ${file.name}`}
-                    onClick={() => onViewFile(file)}
-                  >
-                    <Eye size={17} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -452,9 +408,11 @@ function getRequiredPhoneError(value: string, label: string) {
 function getTaxCodeError(value: string) {
   const trimmedValue = value.trim();
   if (!trimmedValue) return 'Vui lòng nhập mã số thuế';
-  if (!/^\d+$/.test(trimmedValue)) return 'Mã số thuế chỉ được chứa chữ số';
-  if (trimmedValue.length !== 10 && trimmedValue.length !== 13) {
-    return 'Mã số thuế phải có 10 hoặc 13 chữ số';
+  const taxDigits = trimmedValue.replace(/-/g, '');
+  if (taxDigits.length < 10) {
+    return 'Mã số thuế phải có ít nhất 10 ký tự (không tính dấu gạch ngang)';
+  } else if (taxDigits.length > 15) {
+    return 'Mã số thuế tối đa 15 ký tự (không tính dấu gạch ngang)';
   }
   return '';
 }
@@ -489,18 +447,16 @@ export default function EnterpriseCompanyInfoPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [enterpriseTypes, setEnterpriseTypes] = useState<EnterpriseTypeOption[]>([]);
-  const [provinceOptions, setProvinceOptions] = useState<SelectOption[]>([]);
+  const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [provinceOptions, setProvinceOptions] = useState<SelectOption[]>(ADMIN_PROVINCES);
   const [registeredWardOptions, setRegisteredWardOptions] = useState<SelectOption[]>([]);
   const [wardOptions, setWardOptions] = useState<SelectOption[]>([]);
   const [registeredWardCode, setRegisteredWardCode] = useState('');
   const [operatingProvinceCode, setOperatingProvinceCode] = useState('');
   const [operatingWardCode, setOperatingWardCode] = useState('');
-  const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingWards, setLoadingWards] = useState(false);
-  const [locationError, setLocationError] = useState('');
   const [fileMessage, setFileMessage] = useState('');
   const [attachmentFiles, setAttachmentFiles] = useState<AttachmentFile[]>(initialAttachmentFiles);
-  const objectUrls = useRef<Set<string>>(new Set());
   const [form, setForm] = useState({
     companyName: '',
     taxCode: '',
@@ -539,7 +495,24 @@ export default function EnterpriseCompanyInfoPage() {
       }
     }
 
+    async function loadIndustries() {
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const response = await fetch(`${BASE_URL}/industries`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Không tải được ngành nghề');
+        const data = await response.json();
+        if (!active) return;
+        setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4));
+      } catch {
+        if (active) setIndustries([]);
+      }
+    }
+
     loadEnterpriseTypes();
+    loadIndustries();
 
     return () => {
       active = false;
@@ -549,15 +522,26 @@ export default function EnterpriseCompanyInfoPage() {
   useEffect(() => {
     let active = true;
 
-    function loadRegisteredWards() {
-      if (!active) return;
-      setRegisteredWardOptions(
-        HCM_WARDS.map((ward) => ({
-          value: ward.code,
-          label: `${ward.name} (${ward.district})`,
-          name: ward.name,
-        })),
-      );
+    async function loadRegisteredWards() {
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const response = await fetch(`${BASE_URL}/districts?provinceId=1`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Không tải được phường/xã');
+        const data = await response.json();
+        if (!active) return;
+        setRegisteredWardOptions(
+          data.map((ward: any) => ({
+            value: String(ward.id),
+            label: ward.name,
+            name: ward.name,
+          })),
+        );
+      } catch {
+        if (active) setRegisteredWardOptions([]);
+      }
     }
 
     loadRegisteredWards();
@@ -636,43 +620,6 @@ export default function EnterpriseCompanyInfoPage() {
   useEffect(() => {
     let active = true;
 
-    async function loadProvinces() {
-      setLoadingProvinces(true);
-      setLocationError('');
-
-      try {
-        const response = await fetch(`${VIETNAM_PROVINCES_API}/p/`);
-        if (!response.ok) throw new Error('Không tải được danh sách tỉnh/thành');
-
-        const data = (await response.json()) as ProvinceApiItem[];
-        if (!active) return;
-        setProvinceOptions(toProvinceOptions(data));
-      } catch {
-        if (!active) return;
-        setProvinceOptions(FALLBACK_PROVINCES);
-        setLocationError('Không tải được danh sách tỉnh/thành đầy đủ, đang dùng dữ liệu dự phòng.');
-      } finally {
-        if (active) setLoadingProvinces(false);
-      }
-    }
-
-    loadProvinces();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
-      objectUrls.current.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
     async function loadWards() {
       if (!operatingProvinceCode) {
         setWardOptions([]);
@@ -680,19 +627,27 @@ export default function EnterpriseCompanyInfoPage() {
       }
 
       setLoadingWards(true);
-      setLocationError('');
+
+      const token = getAuthToken();
+      if (!token) return;
 
       try {
-        const response = await fetch(`${VIETNAM_PROVINCES_API}/p/${operatingProvinceCode}?depth=3`);
+        const response = await fetch(`${BASE_URL}/districts?provinceId=${operatingProvinceCode}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!response.ok) throw new Error('Không tải được danh sách phường/xã');
 
-        const data = (await response.json()) as ProvinceDetailApiItem;
+        const data = await response.json();
         if (!active) return;
-        setWardOptions(toWardOptions(data.districts));
+        setWardOptions(
+          data.map((ward: any) => ({
+            value: String(ward.id),
+            label: ward.name,
+            name: ward.name,
+          })),
+        );
       } catch {
-        if (!active) return;
-        setWardOptions(FALLBACK_WARDS_BY_PROVINCE[operatingProvinceCode] || []);
-        setLocationError('Không tải được danh sách phường/xã đầy đủ, đang dùng dữ liệu dự phòng nếu có.');
+        if (active) setWardOptions([]);
       } finally {
         if (active) setLoadingWards(false);
       }
@@ -706,13 +661,13 @@ export default function EnterpriseCompanyInfoPage() {
   }, [operatingProvinceCode]);
 
   useEffect(() => {
-    if (operatingProvinceCode || !form.operatingProvince || provinceOptions.length === 0) return;
+    if (operatingProvinceCode || !form.operatingProvince || !ADMIN_PROVINCES.length) return;
 
-    const matchedProvince = provinceOptions.find((option) => option.name === form.operatingProvince);
-    if (matchedProvince) {
-      setOperatingProvinceCode(matchedProvince.value);
+    const matchedId = PROVINCE_NAME_TO_ID[form.operatingProvince];
+    if (matchedId) {
+      setOperatingProvinceCode(matchedId);
     }
-  }, [form.operatingProvince, operatingProvinceCode, provinceOptions]);
+  }, [form.operatingProvince, operatingProvinceCode]);
 
   useEffect(() => {
     if (operatingWardCode || !form.operatingWard || wardOptions.length === 0) return;
@@ -933,13 +888,9 @@ export default function EnterpriseCompanyInfoPage() {
 
   function revokeFileUrl(url: string) {
     URL.revokeObjectURL(url);
-    objectUrls.current.delete(url);
   }
 
   function handleAttachmentFilesChange(files: AttachmentFile[]) {
-    files.forEach((file) => {
-      if (file.url) objectUrls.current.add(file.url);
-    });
     setAttachmentFiles(files);
   }
 
@@ -964,55 +915,45 @@ export default function EnterpriseCompanyInfoPage() {
     label: type.name,
     name: type.name,
   }));
-  const industryOptions = INDUSTRIES.map((industry) => ({
-    value: industry,
-    label: industry,
-  }));
+  const industryOptions = industries.map((industry) => {
+    const label = `${industry.code} - ${industry.name}`;
+    return { value: label, label };
+  });
   const selectedEnterpriseTypeValue = form.businessTypeId || (form.businessType ? `name:${form.businessType}` : '');
   const todayDateValue = getTodayDateValue();
   const officePhoneError = formErrors.officePhone || getPhoneError(form.officePhone);
   const representativePhoneError = formErrors.representativePhone || getPhoneError(form.representativePhone);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
-      <EnterpriseSidebar />
-
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 shadow-sm">
+    <div className="flex h-screen flex-col bg-gray-50 text-gray-900">
+      <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 shadow-sm">
           <h1 className="text-lg font-semibold text-gray-900">Thông tin doanh nghiệp</h1>
-          <div className="flex items-center gap-5">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="text-sm font-medium text-gray-500 transition hover:text-gray-800"
-            >
-              {step === 1 ? 'Huỷ bỏ' : 'Trở về'}
-            </button>
-            <button
-              type="button"
-              onClick={handlePrimaryAction}
-              disabled={loadingEnterprise || saveLoading || !enterpriseId}
-              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-            >
-              {step === 1 ? (
-                <>
-                  Tiếp tục
-                  <ChevronRight size={17} />
-                </>
-              ) : (
-                <>
-                  <Check size={16} />
-                  {saveLoading ? 'Đang lưu...' : 'Xác nhận'}
-                </>
-              )}
-            </button>
-          </div>
+          {step === 1 && (
+            <div className="flex items-center gap-5">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Huỷ bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handlePrimaryAction}
+                disabled={loadingEnterprise || saveLoading || !enterpriseId}
+                className="flex items-center gap-1.5 bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg shadow-sm hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+              >
+                Tiếp tục
+                <ChevronDown size={15} className="rotate-[-90deg]" />
+              </button>
+            </div>
+          )}
         </header>
 
         <div className="flex-1 overflow-y-auto">
           <Stepper currentStep={step} />
 
-          <div className="mx-auto w-full max-w-[1580px] px-6 pb-8">
+          <div className={`mx-auto w-full px-6 pb-8 ${step === 1 ? 'max-w-[1580px]' : 'max-w-3xl'}`}>
             {loadingEnterprise && (
               <div className="mb-4 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
                 Đang tải thông tin doanh nghiệp...
@@ -1025,10 +966,10 @@ export default function EnterpriseCompanyInfoPage() {
             )}
             {step === 1 ? (
               <>
-                <section className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-5 text-lg font-bold text-gray-900">Thêm mới doanh nghiệp</h2>
+                <section className="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="mb-6 pb-3 border-b border-slate-200 text-base font-bold text-gray-800">Thông tin doanh nghiệp</h2>
 
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                     <Field
                       label="Tên doanh nghiệp"
                       required
@@ -1062,16 +1003,18 @@ export default function EnterpriseCompanyInfoPage() {
                       error={formErrors.mainIndustry}
                       onChange={handleIndustryChange}
                     />
-                    <Field
-                      label="Ngày cấp GPKD"
-                      required
-                      calendar
-                      inputType="date"
-                      value={form.licenseDate}
-                      max={todayDateValue}
-                      error={formErrors.licenseDate}
-                      onChange={handleLicenseDateChange}
-                    />
+                    <div className="relative w-full">
+                      <label className="absolute -top-2.5 left-3 z-10 bg-white px-1 text-xs text-slate-500">
+                        Ngày cấp GPKD <span className="text-red-500">*</span>
+                      </label>
+                      <DatePicker
+                        value={form.licenseDate}
+                        onChange={handleLicenseDateChange}
+                        placeholder="dd/mm/yyyy"
+                        className="w-full"
+                      />
+                      {formErrors.licenseDate && <p className="text-red-500 text-xs mt-1">{formErrors.licenseDate}</p>}
+                    </div>
                     <Field
                       label="Tỉnh/Thành phố ĐKKD"
                       required
@@ -1101,10 +1044,10 @@ export default function EnterpriseCompanyInfoPage() {
                   </div>
                 </section>
 
-                <section className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-5 text-lg font-bold text-gray-900">Thông tin liên hệ</h2>
+                <section className="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="mb-6 pb-3 border-b border-slate-200 text-base font-bold text-gray-800">Thông tin liên hệ</h2>
 
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                     <Field
                       label="Tên viết bằng tiếng nước ngoài"
                       placeholder="Tên viết bằng tiếng nước ngoài"
@@ -1132,10 +1075,9 @@ export default function EnterpriseCompanyInfoPage() {
                     <Field
                       label="Tỉnh/TP hoạt động KD"
                       select
-                      placeholder={loadingProvinces ? 'Đang tải tỉnh/thành...' : 'Chọn Tỉnh/TP hoạt động KD'}
+                      placeholder="Chọn Tỉnh/TP hoạt động KD"
                       value={operatingProvinceCode}
                       options={provinceOptions}
-                      disabled={loadingProvinces}
                       required
                       error={formErrors.operatingProvince}
                       onChange={handleOperatingProvinceChange}
@@ -1184,13 +1126,10 @@ export default function EnterpriseCompanyInfoPage() {
                       onChange={(value) => updateField('representativePhone', cleanPhone(value))}
                     />
                   </div>
-                  {locationError && (
-                    <p className="mt-3 text-sm font-medium text-amber-600">{locationError}</p>
-                  )}
                 </section>
 
-                <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-5 text-lg font-bold text-gray-900">File đính kèm</h2>
+                <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                  <h2 className="mb-6 pb-3 border-b border-slate-200 text-base font-bold text-gray-800">File đính kèm</h2>
                   <AttachmentTable
                     files={attachmentFiles}
                     onFilesChange={handleAttachmentFilesChange}
@@ -1201,46 +1140,74 @@ export default function EnterpriseCompanyInfoPage() {
               </>
             ) : (
               <>
-                <section className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-5 text-lg font-bold text-gray-900">Thông tin về hồ sơ</h2>
-                  <dl className="space-y-3">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Thông tin về hồ sơ</h2>
+
+                {saveMessage && (
+                  <div className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
+                    {saveMessage}
+                  </div>
+                )}
+
+                <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+                  <div className="space-y-4">
                     <InfoRow label="Mã số thuế" value={form.taxCode} />
                     <InfoRow label="Tên doanh nghiệp" value={form.companyName} />
-                    <InfoRow label="Tên viết bằng tiếng nước ngoài" value={form.foreignName || 'VNA Group'} />
+                    <InfoRow label="Tên viết bằng tiếng nước ngoài" value={form.foreignName} />
                     <InfoRow label="Email" value={form.email} />
+                    <InfoRow label="Số điện thoại cơ quan" value={form.officePhone} />
                     <InfoRow label="Ngày cấp GPKD" value={formatDate(form.licenseDate)} />
                     <InfoRow label="Loại hình kinh doanh" value={form.businessType} />
                     <InfoRow label="Ngành nghề kinh doanh" value={form.mainIndustry} />
-                    <InfoRow
-                      label="Địa chỉ đăng kí giấy phép kinh doanh"
-                      value={registeredAddress}
-                    />
-                    <InfoRow
-                      label="Địa điểm kinh doanh"
-                      value={operatingAddress}
-                    />
-                    <InfoRow
-                      label="Người đứng đầu doanh nghiệp"
-                      value={form.representativeName || '111111'}
-                    />
-                    <InfoRow
-                      label="SĐT người đứng đầu"
-                      value={form.representativePhone || '0932768093'}
-                    />
-                  </dl>
-                </section>
+                    <InfoRow label="Địa chỉ đăng kí giấy phép kinh doanh" value={registeredAddress} />
+                    <InfoRow label="Địa điểm kinh doanh" value={operatingAddress} />
+                    <InfoRow label="Người đứng đầu doanh nghiệp" value={form.representativeName} />
+                    <InfoRow label="SĐT người đứng đầu" value={form.representativePhone} />
+                  </div>
+                </div>
 
                 {fileMessage && (
                   <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
                     {fileMessage}
                   </div>
                 )}
-                <ConfirmAttachmentTable files={attachmentFiles} onViewFile={handleViewAttachment} />
+
+                <div className="mt-5 mb-6">
+                  <h3 className="text-base font-bold text-gray-800 mb-4">File đính kèm</h3>
+                  <ConfirmAttachmentTable files={attachmentFiles} onViewFile={handleViewAttachment} />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    disabled={saveLoading}
+                    className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                  >
+                    Trở về
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrimaryAction}
+                    disabled={loadingEnterprise || saveLoading || !enterpriseId}
+                    className="flex items-center gap-1.5 bg-blue-600 text-white font-semibold px-6 py-2 rounded-md shadow-sm hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
+                  >
+                    {saveLoading ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={15} />
+                        Xác nhận
+                      </>
+                    )}
+                  </button>
+                </div>
               </>
             )}
           </div>
         </div>
-      </main>
 
       <ChangeEmailModal
         open={showChangeEmailModal}

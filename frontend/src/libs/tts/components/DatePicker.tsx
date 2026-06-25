@@ -168,7 +168,7 @@ export default function DatePicker({
   }
 
   const wrapperClass =
-    `flex items-center justify-between rounded-lg border px-3 py-2 text-sm outline-none transition focus-within:ring-1 ` +
+    `flex items-center justify-between rounded-lg border px-3 h-11 text-sm outline-none transition focus-within:ring-1 ` +
     (error
       ? 'border-red-500 focus-within:ring-red-500 focus-within:border-red-500 bg-white'
       : 'border-slate-200 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white');

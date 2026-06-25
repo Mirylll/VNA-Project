@@ -99,37 +99,40 @@ export default function AttachmentTable({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-gray-200">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
-              <th className="px-4 py-3">Tên file</th>
-              <th className="px-4 py-3">Thông tin file</th>
-              <th className="px-4 py-3 text-right">Thao tác</th>
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Tên file</th>
+              <th className="text-left px-4 py-2.5 text-gray-600 font-medium">Thông tin file</th>
+              <th className="text-right px-4 py-2.5 text-gray-600 font-medium">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody>
             {files.map((file) => (
-              <tr key={file.id} className="text-gray-700">
-                <td className="px-4 py-3">{file.name}</td>
-                <td className="px-4 py-3">{file.info || 'Chưa có file'}</td>
+              <tr key={file.id} className="border-t border-gray-200 bg-white">
+                <td className="px-4 py-3 text-gray-700">{file.name}</td>
+                <td className="px-4 py-3 text-gray-500">{file.info || <span className="italic text-gray-300">Chưa có file</span>}</td>
                 <td className="px-4 py-3">
-                  <div className="flex justify-end gap-3 text-gray-400">
+                  <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
-                      className={`transition ${
-                        file.url ? 'hover:text-blue-600' : 'cursor-not-allowed opacity-50'
-                      }`}
-                      aria-label={`Xem ${file.name}`}
                       onClick={() => handleView(file)}
+                      disabled={!file.url}
+                      title="Xem file"
+                      className={`p-1.5 rounded transition ${
+                        file.url
+                          ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
+                          : 'text-gray-200 cursor-not-allowed'
+                      }`}
                     >
                       <Eye size={17} />
                     </button>
                     <button
                       type="button"
-                      className="transition hover:text-blue-600"
-                      aria-label={`Tải lên ${file.name}`}
+                      title="Tải lên"
                       onClick={() => inputRefs.current[file.id]?.click()}
+                      className="p-1.5 rounded text-gray-500 hover:text-green-600 hover:bg-green-50 transition"
                     >
                       <Upload size={17} />
                     </button>
@@ -144,9 +147,14 @@ export default function AttachmentTable({
                     />
                     <button
                       type="button"
-                      className="transition hover:text-red-600"
-                      aria-label={`Xóa ${file.name}`}
                       onClick={() => handleDelete(file.id)}
+                      disabled={!file.url}
+                      title="Xóa file"
+                      className={`p-1.5 rounded transition ${
+                        file.url
+                          ? 'text-gray-500 hover:text-red-600 hover:bg-red-50'
+                          : 'text-gray-200 cursor-not-allowed'
+                      }`}
                     >
                       <Trash2 size={17} />
                     </button>
