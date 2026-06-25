@@ -34,6 +34,7 @@ export default function EnterpriseStep1({
   const [enterpriseTypes, setEnterpriseTypes] = useState<any[]>([]);
   const [industries, setIndustries] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
+  const [provinces, setProvinces] = useState<any[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -162,6 +163,12 @@ export default function EnterpriseStep1({
     })
       .then((res) => res.ok ? res.json() : [])
       .then((data) => setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4)))
+      .catch(() => {});
+    fetch(`${baseUrl}/provinces`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setProvinces)
       .catch(() => {});
   }, []);
 
@@ -358,9 +365,9 @@ export default function EnterpriseStep1({
                   className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
                 >
                   <option value="" disabled>Chọn tỉnh/thành phố</option>
-                  <option value="1">Thành phố Hồ Chí Minh</option>
-                  <option value="2">Hà Nội</option>
-                  <option value="3">Đà Nẵng</option>
+                  {provinces.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
                 </select>
                 <ChevronDown
                   size={14}
@@ -469,9 +476,9 @@ export default function EnterpriseStep1({
                 className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
               >
                 <option value="" disabled>Chọn tỉnh/thành phố</option>
-                <option value="1">Thành phố Hồ Chí Minh</option>
-                <option value="2">Hà Nội</option>
-                <option value="3">Đà Nẵng</option>
+                {provinces.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
               </select>
               <ChevronDown
                 size={14}

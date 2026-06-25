@@ -114,6 +114,7 @@ function parseCSV(text: string): string[][] {
 export default function UserListPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
+  const [roles, setRoles] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -152,6 +153,13 @@ export default function UserListPage() {
 
   useEffect(() => {
     fetchUsers();
+    const token = getAuthToken();
+    fetch(`${baseUrl}/roles`, {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setRoles)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -506,10 +514,9 @@ export default function UserListPage() {
                     className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
                   >
                     <option value="">Lọc theo vai trò</option>
-                    <option value="Admin">Admin</option>
-                    <option value="CEO">CEO</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Employee">Employee</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.name}>{r.name}</option>
+                    ))}
                   </select>
                   <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
                 </div>
