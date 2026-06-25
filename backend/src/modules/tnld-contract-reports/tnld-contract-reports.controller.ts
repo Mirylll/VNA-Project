@@ -1,13 +1,17 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { CreateTnldContractReportDto } from './dto/create-tnld-contract-report.dto';
 import { UpdateTnldContractReportDto } from './dto/update-tnld-contract-report.dto';
 import { TnldContractReportsService } from './tnld-contract-reports.service';
+import { RequirePermission } from '../../libs/core/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Controller('tnld-contract-reports')
+@UseGuards(PermissionsGuard)
 export class TnldContractReportsController {
   constructor(private readonly service: TnldContractReportsService) {}
 
   @Get()
+  @RequirePermission('ADMIN_C_TNLD_CONTRACT_VIEW')
   async findAll() {
     return this.service.findAll();
   }
@@ -18,6 +22,7 @@ export class TnldContractReportsController {
   }
 
   @Get(':id')
+  @RequirePermission('ADMIN_C_TNLD_CONTRACT_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
   }
@@ -34,6 +39,7 @@ export class TnldContractReportsController {
   }
 
   @Patch(':id/accept')
+  @RequirePermission('ADMIN_C_TNLD_CONTRACT_ACCEPT')
   async accept(@Param('id', ParseIntPipe) id: number) {
     return this.service.accept(id);
   }

@@ -1,15 +1,19 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { EnterprisesService } from './enterprises.service';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
+import { RequirePermission } from '../../libs/core/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Controller('enterprises')
+@UseGuards(PermissionsGuard)
 export class EnterprisesController {
   constructor(private readonly service: EnterprisesService) {}
 
   @Get()
+  @RequirePermission('ADMIN_C_ENTERPRISE_VIEW')
   async findAll() {
     return this.service.findAll();
   }
@@ -20,12 +24,14 @@ export class EnterprisesController {
   }
 
   @Get(':id')
+  @RequirePermission('ADMIN_C_ENTERPRISE_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission('ADMIN_C_ENTERPRISE_CREATE')
   async create(@Body() dto: CreateEnterpriseDto) {
     return this.service.create(dto);
   }
@@ -36,12 +42,14 @@ export class EnterprisesController {
   }
 
   @Put(':id')
+  @RequirePermission('ADMIN_C_ENTERPRISE_UPDATE')
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEnterpriseDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('ADMIN_C_ENTERPRISE_DELETE')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);
   }
