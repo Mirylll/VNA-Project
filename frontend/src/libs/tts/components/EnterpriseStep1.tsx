@@ -357,23 +357,14 @@ export default function EnterpriseStep1({
               <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
                 Tỉnh/Thành phố ĐKKD <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <select
-                  name="provinceId"
-                  value={formData.provinceId}
-                  onChange={handleInputChange}
-                  className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-                >
-                  <option value="" disabled>Chọn tỉnh/thành phố</option>
-                  {provinces.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-                />
-              </div>
+              <Autocomplete
+                value={formData.provinceId}
+                options={provinces.map((p: any) => ({ id: p.id, name: p.name }))}
+                placeholder="Chọn tỉnh/thành phố"
+                onSelect={(val) => updateField('provinceId', val)}
+                className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+                plain
+              />
             </>
           )}
 
@@ -468,23 +459,14 @@ export default function EnterpriseStep1({
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Tỉnh/TP hoạt động KD
             </label>
-            <div className="relative">
-              <select
-                name="operationProvinceId"
-                value={formData.operationProvinceId}
-                onChange={handleInputChange}
-                className="w-full appearance-none border-none outline-none text-sm py-0.5 bg-transparent pr-6"
-              >
-                <option value="" disabled>Chọn tỉnh/thành phố</option>
-                {provinces.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-              />
-            </div>
+            <Autocomplete
+              value={formData.operationProvinceId}
+              options={provinces.map((p: any) => ({ id: p.id, name: p.name }))}
+              placeholder="Chọn tỉnh/thành phố"
+              onSelect={(val) => updateField('operationProvinceId', val)}
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              plain
+            />
           </div>
 
           <div className="relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
