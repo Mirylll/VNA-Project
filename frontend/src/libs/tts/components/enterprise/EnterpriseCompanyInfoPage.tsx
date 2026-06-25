@@ -118,12 +118,6 @@ type SelectOption = {
   name: string;
 };
 
-type EnterpriseTypeOption = {
-  id?: number;
-  name: string;
-  isActive?: boolean;
-};
-
 type EnterpriseAttachment = {
   id: number;
   name: string;
@@ -150,18 +144,6 @@ type EnterpriseApiData = {
   leaderName?: string;
   leaderPhone?: string;
   attachments?: EnterpriseAttachment[];
-};
-
-const ADMIN_PROVINCES: SelectOption[] = [
-  { value: '1', label: 'Thành phố Hồ Chí Minh', name: 'Thành phố Hồ Chí Minh' },
-  { value: '2', label: 'Hà Nội', name: 'Hà Nội' },
-  { value: '3', label: 'Đà Nẵng', name: 'Đà Nẵng' },
-];
-
-const PROVINCE_NAME_TO_ID: Record<string, string> = {
-  'Thành phố Hồ Chí Minh': '1',
-  'Hà Nội': '2',
-  'Đà Nẵng': '3',
 };
 
 function Stepper({ currentStep }: { currentStep: 1 | 2 }) {
@@ -295,25 +277,6 @@ function updateStoredAuthEmail(newEmail: string) {
   });
 }
 
-function mergeEnterpriseTypeOptions(apiTypes: EnterpriseTypeOption[]) {
-  const byName = new Map<string, EnterpriseTypeOption>();
-
-  const fallbackNames = [
-    "Công ty cổ phần", "Công ty TNHH", "Doanh nghiệp tư nhân",
-    "Hộ kinh doanh", "Hợp tác xã",
-  ];
-  fallbackNames.forEach((name) => {
-    byName.set(name, { name });
-  });
-
-  apiTypes.forEach((type) => {
-    if (!type.name || type.isActive === false) return;
-    byName.set(type.name, type);
-  });
-
-  return Array.from(byName.values());
-}
-
 function getTodayDateValue() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -374,8 +337,9 @@ export default function EnterpriseCompanyInfoPage() {
   const [loadingEnterprise, setLoadingEnterprise] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [enterpriseTypes, setEnterpriseTypes] = useState<EnterpriseTypeOption[]>([]);
+  const [enterpriseTypes, setEnterpriseTypes] = useState<{ id: number; name: string }[]>([]);
   const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [provinces, setProvinces] = useState<{ id: number; name: string }[]>([]);
 
   const [registeredWardOptions, setRegisteredWardOptions] = useState<SelectOption[]>([]);
   const [wardOptions, setWardOptions] = useState<SelectOption[]>([]);
@@ -407,81 +371,49 @@ export default function EnterpriseCompanyInfoPage() {
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
   useEffect(() => {
-    let active = true;
-
-    async function loadEnterpriseTypes() {
-      const token = getAuthToken();
-      if (!token) return;
-      try {
-        const response = await fetch(`${BASE_URL}/enterprise-types`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error('Không tải được loại hình doanh nghiệp');
-        const data = (await response.json()) as EnterpriseTypeOption[];
-        if (!active) return;
-        setEnterpriseTypes(mergeEnterpriseTypeOptions(data));
-      } catch {
-        if (active) {
-          setEnterpriseTypes(mergeEnterpriseTypeOptions([]));
-        }
-      }
-    }
-
-    async function loadIndustries() {
-      const token = getAuthToken();
-      if (!token) return;
-      try {
-        const response = await fetch(`${BASE_URL}/industries`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error('Không tải được ngành nghề');
-        const data = await response.json();
-        if (!active) return;
-        setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4));
-      } catch {
-        if (active) setIndustries([]);
-      }
-    }
-
-    loadEnterpriseTypes();
-    loadIndustries();
-
-    return () => {
-      active = false;
-    };
+    const token = getAuthToken();
+    if (!token) return;
+    fetch(`${BASE_URL}/enterprise-types`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setEnterpriseTypes(data.filter((t: any) => t.isActive !== false)))
+      .catch(() => {});
+    fetch(`${BASE_URL}/industries`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4)))
+      .catch(() => {});
+    fetch(`${BASE_URL}/provinces`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setProvinces)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    let active = true;
-
-    async function loadRegisteredWards() {
-      const token = getAuthToken();
-      if (!token) return;
-      try {
-        const response = await fetch(`${BASE_URL}/districts?provinceId=1`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error('Không tải được phường/xã');
-        const data = await response.json();
-        if (!active) return;
+    if (provinces.length === 0) return;
+    const hcmc = provinces.find((p) => p.name.includes('Hồ Chí Minh'));
+    if (!hcmc) return;
+    const token = getAuthToken();
+    if (!token) return;
+    fetch(`${BASE_URL}/districts?provinceId=${hcmc.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) =>
         setRegisteredWardOptions(
           data.map((ward: any) => ({
             value: String(ward.id),
             label: ward.name,
             name: ward.name,
           })),
-        );
-      } catch {
-        if (active) setRegisteredWardOptions([]);
-      }
-    }
-
-    loadRegisteredWards();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+        ),
+      )
+      .catch(() => setRegisteredWardOptions([]));
+  }, [provinces]);
 
   useEffect(() => {
     let active = true;
@@ -514,7 +446,7 @@ export default function EnterpriseCompanyInfoPage() {
           taxCode: data.taxCode || '',
           businessTypeId: data.enterpriseType?.id ? String(data.enterpriseType.id) : '',
           businessType: data.enterpriseType?.name || '',
-          mainIndustry: data.industry ? `${data.industry.code} - ${data.industry.name}` : '',
+          mainIndustry: data.industry?.id ? String(data.industry.id) : '',
           licenseDate: data.licenseDate || '',
           registeredProvince: data.province?.name || '',
           registeredWard: data.ward?.name || '',
@@ -593,11 +525,11 @@ export default function EnterpriseCompanyInfoPage() {
   }, [operatingProvinceCode]);
 
   useEffect(() => {
-    if (operatingProvinceCode || !form.operatingProvince || !ADMIN_PROVINCES.length) return;
+    if (operatingProvinceCode || !form.operatingProvince || provinces.length === 0) return;
 
-    const matchedId = PROVINCE_NAME_TO_ID[form.operatingProvince];
-    if (matchedId) {
-      setOperatingProvinceCode(matchedId);
+    const matchedProvince = provinces.find((p) => p.name === form.operatingProvince);
+    if (matchedProvince) {
+      setOperatingProvinceCode(String(matchedProvince.id));
     }
   }, [form.operatingProvince, operatingProvinceCode]);
 
@@ -639,11 +571,10 @@ export default function EnterpriseCompanyInfoPage() {
 
   function handleBusinessTypeChange(autoId: string) {
     if (!autoId) { setForm((current) => ({ ...current, businessTypeId: '', businessType: '' })); setFormErrors((current) => ({ ...current, businessType: '' })); return; }
-    const idx = Number(autoId);
-    const selectedType = enterpriseTypes[idx];
+    const selectedType = enterpriseTypes.find((t) => String(t.id) === autoId);
     setForm((current) => ({
       ...current,
-      businessTypeId: selectedType?.id ? String(selectedType.id) : '',
+      businessTypeId: autoId,
       businessType: selectedType?.name || '',
     }));
     setFormErrors((current) => ({ ...current, businessType: '' }));
@@ -658,9 +589,7 @@ export default function EnterpriseCompanyInfoPage() {
 
   function handleIndustryChange(autoId: string) {
     if (!autoId) { updateField('mainIndustry', ''); return; }
-    const idx = Number(autoId);
-    const selectedIndustry = industries[idx];
-    updateField('mainIndustry', selectedIndustry ? `${selectedIndustry.code} - ${selectedIndustry.name}` : '');
+    updateField('mainIndustry', autoId);
   }
 
   function validateEnterpriseForm() {
@@ -744,7 +673,7 @@ export default function EnterpriseCompanyInfoPage() {
         taxCode: form.taxCode,
         enterpriseTypeId: form.businessTypeId ? Number(form.businessTypeId) : undefined,
         enterpriseTypeName: form.businessTypeId ? undefined : form.businessType || undefined,
-        industryName: form.mainIndustry || undefined,
+        industryId: form.mainIndustry ? Number(form.mainIndustry) : undefined,
         licenseDate: form.licenseDate || undefined,
         wardId: registeredWardId,
         wardName: registeredWardId ? undefined : form.registeredWard || undefined,
@@ -752,6 +681,8 @@ export default function EnterpriseCompanyInfoPage() {
         foreignName: form.foreignName,
         email: form.email,
         phone: form.officePhone,
+        operationProvinceId: operatingProvinceCode ? Number(operatingProvinceCode) : undefined,
+        operationWardId: operatingWardCode ? Number(operatingWardCode) : undefined,
         operationAddress: form.businessLocation,
         leaderName: form.representativeName,
         leaderPhone: form.representativePhone,
@@ -794,10 +725,9 @@ export default function EnterpriseCompanyInfoPage() {
 
   function handleOperatingProvinceChange(autoId: string) {
     if (!autoId) { setOperatingProvinceCode(''); setOperatingWardCode(''); updateField('operatingProvince', ''); updateField('operatingWard', ''); setFormErrors((current) => ({ ...current, operatingProvince: '', operatingWard: '' })); return; }
-    const idx = Number(autoId);
-    const province = ADMIN_PROVINCES[idx];
+    const province = provinces.find((p) => String(p.id) === autoId);
 
-    setOperatingProvinceCode(province?.value || '');
+    setOperatingProvinceCode(autoId);
     setOperatingWardCode('');
     updateField('operatingProvince', province?.name || '');
     updateField('operatingWard', '');
@@ -912,21 +842,9 @@ export default function EnterpriseCompanyInfoPage() {
                         Loại hình kinh doanh <span className="text-red-500">*</span>
                       </label>
                       <Autocomplete
-                        value={
-                          enterpriseTypes.length > 0
-                            ? String(
-                                enterpriseTypes.findIndex(
-                                  (t) => String(t.id) === form.businessTypeId || t.name === form.businessType,
-                                ),
-                              )
-                            : ''
-                        }
-                        options={enterpriseTypes.map((t, i) => ({ id: i, name: t.name }))}
-                        placeholder={
-                          enterpriseTypes.length === 0
-                            ? form.businessType || 'Chưa có loại hình doanh nghiệp'
-                            : 'Chọn loại hình kinh doanh'
-                        }
+                        value={form.businessTypeId}
+                        options={enterpriseTypes.map((t) => ({ id: t.id, name: t.name }))}
+                        placeholder="Chọn loại hình kinh doanh"
                         onSelect={handleBusinessTypeChange}
                         className={formErrors.businessType ? 'border-red-500' : ''}
                         error={!!formErrors.businessType}
@@ -941,16 +859,8 @@ export default function EnterpriseCompanyInfoPage() {
                         Ngành nghề kinh doanh chính <span className="text-red-500">*</span>
                       </label>
                       <Autocomplete
-                        value={
-                          industries.length > 0
-                            ? String(
-                                industries.findIndex(
-                                  (ind) => `${ind.code} - ${ind.name}` === form.mainIndustry,
-                                ),
-                              )
-                            : ''
-                        }
-                        options={industries.map((ind, i) => ({ id: i, name: `${ind.code} - ${ind.name}` }))}
+                        value={form.mainIndustry}
+                        options={industries.map((ind) => ({ id: ind.id, name: `${ind.code} - ${ind.name}` }))}
                         placeholder="Chọn ngành nghề kinh doanh chính"
                         onSelect={handleIndustryChange}
                         className={formErrors.mainIndustry ? 'border-red-500' : ''}
@@ -1040,10 +950,8 @@ export default function EnterpriseCompanyInfoPage() {
                         Tỉnh/TP hoạt động KD <span className="text-red-500">*</span>
                       </label>
                       <Autocomplete
-                        value={String(
-                          ADMIN_PROVINCES.findIndex((p) => p.value === operatingProvinceCode),
-                        )}
-                        options={ADMIN_PROVINCES.map((p, i) => ({ id: i, name: p.name }))}
+                        value={operatingProvinceCode}
+                        options={provinces.map((p) => ({ id: p.id, name: p.name }))}
                         placeholder="Chọn Tỉnh/TP hoạt động KD"
                         onSelect={handleOperatingProvinceChange}
                         className={formErrors.operatingProvince ? 'border-red-500' : ''}
@@ -1134,7 +1042,10 @@ export default function EnterpriseCompanyInfoPage() {
                     <InfoRow label="Số điện thoại cơ quan" value={form.officePhone} />
                     <InfoRow label="Ngày cấp GPKD" value={formatDate(form.licenseDate)} />
                     <InfoRow label="Loại hình kinh doanh" value={form.businessType} />
-                    <InfoRow label="Ngành nghề kinh doanh" value={form.mainIndustry} />
+                    <InfoRow label="Ngành nghề kinh doanh" value={(() => {
+                     const matched = industries.find((ind) => String(ind.id) === form.mainIndustry);
+                     return matched ? `${matched.code} - ${matched.name}` : form.mainIndustry;
+                   })()} />
                     <InfoRow label="Địa chỉ đăng kí giấy phép kinh doanh" value={registeredAddress} />
                     <InfoRow label="Địa điểm kinh doanh" value={operatingAddress} />
                     <InfoRow label="Người đứng đầu doanh nghiệp" value={form.representativeName} />
