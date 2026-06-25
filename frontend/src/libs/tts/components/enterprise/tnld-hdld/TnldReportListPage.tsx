@@ -187,13 +187,17 @@ export default function TnldReportListPage() {
   });
 
   function openReport(report: ReportRow) {
-    if (report.status === 'CHO_TIEP_NHAN' || report.status === 'DA_BAO_CAO') {
-      const reportId = report.backendId || report.id;
-      router.push(`/enterprise/tnld-hdld/${reportId}?mode=view&step=review`);
-      return;
-    }
-
     setSelectedReport(report);
+  }
+
+  function openReportEdit(report: ReportRow) {
+    const reportId = report.backendId || report.id;
+    router.push(`/enterprise/tnld-hdld/${reportId}?mode=edit&step=company`);
+  }
+
+  function openReportReview(report: ReportRow) {
+    const reportId = report.backendId || report.id;
+    router.push(`/enterprise/tnld-hdld/${reportId}?mode=view`);
   }
 
   function openReportCategory(step: ReportStepId) {
@@ -253,14 +257,26 @@ export default function TnldReportListPage() {
                   <tr key={report.id} className="transition hover:bg-blue-50/40">
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-3 text-gray-400">
-                        <button
-                          type="button"
-                          onClick={() => openReport(report)}
-                          className="rounded p-1 transition hover:bg-white hover:text-blue-600"
-                          aria-label={report.status === 'CHO_TIEP_NHAN' || report.status === 'DA_BAO_CAO' ? 'Xem báo cáo' : 'Chỉnh sửa báo cáo'}
-                        >
-                          {report.status === 'CHO_TIEP_NHAN' || report.status === 'DA_BAO_CAO' ? <Eye size={17} /> : <Edit3 size={17} />}
-                        </button>
+                        {report.status !== 'DA_BAO_CAO' && (
+                          <button
+                            type="button"
+                            onClick={() => (report.status === 'CHO_TIEP_NHAN' ? openReportEdit(report) : openReport(report))}
+                            className="rounded p-1 transition hover:bg-white hover:text-blue-600"
+                            aria-label="Chỉnh sửa báo cáo"
+                          >
+                            <Edit3 size={17} />
+                          </button>
+                        )}
+                        {(report.status === 'CHO_TIEP_NHAN' || report.status === 'DA_BAO_CAO') && (
+                          <button
+                            type="button"
+                            onClick={() => openReportReview(report)}
+                            className="rounded p-1 transition hover:bg-white hover:text-blue-600"
+                            aria-label="Xem báo cáo"
+                          >
+                            <Eye size={17} />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-800">{report.companyName}</td>
