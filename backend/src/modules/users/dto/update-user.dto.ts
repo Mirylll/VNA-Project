@@ -1,4 +1,5 @@
-import { IsBoolean, IsEmail, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { AccountType } from '../entities/user.entity';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -31,6 +32,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsEnum(AccountType)
+  accountType?: AccountType;
 
   @IsOptional()
   @IsString()

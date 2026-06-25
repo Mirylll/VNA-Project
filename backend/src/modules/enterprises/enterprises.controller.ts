@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { EnterprisesService } from './enterprises.service';
@@ -14,6 +14,11 @@ export class EnterprisesController {
     return this.service.findAll();
   }
 
+  @Get('me')
+  async findCurrent(@Headers('authorization') authHeader?: string) {
+    return this.service.findCurrent(authHeader);
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
@@ -23,6 +28,11 @@ export class EnterprisesController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateEnterpriseDto) {
     return this.service.create(dto);
+  }
+
+  @Put('me')
+  async updateCurrent(@Headers('authorization') authHeader: string | undefined, @Body() dto: UpdateEnterpriseDto) {
+    return this.service.updateCurrent(authHeader, dto);
   }
 
   @Put(':id')

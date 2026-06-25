@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Enterprise } from './entities/enterprise.entity';
 import { Attachment } from './entities/attachment.entity';
+import { EnterpriseType } from '../enterprise-types/entities/enterprise-type.entity';
+import { Industry } from '../industries/entities/industry.entity';
+import { District } from '../users/entities/district.entity';
+import { User, AccountType } from '../users/entities/user.entity';
+import { Role } from '../roles/entities/role.entity';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
 
@@ -15,7 +22,134 @@ export class EnterprisesService {
     private readonly repo: Repository<Enterprise>,
     @InjectRepository(Attachment)
     private readonly attachmentRepo: Repository<Attachment>,
+    @InjectRepository(EnterpriseType)
+    private readonly enterpriseTypeRepo: Repository<EnterpriseType>,
+    @InjectRepository(Industry)
+    private readonly industryRepo: Repository<Industry>,
+    @InjectRepository(District)
+    private readonly districtRepo: Repository<District>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepo: Repository<Role>,
+    private readonly jwtService: JwtService,
   ) {}
+
+  private getUsernameFromAuthHeader(authHeader?: string): string {
+    if (!authHeader) throw new UnauthorizedException('Missing authorization header');
+
+    const [type, token] = authHeader.split(' ');
+    if (type !== 'Bearer' || !token) {
+      throw new UnauthorizedException('Invalid authorization header');
+    }
+
+    try {
+      const payload = this.jwtService.verify(token);
+      if (!payload?.username) {
+        throw new UnauthorizedException('Invalid token payload');
+      }
+      return payload.username;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+
+  private makeCode(prefix: string, value: string) {
+    const normalized = value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .toUpperCase();
+    return `${prefix}_${normalized}`.slice(0, 50);
+  }
+
+  private async findOrCreateEnterpriseType(name?: string) {
+    const cleanName = name?.trim();
+    if (!cleanName) return null;
+
+    const existing = await this.enterpriseTypeRepo.findOne({
+      where: [{ name: cleanName }, { code: cleanName }, { name: ILike(cleanName) }],
+    });
+    if (existing) return existing;
+
+    return this.enterpriseTypeRepo.save(
+      this.enterpriseTypeRepo.create({
+        code: this.makeCode('LH', cleanName),
+        name: cleanName,
+        isActive: true,
+      }),
+    );
+  }
+
+  private parseIndustryValue(value?: string) {
+    const cleanValue = value?.trim();
+    if (!cleanValue) return null;
+
+    const matched = cleanValue.match(/^(\d{2,10})\s*-\s*(.+)$/);
+    if (!matched) {
+      return {
+        code: this.makeCode('NN', cleanValue),
+        name: cleanValue,
+      };
+    }
+
+    return {
+      code: matched[1],
+      name: matched[2].trim(),
+    };
+  }
+
+  private async findOrCreateIndustry(value?: string) {
+    const industry = this.parseIndustryValue(value);
+    if (!industry) return null;
+
+    const existing = await this.industryRepo.findOne({
+      where: [{ code: industry.code }, { name: industry.name }, { name: ILike(industry.name) }],
+    });
+    if (existing) return existing;
+
+    return this.industryRepo.save(
+      this.industryRepo.create({
+        code: industry.code,
+        name: industry.name,
+        isActive: true,
+        level: 1,
+      }),
+    );
+  }
+
+  private async findOrCreateHcmWard(name?: string) {
+    const cleanName = name?.trim();
+    if (!cleanName) return null;
+
+    const existing = await this.districtRepo.findOne({
+      where: { name: ILike(cleanName), province: { id: 1 } },
+      relations: ['province'],
+    });
+    if (existing) return existing;
+
+    return this.districtRepo.save(
+      this.districtRepo.create({
+        name: cleanName,
+        province: { id: 1 } as any,
+      }),
+    );
+  }
+
+  private assertLicenseDateNotInFuture(value?: string) {
+    if (!value) return;
+
+    const inputDate = new Date(`${value}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (Number.isNaN(inputDate.getTime()) || inputDate > today) {
+      throw new BadRequestException('Ngày cấp GPKD không được lớn hơn ngày hiện tại');
+    }
+  }
 
   async findAll(): Promise<Enterprise[]> {
     return this.repo.find({
@@ -41,7 +175,37 @@ export class EnterprisesService {
     return entity;
   }
 
+  async findCurrent(authHeader?: string): Promise<Enterprise> {
+    const username = this.getUsernameFromAuthHeader(authHeader);
+    const entity = await this.repo.findOne({
+      where: [{ username }, { taxCode: username }],
+      relations: [
+        'enterpriseType',
+        'industry',
+        'province',
+        'ward',
+        'operationProvince',
+        'operationWard',
+        'attachments',
+      ],
+    });
+    if (!entity) throw new NotFoundException('Không tìm thấy thông tin doanh nghiệp của tài khoản hiện tại');
+    return entity;
+  }
+
   async create(dto: CreateEnterpriseDto): Promise<Enterprise> {
+    this.assertLicenseDateNotInFuture(dto.licenseDate);
+
+    const username = dto.username || dto.taxCode;
+    if (!username) {
+      throw new BadRequestException('Cần có tên đăng nhập hoặc mã số thuế để tạo tài khoản');
+    }
+
+    const existingUser = await this.userRepo.findOne({ where: { username } });
+    if (existingUser) {
+      throw new BadRequestException(`Tên đăng nhập "${username}" đã tồn tại`);
+    }
+
     const entity = new Enterprise();
     entity.name = dto.name;
     entity.taxCode = dto.taxCode;
@@ -53,8 +217,8 @@ export class EnterprisesService {
     entity.operationAddress = dto.operationAddress;
     entity.leaderName = dto.leaderName;
     entity.leaderPhone = dto.leaderPhone;
-    entity.username = dto.username;
-    entity.password = dto.password;
+    entity.username = username;
+    entity.password = dto.password || '12345678';
     entity.isActive = dto.isActive ?? true;
     if (dto.enterpriseTypeId) entity.enterpriseType = { id: dto.enterpriseTypeId } as any;
     if (dto.industryId) entity.industry = { id: dto.industryId } as any;
@@ -62,10 +226,27 @@ export class EnterprisesService {
     if (dto.wardId) entity.ward = { id: dto.wardId } as any;
     if (dto.operationProvinceId) entity.operationProvince = { id: dto.operationProvinceId } as any;
     if (dto.operationWardId) entity.operationWard = { id: dto.operationWardId } as any;
+
+    const enterpriseRole = await this.roleRepo.findOne({ where: { code: 'ROLE_ENTERPRISE' } });
+    const passwordHash = await bcrypt.hash(entity.password, 10);
+
+    const user = this.userRepo.create({
+      username,
+      passwordHash,
+      fullName: dto.name,
+      email: dto.email || undefined,
+      isActive: dto.isActive ?? true,
+      accountType: AccountType.ENTERPRISE,
+      role: enterpriseRole || undefined,
+    });
+
+    await this.userRepo.save(user);
     return this.repo.save(entity) as unknown as Promise<Enterprise>;
   }
 
   async update(id: number, dto: UpdateEnterpriseDto): Promise<Enterprise> {
+    this.assertLicenseDateNotInFuture(dto.licenseDate);
+
     const entity = await this.findOne(id);
     if (dto.name !== undefined) entity.name = dto.name;
     if (dto.taxCode !== undefined) entity.taxCode = dto.taxCode;
@@ -80,13 +261,33 @@ export class EnterprisesService {
     if (dto.username !== undefined) entity.username = dto.username;
     if (dto.password !== undefined) entity.password = dto.password;
     if (dto.isActive !== undefined) entity.isActive = dto.isActive;
-    if (dto.enterpriseTypeId !== undefined) entity.enterpriseType = { id: dto.enterpriseTypeId } as any;
-    if (dto.industryId !== undefined) entity.industry = { id: dto.industryId } as any;
+    if (dto.enterpriseTypeId !== undefined) {
+      entity.enterpriseType = { id: dto.enterpriseTypeId } as any;
+    } else if (dto.enterpriseTypeName !== undefined) {
+      const enterpriseType = await this.findOrCreateEnterpriseType(dto.enterpriseTypeName);
+      if (enterpriseType) entity.enterpriseType = enterpriseType;
+    }
+    if (dto.industryId !== undefined) {
+      entity.industry = { id: dto.industryId } as any;
+    } else if (dto.industryName !== undefined) {
+      const industry = await this.findOrCreateIndustry(dto.industryName);
+      if (industry) entity.industry = industry;
+    }
     if (dto.provinceId !== undefined) entity.province = { id: dto.provinceId } as any;
-    if (dto.wardId !== undefined) entity.ward = { id: dto.wardId } as any;
+    if (dto.wardId !== undefined) {
+      entity.ward = { id: dto.wardId } as any;
+    } else if (dto.wardName !== undefined) {
+      const ward = await this.findOrCreateHcmWard(dto.wardName);
+      if (ward) entity.ward = ward;
+    }
     if (dto.operationProvinceId !== undefined) entity.operationProvince = { id: dto.operationProvinceId } as any;
     if (dto.operationWardId !== undefined) entity.operationWard = { id: dto.operationWardId } as any;
     return this.repo.save(entity);
+  }
+
+  async updateCurrent(authHeader: string | undefined, dto: UpdateEnterpriseDto): Promise<Enterprise> {
+    const entity = await this.findCurrent(authHeader);
+    return this.update(entity.id, dto);
   }
 
   async remove(id: number): Promise<void> {
