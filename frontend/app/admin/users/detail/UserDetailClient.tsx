@@ -6,7 +6,6 @@ import { Eye, EyeOff, User } from 'lucide-react';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 import Autocomplete from '@/libs/tts/components/Autocomplete';
 import DatePicker from '@/libs/tts/components/DatePicker';
-import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
 
 interface TitleItem {
   id: number;
@@ -22,22 +21,6 @@ interface RoleItem {
 const isDummyRole = (name: string) =>
   /^role[123]/i.test(name);
 
-// Build ward options from HCM_WARDS for the Autocomplete component
-// Autocomplete expects { id: number, name: string } but we adapt with numeric id from code
-const WARD_OPTIONS = HCM_WARDS.map((w) => ({
-  id: parseInt(w.code, 10),
-  name: `${w.name} (${w.district})`,
-  code: w.code,
-}));
-
-function removeAccents(str: string) {
-  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
-}
-
-function normalizeWardName(name: string): string {
-  return name.replace(/^(Phường|Xã|Đặc khu)\s+/i, '').replace(/\s*\(.*?\)\s*$/, '');
-}
-
 
 interface UserFormData {
   username: string;
@@ -49,8 +32,7 @@ interface UserFormData {
   roleId: number | '';
   email: string;
   provinceId: number;
-  wardCode: string;  // HCM_WARDS code for display
-  wardId: number | '';  // DB district.id
+  wardId: number | '';
   address: string;
   isActive: boolean;
 }
@@ -65,8 +47,7 @@ const emptyForm: UserFormData = {
   roleId: '',
   email: '',
   provinceId: 1,
-  wardCode: '',  // HCM_WARDS code
-  wardId: '',    // DB district id
+  wardId: '',
   address: '',
   isActive: true,
 };
@@ -135,13 +116,6 @@ export default function UserDetailClient({
           .then((user) => {
             if (!user) return;
             setAvatarUrl(user.avatarUrl || null);
-            // Match user's district name (e.g. "Bến Thành") to HCM_WARDS entry (e.g. "Phường Bến Thành")
-            const userDistrictName = (user.district?.name || '').trim();
-            const matchingWard = userDistrictName
-              ? HCM_WARDS.find(w =>
-                  removeAccents(normalizeWardName(w.name).trim().toLowerCase()) ===
-                  removeAccents(normalizeWardName(userDistrictName).trim().toLowerCase())
-                ) : undefined;
             setFormData({
               username: user.username || '',
               password: '',
@@ -152,7 +126,6 @@ export default function UserDetailClient({
               roleId: user.role?.id ?? '',
               email: user.email || '',
               provinceId: user.province?.id ?? 1,
-              wardCode: matchingWard?.code || '',
               wardId: user.district?.id ?? '',
               address: user.address || '',
               isActive: user.isActive ?? true,
@@ -464,7 +437,6 @@ export default function UserDetailClient({
                       name="username"
                       value={formData.username}
                       readOnly
-                      placeholder="Tên đăng nhập"
                       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 bg-gray-50 cursor-not-allowed outline-none"
                     />
                     <label className={labelClass}>
@@ -478,7 +450,6 @@ export default function UserDetailClient({
                       value={formData.fullName}
                       onChange={handleInputChange}
                       maxLength={150}
-                      placeholder="Họ và tên"
                       className={fieldClass('fullName')}
                     />
                     <label className={labelClass}>
@@ -522,7 +493,6 @@ export default function UserDetailClient({
                       name="titleName"
                       value={formData.titleName}
                       onChange={handleInputChange}
-                      placeholder="Chức danh"
                       className={fieldClass('titleName')}
                     />
                     <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
@@ -556,7 +526,7 @@ export default function UserDetailClient({
                       value={formData.email}
                       onChange={handleInputChange}
                       maxLength={200}
-                      placeholder="Email"
+                      placeholder="baobao@gmail.com"
                       className={fieldClass('email')}
                     />
                     <label className={labelClass}>Email <span className="text-red-500">*</span></label>
@@ -574,7 +544,6 @@ export default function UserDetailClient({
                       value={formData.username}
                       onChange={handleInputChange}
                       maxLength={50}
-                      placeholder="Tên đăng nhập"
                       className={fieldClass('username')}
                     />
                     <label className={labelClass}>
@@ -590,7 +559,6 @@ export default function UserDetailClient({
                         value={formData.password}
                         onChange={handleInputChange}
                         maxLength={100}
-                        placeholder="Mật khẩu"
                         autoComplete="off"
                         className={`${fieldClass('password')} pr-10`}
                       />
@@ -616,7 +584,6 @@ export default function UserDetailClient({
                       value={formData.fullName}
                       onChange={handleInputChange}
                       maxLength={150}
-                      placeholder="Họ và tên"
                       className={fieldClass('fullName')}
                     />
                     <label className={labelClass}>
@@ -658,14 +625,13 @@ export default function UserDetailClient({
                       name="titleName"
                       value={formData.titleName}
                       onChange={handleInputChange}
-                      placeholder="Chức danh"
                       className={fieldClass('titleName')}
                     />
-                    <label className={labelClass}>Chức danh <span className="text-red-500">*</span></label>
+                    <label className={labelClass}>
+                      Chức danh <span className="text-red-500">*</span>
+                    </label>
                     {errMsg('titleName')}
                   </div>
-
-                  {/* Row 4: Vai trò | Email */}
                   <div className="relative">
                     <select
                       name="roleId"
@@ -685,14 +651,16 @@ export default function UserDetailClient({
                     </label>
                     {errMsg('roleId')}
                   </div>
-                  <div className="relative">
+
+                  {/* Row 4: Email — full width */}
+                  <div className="col-span-2 relative">
                     <input
-                      type="email"
+                      type="text"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
                       maxLength={200}
-                      placeholder="Email"
+                      placeholder="baobao@gmail.com"
                       className={fieldClass('email')}
                     />
                     <label className={labelClass}>Email <span className="text-red-500">*</span></label>
@@ -726,23 +694,15 @@ export default function UserDetailClient({
 
           <div className="relative">
             <Autocomplete
-              value={WARD_OPTIONS.find(w => w.code === formData.wardCode)?.id ?? ''}
-              options={WARD_OPTIONS}
+              value={formData.wardId}
+              options={districts.map((d) => ({ id: d.id, name: d.name }))}
               placeholder="-- Chọn phường/xã --"
               onSelect={(val) => {
-                const ward = WARD_OPTIONS.find(w => String(w.id) === val);
-                const wardName = ward?.name || '';
-                const matchedDistrict = districts.find(d =>
-                  removeAccents(normalizeWardName(wardName).trim().toLowerCase()) ===
-                  removeAccents(normalizeWardName(d.name).trim().toLowerCase())
-                );
                 setFormData((prev) => ({
                   ...prev,
-                  wardCode: ward?.code ?? '',
-                  wardId: matchedDistrict?.id ?? '',
+                  wardId: val ? Number(val) : '',
                 }));
               }}
-              className={errors.wardCode ? 'border-red-500' : ''}
             />
             <label className={labelClass}>Phường/xã</label>
           </div>

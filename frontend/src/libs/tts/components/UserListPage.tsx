@@ -460,22 +460,22 @@ export default function UserListPage() {
               )}
               {canUpdate && <th className="w-10 px-2 py-3" />}
               {canUpdate && <th className="w-10 px-2 py-3" />}
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[90px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Họ và tên
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[100px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Tài khoản
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[90px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Email
               </th>
-              <th className="min-w-[190px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[170px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Vai trò
               </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[150px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Chức danh
               </th>
-              <th className="min-w-[200px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <th className="min-w-[160px] px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Trạng thái
               </th>
             </tr>
@@ -636,22 +636,22 @@ export default function UserListPage() {
                       </button>
                     </td>
                   )}
-                  <td className="px-3 py-3 text-sm text-gray-900 font-medium">
+                  <td className="min-w-[90px] px-3 py-3 text-sm text-gray-900 font-medium">
                     {user.fullName}
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-500">
+                  <td className="min-w-[100px] px-3 py-3 text-sm text-gray-500">
                     {user.username}
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-500">
+                  <td className="min-w-[90px] px-3 py-3 text-sm text-gray-500">
                     {user.email || '—'}
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-500">
+                  <td className="min-w-[170px] px-3 py-3 text-sm text-gray-500">
                     {user.role?.name || '—'}
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-500">
+                  <td className="min-w-[150px] px-3 py-3 text-sm text-gray-500">
                     {user.title?.name || '—'}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="min-w-[160px] px-3 py-3">
                     {canUpdate ? (
                       <ToggleSwitch
                         checked={user.isActive}
