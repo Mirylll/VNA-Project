@@ -11,13 +11,11 @@ export class EnterpriseTypesController {
   constructor(private readonly service: EnterpriseTypesService) {}
 
   @Get()
-  @RequirePermission('ADMIN_C_ENTERPRISE_TYPE_VIEW')
   async findAll() {
     return this.service.findAll();
   }
 
   @Get(':id')
-  @RequirePermission('ADMIN_C_ENTERPRISE_TYPE_VIEW')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
   }

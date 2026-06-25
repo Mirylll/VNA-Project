@@ -22,8 +22,6 @@ export class PermissionsGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredPermission) return true;
-
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization as string | undefined;
 
@@ -40,7 +38,14 @@ export class PermissionsGuard implements CanActivate {
         relations: ['role', 'role.permissions', 'title'],
       });
 
-      if (!user?.role?.permissions) {
+      if (!user) throw new ForbiddenException('Access denied');
+
+      if (!requiredPermission) {
+        request.user = user;
+        return true;
+      }
+
+      if (!user.role?.permissions) {
         throw new ForbiddenException('Access denied');
       }
 
