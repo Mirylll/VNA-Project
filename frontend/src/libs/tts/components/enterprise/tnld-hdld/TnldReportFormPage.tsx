@@ -422,27 +422,27 @@ function readStoredCategory<T>(key: string, fallback: T[]): T[] {
   }
 }
 
-function createAccidentDetail(index: number): AccidentDetail {
+function createAccidentDetail(_index: number): AccidentDetail {
   return {
     cause: DEFAULT_INJURY_TYPES[0].name,
     injuryFactor: DEFAULT_INJURY_FACTORS[3].name,
     occupation: DEFAULT_OCCUPATIONS[2].name,
-    totalAccidents: '1',
-    fatalAccidents: index === 0 ? '1' : '0',
-    multiVictimAccidents: '1',
-    totalVictims: '10',
-    femaleVictims: '5',
-    deadVictims: index === 0 ? '5' : '0',
-    severeVictims: '10',
+    totalAccidents: '0',
+    fatalAccidents: '0',
+    multiVictimAccidents: '0',
+    totalVictims: '0',
+    femaleVictims: '0',
+    deadVictims: '0',
+    severeVictims: '0',
     unmanagedVictims: '0',
     unmanagedFemaleVictims: '0',
     unmanagedDeadVictims: '0',
     unmanagedSevereVictims: '0',
-    medicalCost: '10.000.000',
-    treatmentSalaryCost: '10.000.000',
-    compensationCost: '10.000.000',
-    workdaysLost: '20',
-    assetDamage: '10.000.000',
+    medicalCost: '0',
+    treatmentSalaryCost: '0',
+    compensationCost: '0',
+    workdaysLost: '0',
+    assetDamage: '0',
   };
 }
 
@@ -602,6 +602,7 @@ export default function TnldReportFormPage() {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const draftHydratedRef = useRef(false);
+  const apiLoadedRef = useRef(false);
 
   const [readOnly, setReadOnly] = useState(false);
   const [reportYear, setReportYear] = useState('2026');
@@ -612,10 +613,7 @@ export default function TnldReportFormPage() {
   const [injuryFactors, setInjuryFactors] = useState<TnldInjuryFactor[]>(DEFAULT_INJURY_FACTORS);
   const [injuryTypes, setInjuryTypes] = useState<TnldHierarchicalCategory[]>(DEFAULT_INJURY_TYPES);
   const [occupations, setOccupations] = useState<TnldHierarchicalCategory[]>(DEFAULT_OCCUPATIONS);
-  const [accidentDetails, setAccidentDetails] = useState<AccidentDetail[]>(() => [
-    createAccidentDetail(0),
-    createAccidentDetail(1),
-  ]);
+  const [accidentDetails, setAccidentDetails] = useState<AccidentDetail[]>([]);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [uploadedFile, setUploadedFile] = useState('');
   const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
@@ -631,40 +629,40 @@ export default function TnldReportFormPage() {
     totalEmployees: '10',
     femaleEmployees: '5',
     payroll: '',
-    totalAccidents: '2',
-    fatalAccidents: '1',
-    multiVictimAccidents: '1',
-    totalVictims: '5',
-    femaleVictims: '1',
-    deadVictims: '1',
-    severeVictims: '1',
+    totalAccidents: '0',
+    fatalAccidents: '0',
+    multiVictimAccidents: '0',
+    totalVictims: '0',
+    femaleVictims: '0',
+    deadVictims: '0',
+    severeVictims: '0',
     unmanagedVictims: '0',
     unmanagedFemaleVictims: '0',
     unmanagedDeadVictims: '0',
     unmanagedSevereVictims: '0',
-    medicalCost: '100.000',
-    treatmentSalaryCost: '100.000',
-    compensationCost: '100.000',
-    workdaysLost: '20',
+    medicalCost: '0',
+    treatmentSalaryCost: '0',
+    compensationCost: '0',
+    workdaysLost: '0',
     assetDamage: '0',
-    subsidyTotalAccidents: '1',
-    subsidyFatalAccidents: '1',
-    subsidyMultiVictimAccidents: '1',
-    subsidyTotalVictims: '10',
-    subsidyFemaleVictims: '5',
-    subsidyDeadVictims: '5',
-    subsidySevereVictims: '10',
+    subsidyTotalAccidents: '0',
+    subsidyFatalAccidents: '0',
+    subsidyMultiVictimAccidents: '0',
+    subsidyTotalVictims: '0',
+    subsidyFemaleVictims: '0',
+    subsidyDeadVictims: '0',
+    subsidySevereVictims: '0',
     subsidyUnmanagedVictims: '0',
     subsidyUnmanagedFemaleVictims: '0',
     subsidyUnmanagedDeadVictims: '0',
     subsidyUnmanagedSevereVictims: '0',
-    subsidyMedicalCost: '10.000.000',
-    subsidyTreatmentSalaryCost: '10.000.000',
-    subsidyCompensationCost: '10.000.000',
-    subsidyWorkdaysLost: '20',
-    subsidyAssetDamage: '10.000.000',
-    subsidyVictims: '5',
-    subsidyCost: '100.000',
+    subsidyMedicalCost: '0',
+    subsidyTreatmentSalaryCost: '0',
+    subsidyCompensationCost: '0',
+    subsidyWorkdaysLost: '0',
+    subsidyAssetDamage: '0',
+    subsidyVictims: '0',
+    subsidyCost: '0',
   });
 
   const activeStepIndex = STEPS.findIndex((item) => item.id === step);
@@ -1098,7 +1096,7 @@ export default function TnldReportFormPage() {
   }, []);
 
   useEffect(() => {
-    if (!draftHydratedRef.current || readOnly) return;
+    if (!draftHydratedRef.current || readOnly || !apiLoadedRef.current) return;
 
     const draft: TnldDraftPayload = {
       form,
@@ -1207,7 +1205,7 @@ export default function TnldReportFormPage() {
       }
     }
 
-    loadReportById();
+    loadReportById().finally(() => { apiLoadedRef.current = true; });
   }, []);
 
   useEffect(() => {
@@ -1339,7 +1337,7 @@ export default function TnldReportFormPage() {
       overview: {
         totalEmployees: parseInteger(form.totalEmployees),
         femaleEmployees: parseInteger(form.femaleEmployees),
-        payroll: form.payroll,
+        payroll: parseInteger(form.payroll),
         totalAccidents: parseInteger(form.totalAccidents),
         fatalAccidents: parseInteger(form.fatalAccidents),
         multiVictimAccidents: parseInteger(form.multiVictimAccidents),
@@ -1351,11 +1349,11 @@ export default function TnldReportFormPage() {
         unmanagedFemaleVictims: parseInteger(form.unmanagedFemaleVictims),
         unmanagedDeadVictims: parseInteger(form.unmanagedDeadVictims),
         unmanagedSevereVictims: parseInteger(form.unmanagedSevereVictims),
-        medicalCost: form.medicalCost,
-        treatmentSalaryCost: form.treatmentSalaryCost,
-        compensationCost: form.compensationCost,
+        medicalCost: parseInteger(form.medicalCost),
+        treatmentSalaryCost: parseInteger(form.treatmentSalaryCost),
+        compensationCost: parseInteger(form.compensationCost),
         workdaysLost: parseInteger(form.workdaysLost),
-        assetDamage: form.assetDamage,
+        assetDamage: parseInteger(form.assetDamage),
       },
       accidentDetails: activeAccidentDetails.map((detail, index) => ({
         sortOrder: index + 1,
@@ -1373,11 +1371,11 @@ export default function TnldReportFormPage() {
         unmanagedFemaleVictims: parseInteger(detail.unmanagedFemaleVictims),
         unmanagedDeadVictims: parseInteger(detail.unmanagedDeadVictims),
         unmanagedSevereVictims: parseInteger(detail.unmanagedSevereVictims),
-        medicalCost: detail.medicalCost,
-        treatmentSalaryCost: detail.treatmentSalaryCost,
-        compensationCost: detail.compensationCost,
+        medicalCost: parseInteger(detail.medicalCost),
+        treatmentSalaryCost: parseInteger(detail.treatmentSalaryCost),
+        compensationCost: parseInteger(detail.compensationCost),
         workdaysLost: parseInteger(detail.workdaysLost),
-        assetDamage: detail.assetDamage,
+        assetDamage: parseInteger(detail.assetDamage),
       })),
       subsidy: {
         totalAccidents: parseInteger(form.subsidyTotalAccidents),
@@ -1391,12 +1389,12 @@ export default function TnldReportFormPage() {
         unmanagedFemaleVictims: parseInteger(form.subsidyUnmanagedFemaleVictims),
         unmanagedDeadVictims: parseInteger(form.subsidyUnmanagedDeadVictims),
         unmanagedSevereVictims: parseInteger(form.subsidyUnmanagedSevereVictims),
-        medicalCost: form.subsidyMedicalCost,
-        treatmentSalaryCost: form.subsidyTreatmentSalaryCost,
-        compensationCost: form.subsidyCompensationCost,
-        totalCost: subsidyDamageTotal,
+        medicalCost: parseInteger(form.subsidyMedicalCost),
+        treatmentSalaryCost: parseInteger(form.subsidyTreatmentSalaryCost),
+        compensationCost: parseInteger(form.subsidyCompensationCost),
+        totalCost: parseInteger(subsidyDamageTotal),
         workdaysLost: parseInteger(form.subsidyWorkdaysLost),
-        assetDamage: form.subsidyAssetDamage,
+        assetDamage: parseInteger(form.subsidyAssetDamage),
         note: 'Không',
       },
       attachments: uploadedFile
