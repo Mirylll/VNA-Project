@@ -1,11 +1,16 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { DistrictsService } from './districts.service';
 
-@Controller('districts')
+@Controller()
 export class DistrictsController {
   constructor(private readonly districtsService: DistrictsService) {}
 
-  @Get()
+  @Get('provinces')
+  async findAllProvinces() {
+    return this.districtsService.findAllProvinces();
+  }
+
+  @Get('districts')
   async findByProvince(@Query('provinceId') provinceId?: string) {
     if (!provinceId) {
       throw new BadRequestException('provinceId is required');
