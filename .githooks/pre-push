@@ -1,15 +1,4 @@
 #!/bin/bash
-# Pre-push hook: tự động dump database trước khi push
-# Cài đặt: git config core.hooksPath .githooks (đã set sẵn)
-
-echo "📦 Đang dump database trước khi push..."
-docker exec vna-postgres pg_dump -U vna_user vna_db \
-  --data-only --inserts --disable-triggers --column-inserts > dump-data.sql 2>/dev/null
-
-if [ $? -eq 0 ]; then
-  echo "✅ dump-data.sql đã được cập nhật (nhớ git add nếu cần commit)"
-else
-  echo "⚠️  Không thể dump database, file dump-data.sql sẽ không được cập nhật"
-fi
-
+# Pre-push hook (disabled: no longer auto-dump database)
+# Dữ liệu được quản lý qua TypeORM migrations + seed (npm run seed)
 exit 0
