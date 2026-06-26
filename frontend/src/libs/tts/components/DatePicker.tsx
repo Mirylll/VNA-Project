@@ -215,7 +215,7 @@ export default function DatePicker({
             value={localM}
             onChange={(e) => handleSegmentChange('m', e.target.value)}
             onKeyDown={(e) => handleKeyDown('m', e)}
-            placeholder="mm"
+            placeholder="MM"
             className={inputClass}
             style={inputStyle}
           />

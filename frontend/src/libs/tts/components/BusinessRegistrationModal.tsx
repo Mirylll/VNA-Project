@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { HCM_WARDS, HCM_PROVINCE, ENTERPRISE_TYPES, INDUSTRIES, Ward } from "@/libs/tts/data/hcm-districts";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -119,7 +120,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     loaiHinhKD: "",
     nganhNghe: "",
     ngayCap: "",
-    tinhTP: "Thành phố Hồ Chí Minh",
+    tinhTP: HCM_PROVINCE,
     phuongXa: "",
     diaChi: "",
     tenNuocNgoai: "",
@@ -127,7 +128,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     sdtCoQuan: "",
     nguoiDungDau: "",
     sdtNguoiDungDau: "",
-    tinhTPHoatDong: "Thành phố Hồ Chí Minh",
+    tinhTPHoatDong: HCM_PROVINCE,
     phuongXaHoatDong: "",
     diaDiemKD: "",
   });
@@ -152,25 +153,9 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const [verifiedOtp, setVerifiedOtp] = useState(""); // OTP đã xác thực thành công
   const [confirmLoading, setConfirmLoading] = useState(false); // loading khi gọi register API
 
-  // ── API data
-  const [enterpriseTypes, setEnterpriseTypes] = useState<string[]>([]);
-  const [industries, setIndustries] = useState<string[]>([]);
-  const [wards, setWards] = useState<{ id: number; name: string }[]>([]);
-
-  useEffect(() => {
-    fetch(`${BASE_URL}/enterprise-types`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: { id: number; name: string }[]) => setEnterpriseTypes(data.map((t) => t.name)))
-      .catch(() => {});
-    fetch(`${BASE_URL}/industries`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: { id: number; code: string; name: string }[]) => setIndustries(data.filter((i: any) => i.level === 4).map((i) => `${i.code} - ${i.name}`)))
-      .catch(() => {});
-    fetch(`${BASE_URL}/districts?provinceId=1`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setWards)
-      .catch(() => {});
-  }, []);
+  // ── wards lists
+  const registrationWards: Ward[] = HCM_WARDS;
+  const operationWards: Ward[] = HCM_WARDS;
 
   // ── cleanup file URLs on unmount
   useEffect(() => {
@@ -382,10 +367,14 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const handleConfirm = async () => {
     try {
       setConfirmLoading(true);
-      const selectedWardObj = wards.find((w) => String(w.id) === form.phuongXa);
-      const selectedOperationWardObj = wards.find((w) => String(w.id) === form.phuongXaHoatDong);
-      const phuongXaTen = selectedWardObj ? selectedWardObj.name : "";
-      const phuongXaHoatDongTen = selectedOperationWardObj ? selectedOperationWardObj.name : "";
+      const selectedWardObj = registrationWards.find((w) => w.code === form.phuongXa);
+      const selectedOperationWardObj = operationWards.find((w) => w.code === form.phuongXaHoatDong);
+      const phuongXaTen = selectedWardObj
+        ? `${selectedWardObj.name}, ${selectedWardObj.district}`
+        : "";
+      const phuongXaHoatDongTen = selectedOperationWardObj
+        ? `${selectedOperationWardObj.name}, ${selectedOperationWardObj.district}`
+        : "";
 
       const res = await fetch(`${BASE_URL}/auth/register-enterprise`, {
         method: "POST",
@@ -440,11 +429,12 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   };
 
   // ── build address display
-  const selectedWard = wards.find((w) => String(w.id) === form.phuongXa);
-  const selectedOpWard = wards.find((w) => String(w.id) === form.phuongXaHoatDong);
+  const selectedWard = registrationWards.find((w) => w.code === form.phuongXa);
+  const selectedOpWard = operationWards.find((w) => w.code === form.phuongXaHoatDong);
   const addressDisplay = [
     form.diaChi,
     selectedWard?.name,
+    selectedWard ? selectedWard.district : "",
     form.tinhTP,
   ]
     .filter(Boolean)
@@ -453,6 +443,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const opAddressDisplay = [
     form.diaDiemKD,
     selectedOpWard?.name,
+    selectedOpWard ? selectedOpWard.district : "",
     form.tinhTPHoatDong,
   ]
     .filter(Boolean)
@@ -753,7 +744,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.loaiHinhKD)}
                 >
                   <option value="">-- Chọn loại hình --</option>
-                  {enterpriseTypes.map((t) => (
+                  {ENTERPRISE_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
@@ -767,7 +758,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.nganhNghe)}
                 >
                   <option value="">-- Chọn ngành nghề --</option>
-                  {industries.map((ind) => (
+                  {INDUSTRIES.map((ind) => (
                     <option key={ind} value={ind}>{ind}</option>
                   ))}
                 </select>
@@ -802,8 +793,10 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.phuongXa)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {wards.map((w) => (
-                    <option key={w.id} value={String(w.id)}>{w.name}</option>
+                  {registrationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
+                      {w.name} ({w.district})
+                    </option>
                   ))}
                 </select>
               </FieldWrap>
@@ -898,8 +891,10 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.phuongXaHoatDong)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {wards.map((w) => (
-                    <option key={w.id} value={String(w.id)}>{w.name}</option>
+                  {operationWards.map((w, index) => (
+                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
+                      {w.name} ({w.district})
+                    </option>
                   ))}
                 </select>
               </FieldWrap>

@@ -123,6 +123,8 @@ export class TnldContractReportsService {
       'enterprise.ward',
       'enterprise.operationProvince',
       'enterprise.operationWard',
+      'enterprise.enterpriseType',
+      'enterprise.industry',
       'overview',
       'accidentDetails',
       'subsidy',
