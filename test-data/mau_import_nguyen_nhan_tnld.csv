@@ -1,0 +1,6 @@
+Mã số,Tên nguyên nhân,Cấp,Mã cha
+a,Do người sử dụng lao động,1,
+a1,Thiết bị an toàn không che chắn,2,a
+a2,Quy trình làm việc không an toàn,2,a
+b,Do người lao động,1,
+b1,Vi phạm quy trình an toàn lao động,2,b

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PaginationProps {
@@ -19,24 +20,55 @@ export default function Pagination({
   onPageChange,
   onItemsPerPageChange,
 }: PaginationProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="flex items-center justify-end gap-4 px-6 py-3 border-t border-slate-200 bg-white text-xs text-slate-500 font-medium">
       <div className="flex items-center gap-1">
         <span>Hiển thị</span>
-        <div className="relative">
-          <select
-            value={itemsPerPage}
-            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-            className="appearance-none border border-slate-200 rounded px-2 py-0.5 pr-5 bg-white text-slate-600 font-semibold focus:outline-none text-xs"
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center gap-1 border border-slate-200 rounded px-2 py-0.5 bg-white text-slate-600 font-semibold focus:outline-none text-xs hover:border-slate-300 transition-colors"
           >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-          <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
+            <span>{itemsPerPage}</span>
+            <ChevronDown size={10} className="text-slate-500" />
+          </button>
+          
+          {isOpen && (
+            <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 py-1 min-w-[50px] animate-in fade-in slide-in-from-top-1 duration-100">
+              {[10, 20, 50].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    onItemsPerPageChange(size);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-center px-2 py-1 text-xs hover:bg-blue-50 transition-colors block ${
+                    size === itemsPerPage ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <span>{startItem} - {endItem} / {totalItems}</span>
@@ -59,3 +91,4 @@ export default function Pagination({
     </div>
   );
 }
+

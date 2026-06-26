@@ -38,7 +38,20 @@ export class IndustriesService {
     if (parentId !== undefined) {
       entity.parent = parentId ? await this.findOne(parentId) : undefined;
     }
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    if (dto.isActive !== undefined) {
+      await this.setDescendantsActiveStatus(id, dto.isActive);
+    }
+    return saved;
+  }
+
+  private async setDescendantsActiveStatus(parentId: number, isActive: boolean): Promise<void> {
+    const children = await this.repo.find({ where: { parent: { id: parentId } } });
+    for (const child of children) {
+      child.isActive = isActive;
+      await this.repo.save(child);
+      await this.setDescendantsActiveStatus(child.id, isActive);
+    }
   }
 
   async remove(id: number): Promise<void> {

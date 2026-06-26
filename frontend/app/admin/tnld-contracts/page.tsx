@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, ChevronDown, Printer, FileText, ArrowLeft, Download, Upload, X } from 'lucide-react';
 import { getAuthToken, hasPermission } from '@/libs/core/utils/auth-token';
-
+import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
 
 interface AutocompleteSelectProps {
   options: string[];
@@ -851,7 +851,8 @@ export default function TnldContractsPage() {
       .filter((report) => !filterProvince || normalizeLocationName(report.province) === normalizeLocationName(filterProvince))
       .map((report) => report.ward)
       .filter(Boolean);
-    return ['Tất cả', ...Array.from(new Set(wardsFromReports))];
+    const fallbackWards = HCM_WARDS.map((w) => `${w.name} (${w.district})`);
+    return ['Tất cả', ...Array.from(new Set([...wardsFromReports, ...fallbackWards]))];
   }, [filterProvince, reports]);
 
   const provinceOptions = useMemo(() => {

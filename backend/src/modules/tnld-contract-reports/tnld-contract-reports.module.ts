@@ -5,10 +5,8 @@ import { TnldContractReportAttachment } from './entities/tnld-contract-report-at
 import { TnldContractReportOverview } from './entities/tnld-contract-report-overview.entity';
 import { TnldContractReportSubsidy } from './entities/tnld-contract-report-subsidy.entity';
 import { TnldContractReport } from './entities/tnld-contract-report.entity';
-import { User } from '../users/entities/user.entity';
 import { TnldContractReportsController } from './tnld-contract-reports.controller';
 import { TnldContractReportsService } from './tnld-contract-reports.service';
-import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Module({
   imports: [
@@ -18,11 +16,10 @@ import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
       TnldContractReportAccidentDetail,
       TnldContractReportSubsidy,
       TnldContractReportAttachment,
-      User,
     ]),
   ],
   controllers: [TnldContractReportsController],
-  providers: [TnldContractReportsService, PermissionsGuard],
+  providers: [TnldContractReportsService],
   exports: [TnldContractReportsService],
 })
 export class TnldContractReportsModule {}
