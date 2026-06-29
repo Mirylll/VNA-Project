@@ -122,4 +122,16 @@ export class AuthController {
     const userId = await this.authService.extractUserIdFromAuthHeader(authHeader);
     return this.authService.updateProfile(userId, body);
   }
+
+  @Get('enterprise-types')
+  @HttpCode(HttpStatus.OK)
+  async getEnterpriseTypes() {
+    return this.authService.getEnterpriseTypes();
+  }
+
+  @Get('industries')
+  @HttpCode(HttpStatus.OK)
+  async getIndustries() {
+    return this.authService.getIndustries();
+  }
 }

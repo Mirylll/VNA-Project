@@ -157,6 +157,9 @@ type ReportMetricSource = {
   treatmentSalaryCost: number;
   compensationCost: number;
   assetDamage: number;
+  totalEmployees?: number;
+  femaleEmployees?: number;
+  payroll?: string;
 };
 
 type ReportDetail = ReportMetricSource & {
@@ -199,6 +202,9 @@ interface CompanyReport {
   subsidyData?: ReportMetricSource;
   accidentDetails?: ReportDetail[];
   attachmentFileName?: string;
+  submittedAt?: string;
+  enterprise?: any;
+  femaleEmployees?: number;
 }
 
 type TnldReportApi = {
@@ -206,6 +212,7 @@ type TnldReportApi = {
   year: number;
   period?: string;
   status?: string;
+  submittedAt?: string;
   enterprise?: {
     name?: string;
     taxCode?: string;
@@ -231,6 +238,9 @@ type TnldReportApi = {
     treatmentSalaryCost?: number | string;
     compensationCost?: number | string;
     assetDamage?: number | string;
+    totalEmployees?: number | string;
+    femaleEmployees?: number | string;
+    payroll?: number | string;
   };
   subsidy?: {
     totalAccidents?: number | string;
@@ -280,10 +290,12 @@ type TnldReportApi = {
 
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.round(value) : 0;
+  const directNum = Number(value);
+  if (Number.isFinite(directNum)) return Math.round(directNum);
   const normalized = String(value).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
   const number = Number(normalized);
-  return Number.isFinite(number) ? number : 0;
+  return Number.isFinite(number) ? Math.round(number) : 0;
 }
 
 function formatPeriod(period?: string): string {
@@ -321,7 +333,7 @@ function addReportData(first?: TnldReportApi['overview'], second?: TnldReportApi
   };
 }
 
-function toMetricSource(source?: Partial<ReportMetricSource> | TnldReportApi['overview'] | TnldReportApi['subsidy']): ReportMetricSource {
+function toMetricSource(source?: any): ReportMetricSource {
   return {
     totalAccidents: toNumber(source?.totalAccidents),
     fatalAccidents: toNumber(source?.fatalAccidents),
@@ -339,6 +351,9 @@ function toMetricSource(source?: Partial<ReportMetricSource> | TnldReportApi['ov
     treatmentSalaryCost: toNumber(source?.treatmentSalaryCost),
     compensationCost: toNumber(source?.compensationCost),
     assetDamage: toNumber(source?.assetDamage),
+    totalEmployees: toNumber(source?.totalEmployees),
+    femaleEmployees: toNumber(source?.femaleEmployees),
+    payroll: source?.payroll ? String(source.payroll) : '',
   };
 }
 
@@ -366,22 +381,51 @@ function hasMetrics(metrics: ReviewMetricValues) {
   return metrics.some((value) => value > 0);
 }
 
-function buildDynamicRows(details: ReportDetail[], field: 'cause' | 'injuryFactor' | 'occupation', codeStart: number): ReviewSummaryRow[] {
-  const groupedDetails = new Map<string, ReportDetail[]>();
+const REVIEW_EMPLOYER_CAUSES = [
+  { code: '1', label: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn' },
+  { code: '2', label: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt' },
+  { code: '3', label: 'Tổ chức lao động chưa hợp lý' },
+  { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn, vệ sinh lao động chưa đầy đủ' },
+  { code: '5', label: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn' },
+  { code: '6', label: 'Điều kiện làm việc không tốt' },
+];
 
-  details.forEach((detail) => {
-    const label = detail[field]?.trim();
-    if (!label) return;
-    groupedDetails.set(label, [...(groupedDetails.get(label) || []), detail]);
+const REVIEW_EMPLOYEE_CAUSES = [
+  { code: '7', label: 'Vi phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
+  { code: '8', label: 'Không sử dụng phương tiện bảo vệ cá nhân' },
+  { code: '9', label: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến' },
+];
+
+const DEFAULT_INJURY_FACTORS = [
+  { code: '101', label: 'Điện' },
+  { code: '102', label: 'Phóng xạ' },
+  { code: '103', label: 'Thiết bị áp lực' },
+  { code: '104', label: 'Thiết bị nâng' },
+  { code: '105', label: 'Bộ phận truyền động, chuyển động của máy, thiết bị gây cán, cuốn, đè, ép, kẹp, cắt, va đập,...' },
+  { code: '106', label: 'Vật văng bắn' },
+  { code: '107', label: 'Vật rơi, đổ, sập' },
+  { code: '108', label: 'Sập đổ công trình, giàn giáo' },
+  { code: '109', label: 'Sập lò, sập đất đá' },
+];
+
+const DEFAULT_OCCUPATIONS = [
+  { code: '201', label: 'Nhà lãnh đạo cơ quan Đảng cộng sản Việt Nam cấp Trung ương' },
+  { code: '202', label: 'Công nhân' },
+];
+
+function buildFixedRows(
+  details: ReportDetail[],
+  field: 'cause' | 'injuryFactor' | 'occupation',
+  options: Array<{ code: string; label: string }>,
+): ReviewSummaryRow[] {
+  return options.map((opt) => {
+    const matchingDetails = details.filter((d) => d[field]?.trim() === opt.label.trim());
+    return {
+      code: opt.code,
+      label: opt.label,
+      metrics: matchingDetails.reduce((total, detail) => addMetrics(total, toMetrics(detail)), toMetrics()),
+    };
   });
-
-  return Array.from(groupedDetails.entries())
-    .map(([label, group], index) => ({
-      code: String(codeStart + index),
-      label,
-      metrics: group.reduce((total, detail) => addMetrics(total, toMetrics(detail)), toMetrics()),
-    }))
-    .filter((row) => hasMetrics(row.metrics));
 }
 
 function mapApiReport(report: TnldReportApi): CompanyReport {
@@ -409,6 +453,9 @@ function mapApiReport(report: TnldReportApi): CompanyReport {
     subsidyData,
     accidentDetails,
     attachmentFileName: report.attachments?.[0]?.fileName,
+    submittedAt: report.submittedAt || (report.status === 'submitted' || report.status === 'accepted' ? new Date().toISOString() : undefined),
+    enterprise,
+    femaleEmployees: report.overview ? toNumber(report.overview.femaleEmployees) : 0,
   };
 }
 
@@ -437,9 +484,9 @@ function AdminTnldReportSummaryTable({
   const subsidyMetrics = toMetrics(report.subsidyData);
   const totalMetrics = addMetrics(overviewMetrics, subsidyMetrics);
   const accidentDetails = report.accidentDetails || [];
-  const causeRows = buildDynamicRows(accidentDetails, 'cause', 1);
-  const injuryFactorRows = buildDynamicRows(accidentDetails, 'injuryFactor', 101);
-  const occupationRows = buildDynamicRows(accidentDetails, 'occupation', 201);
+  const causeRows = buildFixedRows(accidentDetails, 'cause', [...REVIEW_EMPLOYER_CAUSES, ...REVIEW_EMPLOYEE_CAUSES]);
+  const injuryFactorRows = buildFixedRows(accidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS);
+  const occupationRows = buildFixedRows(accidentDetails, 'occupation', DEFAULT_OCCUPATIONS);
   const overviewData = report.overviewData || fallbackOverviewData;
   const subsidyData = report.subsidyData || toMetricSource();
   const damageTotals = {
@@ -505,38 +552,26 @@ function AdminTnldReportSummaryTable({
             {renderMetrics(overviewMetrics, 'overview')}
           </tr>
 
-          {causeRows.length > 0 && (
-            <>
-              <tr className="bg-slate-50 print:bg-white font-bold">
-                <td className="border border-slate-200 p-2 pl-4 font-bold">1.1 Phân theo nguyên nhân xảy ra TNLĐ</td>
-                <td className="border border-slate-200 p-2 text-center" />
-                <td colSpan={11} className="border border-slate-200" />
-              </tr>
-              {causeRows.map((row) => renderRow(row, 'cause', 'pl-6'))}
-            </>
-          )}
+          <tr className="bg-slate-50 print:bg-white font-bold">
+            <td className="border border-slate-200 p-2 pl-4 font-bold">1.1 Phân theo nguyên nhân xảy ra TNLĐ</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
+          </tr>
+          {causeRows.map((row) => renderRow(row, 'cause', 'pl-6'))}
 
-          {injuryFactorRows.length > 0 && (
-            <>
-              <tr className="bg-slate-50 print:bg-white font-bold">
-                <td className="border border-slate-200 p-2 pl-4 font-bold">1.2 Phân theo yếu tố gây chấn thương</td>
-                <td className="border border-slate-200 p-2 text-center" />
-                <td colSpan={11} className="border border-slate-200" />
-              </tr>
-              {injuryFactorRows.map((row) => renderRow(row, 'injury-factor', 'pl-6'))}
-            </>
-          )}
+          <tr className="bg-slate-50 print:bg-white font-bold">
+            <td className="border border-slate-200 p-2 pl-4 font-bold">1.2 Phân theo yếu tố gây chấn thương</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
+          </tr>
+          {injuryFactorRows.map((row) => renderRow(row, 'injury-factor', 'pl-6'))}
 
-          {occupationRows.length > 0 && (
-            <>
-              <tr className="bg-slate-50 print:bg-white font-bold">
-                <td className="border border-slate-200 p-2 pl-4 font-bold">1.3 Phân theo nghề nghiệp</td>
-                <td className="border border-slate-200 p-2 text-center" />
-                <td colSpan={11} className="border border-slate-200" />
-              </tr>
-              {occupationRows.map((row) => renderRow(row, 'occupation', 'pl-6'))}
-            </>
-          )}
+          <tr className="bg-slate-50 print:bg-white font-bold">
+            <td className="border border-slate-200 p-2 pl-4 font-bold">1.3 Phân theo nghề nghiệp</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
+          </tr>
+          {occupationRows.map((row) => renderRow(row, 'occupation', 'pl-6'))}
 
           <tr className="bg-slate-100 print:bg-white font-bold">
             <td className="border border-slate-200 p-2 font-bold">2. Tai nạn được hưởng trợ cấp theo quy định tại Khoản 2 Điều 39 Luật ATVSLĐ</td>
@@ -558,7 +593,7 @@ function AdminTnldReportSummaryTable({
           <thead>
             <tr className="bg-slate-100 border-b border-slate-200 print:bg-white">
               <th rowSpan={2} className="border border-slate-200 p-2 text-center font-bold min-w-[200px]">Tổng số ngày nghỉ vì tai nạn lao động (kể cả ngày nghỉ chế độ)</th>
-              <th colSpan={4} className="border border-slate-200 p-1.5 text-center font-bold">Tổng số ngày nghỉ vì TNLĐ (1.000đ)</th>
+              <th colSpan={4} className="border border-slate-200 p-1.5 text-center font-bold">Chi phí tính bằng tiền (1.000đ)</th>
               <th rowSpan={2} className="border border-slate-200 p-2 text-center font-bold w-40">Thiệt hại tài sản (1.000đ)</th>
             </tr>
             <tr className="bg-slate-50 border-b border-slate-200 print:bg-white">
@@ -1416,23 +1451,137 @@ export default function TnldContractsPage() {
 
           {/* Details Wrapper */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-[#112D75] print:text-black">
-                Báo cáo tổng hợp tình hình tai nạn lao động - Kỳ báo cáo: {selectedReport.period} năm {selectedReport.year}
-              </h2>
-              <p className="text-sm mt-1 no-print">
-                <span className="text-red-500 font-bold">**Vui lòng đính kèm báo cáo TNLĐ có dấu mộc công ty:</span>{' '}
+            {/* Header Phụ lục XII chuẩn Word */}
+            <div className="w-full text-xs text-slate-800 space-y-4 print:text-black">
+              {/* Phụ lục XII và tiêu đề gốc */}
+              <div className="flex justify-between items-start">
+                <div className="text-left font-semibold max-w-md">
+                  Đơn vị báo cáo: <span className="font-bold uppercase text-slate-900 print:text-black">{selectedReport.name}</span>
+                </div>
+                <div className="text-right max-w-md">
+                  <div className="font-bold text-slate-950 print:text-black">PHỤ LỤC XII</div>
+                  <div className="font-bold uppercase text-[10px] leading-tight mt-0.5 text-slate-900 print:text-black">
+                    MẪU BÁO CÁO TỔNG HỢP TÌNH HÌNH TAI NẠN LAO ĐỘNG CẤP CƠ SỞ (6 THÁNG HOẶC CẢ NĂM)
+                  </div>
+                  <div className="italic text-[9px] mt-0.5 text-slate-500 print:text-black">
+                    (Kèm theo Nghị định số 39/2016/NĐ-CP ngày 15 tháng 5 năm 2016 của Chính phủ)
+                  </div>
+                </div>
+              </div>
+
+              {/* Thông tin chi tiết doanh nghiệp */}
+              <div className="grid grid-cols-1 gap-2 pt-2 border-t border-dashed border-slate-200 print:border-black text-[11px]">
+                <div className="flex justify-between">
+                  <span>
+                    Địa chỉ: <span className="font-medium text-slate-900 print:text-black">
+                      {selectedReport.enterprise?.address ? `${selectedReport.enterprise.address}, ` : ''}
+                      {selectedReport.enterprise?.operationWard?.name || selectedReport.enterprise?.ward?.name || selectedReport.ward ? `${selectedReport.enterprise?.operationWard?.name || selectedReport.enterprise?.ward?.name || selectedReport.ward}, ` : ''}
+                      {selectedReport.enterprise?.operationProvince?.name || selectedReport.enterprise?.province?.name || selectedReport.province || ''}
+                    </span>
+                  </span>
+                  <span>
+                    Mã huyện, quận<sup>1</sup>: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
+                      {selectedReport.enterprise?.operationDistrictCode || selectedReport.enterprise?.districtCode || '.............'}
+                    </span>
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>
+                    Thuộc loại hình cơ sở<sup>2</sup> (doanh nghiệp): <span className="font-medium text-slate-900 print:text-black">{selectedReport.enterprise?.enterpriseType?.name || '.............'}</span>
+                  </span>
+                  <span>
+                    Mã loại hình cơ sở: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
+                      {selectedReport.enterprise?.enterpriseType?.code || '.............'}
+                    </span>
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>
+                    Lĩnh vực sản xuất chính của cơ sở<sup>3</sup>: <span className="font-medium text-slate-900 print:text-black">{selectedReport.enterprise?.industry?.name || '.............'}</span>
+                  </span>
+                  <span>
+                    Mã lĩnh vực: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
+                      {selectedReport.enterprise?.industry?.code || '.............'}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Tên báo cáo chính giữa */}
+              <div className="text-center space-y-1 py-3">
+                <h1 className="text-sm font-bold uppercase tracking-wide text-slate-900 print:text-black">
+                  BÁO CÁO TỔNG HỢP TÌNH HÌNH TAI NẠN LAO ĐỘNG
+                </h1>
+                <div className="font-bold text-xs text-slate-800 print:text-black">
+                  Kỳ báo cáo: {selectedReport.period} năm {selectedReport.year}
+                </div>
+                <div className="italic text-slate-500 print:text-black">
+                  Đơn vị nhận báo cáo: Sở Lao động - Thương binh và Xã hội.
+                </div>
+              </div>
+
+              {/* Thông tin lao động & Quỹ lương */}
+              <div className="grid grid-cols-2 gap-4 pb-1 border-b border-dashed border-slate-200 print:border-black text-[11px]">
+                <div>
+                  Tổng số lao động của cơ sở:{' '}
+                  <span className="font-bold text-slate-900 print:text-black">{selectedReport.overviewData?.totalEmployees || 0}</span> người, trong đó
+                  nữ: <span className="font-bold text-slate-900 print:text-black">{selectedReport.femaleEmployees || selectedReport.overviewData?.femaleEmployees || 0}</span> người
+                </div>
+                <div className="text-right">
+                  Tổng quỹ lương:{' '}
+                  <span className="font-bold text-slate-900 print:text-black">
+                    {selectedReport.overviewData?.payroll
+                      ? (toNumber(selectedReport.overviewData.payroll) / 1000000).toLocaleString('vi-VN')
+                      : '0'}
+                  </span>{' '}
+                  triệu đồng
+                </div>
+              </div>
+            </div>
+
+            {/* Dính kèm file PDF gốc (chỉ hiện trên web) */}
+            {selectedReport.attachmentFileName && (
+              <p className="text-xs mt-1 no-print text-slate-500">
+                <span className="text-red-500 font-bold">**Bản đính kèm có dấu mộc công ty:</span>{' '}
                 <button
                   onClick={() => setShowPdfPreview(true)}
-                  className="text-blue-600 underline font-medium hover:text-blue-800 transition bg-transparent border-none p-0 cursor-pointer"
+                  className="text-blue-600 underline font-medium hover:text-blue-800 transition bg-transparent border-none p-0 cursor-pointer text-xs"
                 >
-                  baocaoTNLD.pdf
+                  {selectedReport.attachmentFileName}
                 </button>
               </p>
-            </div>
+            )}
 
             {/* SCROLLABLE TABLE PANEL - Max height constraint in browser, full viewport during printing */}
             <AdminTnldReportSummaryTable report={selectedReport} formatNumber={formatNumber} />
+
+            {/* Signature section conforming to docx template */}
+            <div className="w-full mt-6 flex justify-between items-start text-[10px] print:text-black leading-normal pt-4 border-t border-dashed border-slate-200 print:border-black">
+              <div className="text-slate-400 italic text-[9px] max-w-lg leading-relaxed print:text-black">
+                * Ghi chú:<br/>
+                <sup>1</sup> Ghi mã số theo Danh Mục đơn vị hành chính do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.<br/>
+                <sup>2</sup> Ghi tên, mã số theo danh Mục và mã số các đơn vị kinh tế, hành chính sự nghiệp theo quy định pháp luật hiện hành trong báo cáo thống kê.<br/>
+                <sup>3</sup> Ghi tên ngành, mã ngành theo Hệ thống ngành kinh tế do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.<br/>
+                <sup>4</sup> Ghi 01 nguyên nhân chính gây tai nạn lao động.<br/>
+                <sup>5</sup> Ghi tên và mã số theo danh Mục yếu tố gây chấn thương.<br/>
+                <sup>6</sup> Ghi tên và mã số nghề nghiệp theo danh Mục nghề nghiệp do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.
+              </div>
+              <div className="text-right space-y-1">
+                <div>
+                  Ngày báo cáo: <span className="border-b border-dotted border-slate-400 px-6 print:border-black">
+                    {selectedReport.submittedAt 
+                      ? new Date(selectedReport.submittedAt).toLocaleDateString('vi-VN') 
+                      : '..........................'}
+                  </span>
+                </div>
+                <div className="font-bold uppercase pr-4 mt-2 text-slate-900 print:text-black">
+                  ĐẠI DIỆN NGƯỜI SỬ DỤNG LAO ĐỘNG
+                </div>
+                <div className="italic text-[10px] text-slate-500 print:text-black pr-12">
+                  (Ký, ghi rõ họ tên, chức vụ, đóng dấu)
+                </div>
+              </div>
+            </div>
 
             {/* Legacy mock table kept hidden while the real report table above uses submitted data. */}
             <div className="hidden">

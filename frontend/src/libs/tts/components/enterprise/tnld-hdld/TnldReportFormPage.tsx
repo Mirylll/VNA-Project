@@ -121,14 +121,14 @@ const DEFAULT_OCCUPATIONS: TnldHierarchicalCategory[] = [
 const REVIEW_EMPLOYER_CAUSES = [
   { code: '1', label: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn' },
   { code: '2', label: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt' },
-  { code: '3', label: 'Tổ chức lao động không hợp lý' },
-  { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn vệ sinh lao động chưa đầy đủ' },
+  { code: '3', label: 'Tổ chức lao động chưa hợp lý' },
+  { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn, vệ sinh lao động chưa đầy đủ' },
   { code: '5', label: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn' },
   { code: '6', label: 'Điều kiện làm việc không tốt' },
 ];
 
 const REVIEW_EMPLOYEE_CAUSES = [
-  { code: '7', label: 'Quy phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
+  { code: '7', label: 'Vi phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
   { code: '8', label: 'Không sử dụng phương tiện bảo vệ cá nhân' },
   { code: '9', label: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến' },
 ];
@@ -575,27 +575,19 @@ function hasReviewMetrics(metrics: ReviewMetricValues) {
   return metrics.some((value) => value > 0);
 }
 
-function buildDynamicReviewRows(
+function buildFixedReviewRows(
   details: AccidentDetail[],
   field: 'cause' | 'injuryFactor' | 'occupation',
-  getCode: (label: string) => string,
+  options: Array<{ code: string; label: string }>,
 ): ReviewSummaryRow[] {
-  const groupedDetails = new Map<string, AccidentDetail[]>();
-
-  details.forEach((detail) => {
-    const label = detail[field]?.trim();
-    if (!label) return;
-
-    groupedDetails.set(label, [...(groupedDetails.get(label) || []), detail]);
+  return options.map((opt) => {
+    const matchingDetails = details.filter((d) => d[field]?.trim() === opt.label.trim());
+    return {
+      code: opt.code,
+      label: opt.label,
+      metrics: sumAccidentDetailMetrics(matchingDetails),
+    };
   });
-
-  return Array.from(groupedDetails.entries())
-    .map(([label, group]) => ({
-      code: getCode(label),
-      label,
-      metrics: sumAccidentDetailMetrics(group),
-    }))
-    .filter((row) => hasReviewMetrics(row.metrics));
 }
 
 export default function TnldReportFormPage() {
@@ -785,30 +777,17 @@ export default function TnldReportFormPage() {
     () => addReviewMetrics(accidentOverviewMetrics, subsidyMetrics),
     [accidentOverviewMetrics, subsidyMetrics],
   );
-  const reviewCauseRows = useMemo(
-    () =>
-      buildDynamicReviewRows(activeAccidentDetails, 'cause', (label) => {
-        const knownCause = [...REVIEW_EMPLOYER_CAUSES, ...REVIEW_EMPLOYEE_CAUSES].find((item) => item.label === label);
-        return knownCause?.code || injuryTypes.find((item) => item.name === label)?.code || '';
-      }),
-    [activeAccidentDetails, injuryTypes],
-  );
   const reviewEmployerCauseRows = useMemo(
-    () => reviewCauseRows.filter((row) => REVIEW_EMPLOYER_CAUSES.some((item) => item.label === row.label)),
-    [reviewCauseRows],
+    () => buildFixedReviewRows(activeAccidentDetails, 'cause', REVIEW_EMPLOYER_CAUSES),
+    [activeAccidentDetails],
   );
   const reviewEmployeeCauseRows = useMemo(
-    () => reviewCauseRows.filter((row) => REVIEW_EMPLOYEE_CAUSES.some((item) => item.label === row.label)),
-    [reviewCauseRows],
+    () => buildFixedReviewRows(activeAccidentDetails, 'cause', REVIEW_EMPLOYEE_CAUSES),
+    [activeAccidentDetails],
   );
-  const reviewOtherCauseRows = useMemo(
-    () =>
-      reviewCauseRows.filter(
-        (row) =>
-          !REVIEW_EMPLOYER_CAUSES.some((item) => item.label === row.label) &&
-          !REVIEW_EMPLOYEE_CAUSES.some((item) => item.label === row.label),
-      ),
-    [reviewCauseRows],
+  const reviewOtherCauseRows = useMemo<ReviewSummaryRow[]>(
+    () => [],
+    [],
   );
   const reviewInjuryFactorRows = useMemo(
     () => buildFixedReviewRows(activeAccidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS.map(f => ({ code: f.id, label: f.name }))),
@@ -1121,7 +1100,11 @@ export default function TnldReportFormPage() {
         const overview = data.overview || {};
         const subsidy = data.subsidy || {};
         const toText = (value: unknown) => (value === null || value === undefined ? '' : String(value));
-        const toMoneyText = (value: unknown) => formatVndNumber(toText(value));
+        const toMoneyText = (value: unknown) => {
+          if (value === null || value === undefined || value === '') return '';
+          const num = Number(value);
+          return Number.isFinite(num) ? formatVndNumber(String(Math.round(num))) : '';
+        };
 
         setSavedReportId(Number(data.id));
         setReportYear(String(data.year || reportYear));
@@ -1562,12 +1545,14 @@ export default function TnldReportFormPage() {
                   error={femaleEmployeesError}
                   onChange={(value) => updateIntegerField('femaleEmployees', value)}
                 />
-                <MoneyField
+                <Field
                   label="Tổng quỹ lương"
                   required
                   value={form.payroll}
                   error={payrollError}
-                  onChange={(value) => updateField('payroll', value)}
+                  readOnly={readOnly}
+                  suffix="VNĐ"
+                  onChange={(value) => updateField('payroll', formatMoneyInput(value))}
                 />
               </div>
             </section>
@@ -1762,12 +1747,14 @@ export default function TnldReportFormPage() {
                                   label="1. Phân theo nguyên nhân xảy ra TNLĐ"
                                   value={detail.cause}
                                   options={causeOptions}
+                                  disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'cause', value)}
                                 />
                                 <SelectField
                                   label="2. Phân theo yếu tố gây chấn thương"
                                   value={detail.injuryFactor}
                                   options={injuryFactorOptions}
+                                  disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'injuryFactor', value)}
                                 />
                               </div>
@@ -1777,6 +1764,7 @@ export default function TnldReportFormPage() {
                                   label="3. Phân theo nghề nghiệp"
                                   value={detail.occupation}
                                   options={occupationOptions}
+                                  disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'occupation', value)}
                                 />
                               </div>
@@ -2023,18 +2011,22 @@ export default function TnldReportFormPage() {
                   </h2>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-red-500 font-bold">
                     <span>**Vui lòng đính kèm báo cáo TNLĐ có dấu mộc công ty:</span>
-                    <label className="cursor-pointer font-semibold text-blue-600 hover:underline">
-                      Tải đây
-                      <input
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        className="hidden"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          setUploadedFile(file?.type === 'application/pdf' || file?.name.toLowerCase().endsWith('.pdf') ? file.name : '');
-                        }}
-                      />
-                    </label>
+                    {!readOnly ? (
+                      <label className="cursor-pointer font-semibold text-blue-600 hover:underline">
+                        Tải đây
+                        <input
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            setUploadedFile(file?.type === 'application/pdf' || file?.name.toLowerCase().endsWith('.pdf') ? file.name : '');
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <span className="text-gray-400 font-normal">Tải đây (Chỉ xem)</span>
+                    )}
                     <span className={`ml-6 font-medium ${uploadedFile ? 'text-blue-600' : 'text-gray-400'}`}>
                       {uploadedFile || 'Chưa chọn file PDF'}
                     </span>
@@ -2083,108 +2075,77 @@ export default function TnldReportFormPage() {
                         ))}
                       </tr>
 
-                      {reviewCauseRows.length > 0 && (
-                        <>
-                          <tr className="bg-slate-50 font-bold">
-                            <td className="border border-slate-200 p-2 pl-4 font-bold">1.1. Phân theo nguyên nhân xảy ra TNLĐ</td>
-                            <td className="border border-slate-200 p-2 text-center" />
-                            <td colSpan={11} className="border border-slate-200" />
-                          </tr>
-                          {reviewEmployerCauseRows.length > 0 && (
-                            <>
-                              <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
-                                <td className="border border-slate-200 p-2 pl-6">a. Do người sử dụng lao động</td>
-                                <td className="border border-slate-200 p-2 text-center" />
-                                <td colSpan={11} className="border border-slate-200" />
-                              </tr>
-                              {reviewEmployerCauseRows.map((row) => (
-                                <tr key={`cause-employer-${row.label}`}>
-                                  <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
-                                  <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                                  {row.metrics.map((value, index) => (
-                                    <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                      {value}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </>
-                          )}
-                          {reviewEmployeeCauseRows.length > 0 && (
-                            <>
-                              <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
-                                <td className="border border-slate-200 p-2 pl-6">b. Do người lao động</td>
-                                <td className="border border-slate-200 p-2 text-center" />
-                                <td colSpan={11} className="border border-slate-200" />
-                              </tr>
-                              {reviewEmployeeCauseRows.map((row) => (
-                                <tr key={`cause-employee-${row.label}`}>
-                                  <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
-                                  <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                                  {row.metrics.map((value, index) => (
-                                    <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                      {value}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </>
-                          )}
-                          {reviewOtherCauseRows.map((row) => (
-                            <tr key={`cause-other-${row.label}`}>
-                              <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
-                              <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                              {row.metrics.map((value, index) => (
-                                <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="border border-slate-200 p-2 pl-4 font-bold">1.1. Phân theo nguyên nhân xảy ra TNLĐ</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
+                        <td className="border border-slate-200 p-2 pl-6">a. Do người sử dụng lao động</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewEmployerCauseRows.map((row) => (
+                        <tr key={`cause-employer-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
                           ))}
-                        </>
-                      )}
+                        </tr>
+                      ))}
+                      <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
+                        <td className="border border-slate-200 p-2 pl-6">b. Do người lao động</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewEmployeeCauseRows.map((row) => (
+                        <tr key={`cause-employee-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
 
-                      {reviewInjuryFactorRows.length > 0 && (
-                        <>
-                          <tr className="bg-slate-50 font-bold">
-                            <td className="border border-slate-200 p-2 pl-4 font-bold">1.2. Phân theo yếu tố gây chấn thương</td>
-                            <td className="border border-slate-200 p-2 text-center" />
-                            <td colSpan={11} className="border border-slate-200" />
-                          </tr>
-                          {reviewInjuryFactorRows.map((row) => (
-                            <tr key={`injury-factor-${row.label}`}>
-                              <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
-                              <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                              {row.metrics.map((value, index) => (
-                                <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="border border-slate-200 p-2 pl-4 font-bold">1.2. Phân theo yếu tố gây chấn thương</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewInjuryFactorRows.map((row) => (
+                        <tr key={`injury-factor-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
                           ))}
-                        </>
-                      )}
+                        </tr>
+                      ))}
 
-                      {reviewOccupationRows.length > 0 && (
-                        <>
-                          <tr className="bg-slate-50 font-bold">
-                            <td className="border border-slate-200 p-2 pl-4 font-bold">1.3. Phân theo nghề nghiệp</td>
-                            <td className="border border-slate-200 p-2 text-center" />
-                            <td colSpan={11} className="border border-slate-200" />
-                          </tr>
-                          {reviewOccupationRows.map((row) => (
-                            <tr key={`occupation-${row.label}`}>
-                              <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
-                              <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                              {row.metrics.map((value, index) => (
-                                <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="border border-slate-200 p-2 pl-4 font-bold">1.3. Phân theo nghề nghiệp</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewOccupationRows.map((row) => (
+                        <tr key={`occupation-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
                           ))}
-                        </>
-                      )}
+                        </tr>
+                      ))}
 
                       <tr className="bg-slate-100 font-bold">
                         <td className="border border-slate-200 p-2 font-bold">

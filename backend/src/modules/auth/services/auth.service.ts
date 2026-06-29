@@ -501,4 +501,15 @@ export class AuthService {
 
     return repository.save(repository.create({ name, province }));
   }
+
+  async getEnterpriseTypes() {
+    return this.enterpriseTypeRepository.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async getIndustries() {
+    return this.industryRepository.find({
+      where: { isActive: true, level: 4 },
+      order: { code: 'ASC' },
+    });
+  }
 }

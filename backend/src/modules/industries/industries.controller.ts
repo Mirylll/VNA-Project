@@ -6,7 +6,6 @@ import { RequirePermission } from '../../libs/core/decorators/require-permission
 import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Controller('industries')
-@UseGuards(PermissionsGuard)
 export class IndustriesController {
   constructor(private readonly service: IndustriesService) {}
 
@@ -21,6 +20,7 @@ export class IndustriesController {
   }
 
   @Post()
+  @UseGuards(PermissionsGuard)
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission('ADMIN_C_INDUSTRY_CREATE')
   async create(@Body() dto: CreateIndustryDto) {
@@ -28,12 +28,14 @@ export class IndustriesController {
   }
 
   @Put(':id')
+  @UseGuards(PermissionsGuard)
   @RequirePermission('ADMIN_C_INDUSTRY_UPDATE')
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateIndustryDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(PermissionsGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission('ADMIN_C_INDUSTRY_DELETE')
   async remove(@Param('id', ParseIntPipe) id: number) {
