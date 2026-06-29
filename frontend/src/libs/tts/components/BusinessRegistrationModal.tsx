@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { HCM_WARDS, HCM_PROVINCE, ENTERPRISE_TYPES, INDUSTRIES, Ward } from "@/libs/tts/data/hcm-districts";
+import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -113,6 +113,13 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   // ── modal stage: "form" | "otp" | "confirm" | "account"
   const [stage, setStage] = useState<"form" | "otp" | "confirm" | "account">("form");
 
+  // ── API data
+  const [enterpriseTypes, setEnterpriseTypes] = useState<{ id: number; name: string }[]>([]);
+  const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [provinces, setProvinces] = useState<{ id: number; name: string }[]>([]);
+  const [registrationWards, setRegistrationWards] = useState<{ id: number; name: string }[]>([]);
+  const [operationWards, setOperationWards] = useState<{ id: number; name: string }[]>([]);
+
   // ── form
   const [form, setForm] = useState<FormData>({
     tenDN: "",
@@ -120,7 +127,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     loaiHinhKD: "",
     nganhNghe: "",
     ngayCap: "",
-    tinhTP: HCM_PROVINCE,
+    tinhTP: "Thành phố Hồ Chí Minh",
     phuongXa: "",
     diaChi: "",
     tenNuocNgoai: "",
@@ -128,7 +135,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     sdtCoQuan: "",
     nguoiDungDau: "",
     sdtNguoiDungDau: "",
-    tinhTPHoatDong: HCM_PROVINCE,
+    tinhTPHoatDong: "Thành phố Hồ Chí Minh",
     phuongXaHoatDong: "",
     diaDiemKD: "",
   });
@@ -153,10 +160,6 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const [verifiedOtp, setVerifiedOtp] = useState(""); // OTP đã xác thực thành công
   const [confirmLoading, setConfirmLoading] = useState(false); // loading khi gọi register API
 
-  // ── wards lists
-  const registrationWards: Ward[] = HCM_WARDS;
-  const operationWards: Ward[] = HCM_WARDS;
-
   // ── cleanup file URLs on unmount
   useEffect(() => {
     return () => {
@@ -164,6 +167,52 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── load reference data from API
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    fetch(`${BASE_URL}/enterprise-types`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setEnterpriseTypes(data.filter((t: any) => t.isActive !== false)))
+      .catch(() => {});
+
+    fetch(`${BASE_URL}/industries`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4)))
+      .catch(() => {});
+
+    fetch(`${BASE_URL}/provinces`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setProvinces)
+      .catch(() => {});
+  }, []);
+
+  // ── load HCMC wards when provinces ready
+  useEffect(() => {
+    if (provinces.length === 0) return;
+    const hcmc = provinces.find((p) => p.name.includes('Hồ Chí Minh'));
+    if (!hcmc) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    fetch(`${BASE_URL}/districts?provinceId=${hcmc.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        setRegistrationWards(data);
+        setOperationWards(data);
+      })
+      .catch(() => {});
+  }, [provinces]);
 
   // ── start OTP countdown
   const startCountdown = () => {
@@ -367,14 +416,10 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const handleConfirm = async () => {
     try {
       setConfirmLoading(true);
-      const selectedWardObj = registrationWards.find((w) => w.code === form.phuongXa);
-      const selectedOperationWardObj = operationWards.find((w) => w.code === form.phuongXaHoatDong);
-      const phuongXaTen = selectedWardObj
-        ? `${selectedWardObj.name}, ${selectedWardObj.district}`
-        : "";
-      const phuongXaHoatDongTen = selectedOperationWardObj
-        ? `${selectedOperationWardObj.name}, ${selectedOperationWardObj.district}`
-        : "";
+      const selectedWardObj = registrationWards.find((w) => String(w.id) === form.phuongXa);
+      const selectedOperationWardObj = operationWards.find((w) => String(w.id) === form.phuongXaHoatDong);
+      const phuongXaTen = selectedWardObj ? selectedWardObj.name : "";
+      const phuongXaHoatDongTen = selectedOperationWardObj ? selectedOperationWardObj.name : "";
 
       const res = await fetch(`${BASE_URL}/auth/register-enterprise`, {
         method: "POST",
@@ -429,12 +474,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   };
 
   // ── build address display
-  const selectedWard = registrationWards.find((w) => w.code === form.phuongXa);
-  const selectedOpWard = operationWards.find((w) => w.code === form.phuongXaHoatDong);
+  const selectedWard = registrationWards.find((w) => String(w.id) === form.phuongXa);
+  const selectedOpWard = operationWards.find((w) => String(w.id) === form.phuongXaHoatDong);
   const addressDisplay = [
     form.diaChi,
     selectedWard?.name,
-    selectedWard ? selectedWard.district : "",
     form.tinhTP,
   ]
     .filter(Boolean)
@@ -443,7 +487,6 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const opAddressDisplay = [
     form.diaDiemKD,
     selectedOpWard?.name,
-    selectedOpWard ? selectedOpWard.district : "",
     form.tinhTPHoatDong,
   ]
     .filter(Boolean)
@@ -744,8 +787,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.loaiHinhKD)}
                 >
                   <option value="">-- Chọn loại hình --</option>
-                  {ENTERPRISE_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                  {enterpriseTypes.map((t) => (
+                    <option key={t.id} value={t.name}>{t.name}</option>
                   ))}
                 </select>
               </FieldWrap>
@@ -758,8 +801,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.nganhNghe)}
                 >
                   <option value="">-- Chọn ngành nghề --</option>
-                  {INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>{ind}</option>
+                  {industries.map((ind) => (
+                    <option key={ind.id} value={`${ind.code} - ${ind.name}`}>{ind.code} - {ind.name}</option>
                   ))}
                 </select>
               </FieldWrap>
@@ -793,10 +836,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.phuongXa)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {registrationWards.map((w, index) => (
-                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
-                      {w.name} ({w.district})
-                    </option>
+                  {registrationWards.map((w) => (
+                    <option key={w.id} value={String(w.id)}>{w.name}</option>
                   ))}
                 </select>
               </FieldWrap>
@@ -891,10 +932,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   className={selectCls(!!errors.phuongXaHoatDong)}
                 >
                   <option value="">-- Chọn phường/xã --</option>
-                  {operationWards.map((w, index) => (
-                    <option key={`${w.code}-${w.district}-${index}`} value={w.code}>
-                      {w.name} ({w.district})
-                    </option>
+                  {operationWards.map((w) => (
+                    <option key={w.id} value={String(w.id)}>{w.name}</option>
                   ))}
                 </select>
               </FieldWrap>
