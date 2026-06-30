@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 
 const BASE_URL =
@@ -8,13 +8,121 @@ const BASE_URL =
     ? process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
     : "http://localhost:3001";
 
+// ─── Autocomplete Dropdown Component ──────────────────────────────────────────
+interface AutocompleteDropdownProps {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  error?: boolean;
+}
+
+function AutocompleteDropdown({ options, value, onChange, placeholder = "Chọn...", error }: AutocompleteDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filteredOptions = useMemo(() => {
+    const query = search.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (!query) return options;
+    return options.filter((opt) => 
+      opt.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(query) ||
+      opt.value.toLowerCase().includes(query)
+    );
+  }, [options, search]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div
+        onClick={() => setIsOpen(true)}
+        className={`w-full flex items-center justify-between rounded-lg border ${
+          error ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
+        } px-3 py-2 text-sm text-gray-800 cursor-pointer hover:border-gray-400 transition-colors`}
+      >
+        {isOpen ? (
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={selectedOption ? selectedOption.label : placeholder}
+            autoFocus
+            className="w-full text-sm outline-none border-none p-0 text-gray-800 focus:ring-0 focus:border-none bg-transparent"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className={`text-sm ${value ? "text-gray-800 font-medium" : "text-gray-400"}`}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+        )}
+        <div className="flex items-center gap-1">
+          {value && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange("");
+                setSearch("");
+              }}
+              className="p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition"
+            >
+              ✕
+            </button>
+          )}
+          <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg z-50 py-1">
+          {filteredOptions.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-400 italic">
+              Không tìm thấy kết quả
+            </div>
+          ) : (
+            filteredOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${
+                  opt.value === value ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-700"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Validate MST ─────────────────────────────────────────────────────────────
-// Mã số thuế VN: 10 chữ số (doanh nghiệp) hoặc 13 chữ số (chi nhánh)
+// Mã số thuế VN: tối thiểu 10 chữ số, tối đa 15 chữ số không tính dấu "-"
 const validateMST = (mst: string): string => {
   if (!mst) return "Mã số thuế không được để trống";
-  if (!/^\d+$/.test(mst)) return "Mã số thuế chỉ được chứa chữ số";
-  if (mst.length !== 10 && mst.length !== 13)
-    return "Mã số thuế phải có 10 hoặc 13 chữ số";
+  const cleanMst = mst.replace(/-/g, "");
+  if (!/^\d+$/.test(cleanMst)) return "Mã số thuế chỉ được chứa chữ số và dấu gạch ngang";
+  if (cleanMst.length < 10 || cleanMst.length > 15)
+    return "Mã số thuế phải có từ 10 đến 15 chữ số (không tính dấu gạch ngang)";
   return "";
 };
 
@@ -141,6 +249,26 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
+  const enterpriseTypeOptions = useMemo(() => 
+    enterpriseTypes.map((t) => ({ value: t.name, label: t.name })),
+    [enterpriseTypes]
+  );
+
+  const industryOptions = useMemo(() => 
+    industries.map((ind) => ({ value: `${ind.code} - ${ind.name}`, label: `${ind.code} - ${ind.name}` })),
+    [industries]
+  );
+
+  const registrationWardOptions = useMemo(() => 
+    registrationWards.map((w) => ({ value: String(w.id), label: w.name })),
+    [registrationWards]
+  );
+
+  const operationWardOptions = useMemo(() => 
+    operationWards.map((w) => ({ value: String(w.id), label: w.name })),
+    [operationWards]
+  );
+
   // ── files
   const [files, setFiles] = useState<FileEntry[]>([
     { label: "Giấy phép kinh doanh", file: null, url: null },
@@ -168,44 +296,31 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── load reference data from API
+  // ── load reference data from API (public endpoints)
   useEffect(() => {
-    const token = getAuthToken();
-    if (!token) return;
-
-    fetch(`${BASE_URL}/enterprise-types`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${BASE_URL}/auth/enterprise-types`)
       .then((res) => res.ok ? res.json() : [])
       .then((data) => setEnterpriseTypes(data.filter((t: any) => t.isActive !== false)))
       .catch(() => {});
 
-    fetch(`${BASE_URL}/industries`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${BASE_URL}/auth/industries`)
       .then((res) => res.ok ? res.json() : [])
       .then((data) => setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4)))
       .catch(() => {});
 
-    fetch(`${BASE_URL}/provinces`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${BASE_URL}/provinces`)
       .then((res) => res.ok ? res.json() : [])
       .then(setProvinces)
       .catch(() => {});
   }, []);
 
-  // ── load HCMC wards when provinces ready
+  // ── load HCMC wards when provinces ready (public endpoint)
   useEffect(() => {
     if (provinces.length === 0) return;
     const hcmc = provinces.find((p) => p.name.includes('Hồ Chí Minh'));
     if (!hcmc) return;
-    const token = getAuthToken();
-    if (!token) return;
 
-    fetch(`${BASE_URL}/districts?provinceId=${hcmc.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(`${BASE_URL}/districts?provinceId=${hcmc.id}`)
       .then((res) => res.ok ? res.json() : [])
       .then((data) => {
         setRegistrationWards(data);
@@ -455,7 +570,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
         try {
           await uploadRegistrationFiles(data.enterprise.id);
         } catch (uploadError: any) {
-          alert(uploadError?.message || "Tài khoản đã tạo nhưng chưa tải lên được file đính kèm");
+          // Bỏ qua lỗi upload file đính kèm vì không bắt buộc
         }
       }
 
@@ -521,7 +636,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
             </p>
             <p className="text-sm text-gray-700">
               <span className="font-medium">• Mật khẩu:</span>{" "}
-              <span className="font-bold">Default@123</span>
+              <span className="font-bold">12345678</span>
             </p>
           </div>
           {/* Footer */}
@@ -734,7 +849,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   /* ───── FORM (Step 1/2) ───── */
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4 overflow-auto">
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl my-auto">
+      <div className="w-full max-w-5xl bg-white rounded-xl shadow-2xl my-auto">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-gray-200 px-6 pt-5 pb-3">
           <div className="flex-1">
@@ -761,7 +876,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.tenDN}
                   onChange={(e) => setField("tenDN", e.target.value)}
-                  placeholder="Công ty cổ phần ABC"
+                  placeholder=""
                   className={inputCls(!!errors.tenDN)}
                 />
               </FieldWrap>
@@ -771,40 +886,34 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                 <input
                   type="text"
                   value={form.mst}
-                  onChange={(e) => setField("mst", e.target.value.replace(/\D/g, "").slice(0, 13))}
-                  placeholder="10 hoặc 13 chữ số"
+                  onChange={(e) => setField("mst", e.target.value.replace(/[^0-9-]/g, "").slice(0, 15))}
+                  placeholder="Mã số thuế tối thiểu 10, tối đa 15 chữ số"
                   inputMode="numeric"
-                  maxLength={13}
+                  maxLength={16}
                   className={inputCls(!!errors.mst)}
                 />
               </FieldWrap>
 
               {/* Loại hình kinh doanh */}
               <FieldWrap label="Loại hình kinh doanh" required error={errors.loaiHinhKD}>
-                <select
+                <AutocompleteDropdown
+                  options={enterpriseTypeOptions}
                   value={form.loaiHinhKD}
-                  onChange={(e) => setField("loaiHinhKD", e.target.value)}
-                  className={selectCls(!!errors.loaiHinhKD)}
-                >
-                  <option value="">-- Chọn loại hình --</option>
-                  {enterpriseTypes.map((t) => (
-                    <option key={t.id} value={t.name}>{t.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setField("loaiHinhKD", val)}
+                  placeholder="-- Chọn loại hình --"
+                  error={!!errors.loaiHinhKD}
+                />
               </FieldWrap>
 
               {/* Ngành nghề kinh doanh */}
               <FieldWrap label="Ngành nghề kinh doanh chính" required error={errors.nganhNghe}>
-                <select
+                <AutocompleteDropdown
+                  options={industryOptions}
                   value={form.nganhNghe}
-                  onChange={(e) => setField("nganhNghe", e.target.value)}
-                  className={selectCls(!!errors.nganhNghe)}
-                >
-                  <option value="">-- Chọn ngành nghề --</option>
-                  {industries.map((ind) => (
-                    <option key={ind.id} value={`${ind.code} - ${ind.name}`}>{ind.code} - {ind.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setField("nganhNghe", val)}
+                  placeholder="-- Chọn ngành nghề --"
+                  error={!!errors.nganhNghe}
+                />
               </FieldWrap>
 
               {/* Ngày cấp GPKD */}
@@ -830,16 +939,13 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
               {/* Phường/Xã ĐKKD */}
               <FieldWrap label="Phường/Xã ĐKKD" required error={errors.phuongXa}>
-                <select
+                <AutocompleteDropdown
+                  options={registrationWardOptions}
                   value={form.phuongXa}
-                  onChange={(e) => setField("phuongXa", e.target.value)}
-                  className={selectCls(!!errors.phuongXa)}
-                >
-                  <option value="">-- Chọn phường/xã --</option>
-                  {registrationWards.map((w) => (
-                    <option key={w.id} value={String(w.id)}>{w.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setField("phuongXa", val)}
+                  placeholder="-- Chọn phường/xã --"
+                  error={!!errors.phuongXa}
+                />
               </FieldWrap>
 
               {/* Địa chỉ */}
@@ -848,7 +954,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.diaChi}
                   onChange={(e) => setField("diaChi", e.target.value)}
-                  placeholder="Số nhà, đường..."
+                  placeholder="Số nhà, tên đường, tổ, khu phố..."
                   className={inputCls(!!errors.diaChi)}
                 />
               </FieldWrap>
@@ -865,7 +971,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.tenNuocNgoai}
                   onChange={(e) => setField("tenNuocNgoai", e.target.value)}
-                  placeholder="ABC Group"
+                  placeholder=""
                   className={inputCls(false)}
                 />
               </FieldWrap>
@@ -887,7 +993,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="tel"
                   value={form.sdtCoQuan}
                   onChange={(e) => setField("sdtCoQuan", e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  placeholder="0XX XXX XXXX"
+                  placeholder="Ví dụ: 028XXXXXXXX"
                   className={inputCls(!!errors.sdtCoQuan)}
                 />
               </FieldWrap>
@@ -898,7 +1004,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.nguoiDungDau}
                   onChange={(e) => setField("nguoiDungDau", e.target.value)}
-                  placeholder="Nguyễn Văn A"
+                  placeholder=""
                   className={inputCls(!!errors.nguoiDungDau)}
                 />
               </FieldWrap>
@@ -909,7 +1015,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="tel"
                   value={form.sdtNguoiDungDau}
                   onChange={(e) => setField("sdtNguoiDungDau", e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  placeholder="0XX XXX XXXX"
+                  placeholder="Ví dụ: 09XXXXXXXX"
                   className={inputCls(!!errors.sdtNguoiDungDau)}
                 />
               </FieldWrap>
@@ -926,16 +1032,13 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
               {/* Phường/xã hoạt động KD */}
               <FieldWrap label="Phường/xã hoạt động KD" required error={errors.phuongXaHoatDong}>
-                <select
+                <AutocompleteDropdown
+                  options={operationWardOptions}
                   value={form.phuongXaHoatDong}
-                  onChange={(e) => setField("phuongXaHoatDong", e.target.value)}
-                  className={selectCls(!!errors.phuongXaHoatDong)}
-                >
-                  <option value="">-- Chọn phường/xã --</option>
-                  {operationWards.map((w) => (
-                    <option key={w.id} value={String(w.id)}>{w.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setField("phuongXaHoatDong", val)}
+                  placeholder="-- Chọn phường/xã --"
+                  error={!!errors.phuongXaHoatDong}
+                />
               </FieldWrap>
 
               {/* Địa điểm kinh doanh */}
@@ -944,7 +1047,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.diaDiemKD}
                   onChange={(e) => setField("diaDiemKD", e.target.value)}
-                  placeholder="Địa điểm kinh doanh..."
+                  placeholder="Số nhà, tên đường, tổ, khu phố..."
                   className={inputCls(!!errors.diaDiemKD)}
                 />
               </FieldWrap>

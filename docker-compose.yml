@@ -21,6 +21,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     container_name: vna-backend
+    env_file:
+      - ./backend/.env
     environment:
       NODE_ENV: development
       DB_HOST: postgres
@@ -29,12 +31,6 @@ services:
       DB_PASSWORD: vna_password
       DB_NAME: vna_db
       JWT_SECRET: your-secret-key-change-in-production
-      MAIL_HOST: ${MAIL_HOST:-smtp.ethereal.email}
-      MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_SECURE: ${MAIL_SECURE:-false}
-      MAIL_USER: ${MAIL_USER:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:-noreply@vna.local}
     ports:
       - '3001:3001'
     depends_on:
