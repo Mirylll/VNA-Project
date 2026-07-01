@@ -8,19 +8,20 @@ export type AttachmentFile = {
   name: string;
   info: string;
   url: string;
+  file?: File;
 };
 
 export const initialAttachmentFiles: AttachmentFile[] = [
   {
     id: 'business-license',
     name: 'Giấy phép kinh doanh',
-    info: 'GPKD.pdf',
+    info: '',
     url: '',
   },
   {
     id: 'other-paper',
     name: 'Giấy tờ khác',
-    info: 'GTK1.pdf',
+    info: '',
     url: '',
   },
 ];
@@ -60,7 +61,7 @@ export default function AttachmentTable({
       files.map((file) => {
         if (file.id !== rowId) return file;
         if (file.url) onRevokeFileUrl(file.url);
-        return { ...file, info: selectedFile.name, url: fileUrl };
+        return { ...file, info: selectedFile.name, url: fileUrl, file: selectedFile };
       }),
     );
   }
@@ -86,7 +87,8 @@ export default function AttachmentTable({
       files.map((file) => {
         if (file.id !== rowId) return file;
         if (file.url) onRevokeFileUrl(file.url);
-        return { ...file, info: '', url: '' };
+        const { file: _file, ...rest } = file;
+        return { ...rest, info: '', url: '' };
       }),
     );
   }

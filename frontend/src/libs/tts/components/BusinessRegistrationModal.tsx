@@ -287,6 +287,10 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [verifiedOtp, setVerifiedOtp] = useState(""); // OTP đã xác thực thành công
   const [confirmLoading, setConfirmLoading] = useState(false); // loading khi gọi register API
+  const [createdAccount, setCreatedAccount] = useState({
+    username: "",
+    password: "12345678",
+  });
 
   // ── cleanup file URLs on unmount
   useEffect(() => {
@@ -390,17 +394,19 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
     });
   };
 
-  const uploadRegistrationFiles = async (enterpriseId: number) => {
+  const uploadRegistrationFiles = async (enterpriseId: number, uploadToken: string) => {
     const selectedFiles = files.filter((entry) => entry.file);
     if (selectedFiles.length === 0) return;
+    if (!uploadToken) throw new Error("Thiếu mã xác thực tải file");
 
     await Promise.all(
       selectedFiles.map(async (entry) => {
         const body = new FormData();
         body.append("name", entry.label);
         body.append("file", entry.file as File);
+        body.append("uploadToken", uploadToken);
 
-        const res = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/attachments`, {
+        const res = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/registration-attachments`, {
           method: "POST",
           body,
         });
@@ -568,12 +574,17 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
       if (data.enterprise?.id) {
         try {
-          await uploadRegistrationFiles(data.enterprise.id);
+          await uploadRegistrationFiles(data.enterprise.id, data.uploadToken);
         } catch (uploadError: any) {
-          // Bỏ qua lỗi upload file đính kèm vì không bắt buộc
+          alert(uploadError?.message || "Không tải lên được file đính kèm");
+          return;
         }
       }
 
+      setCreatedAccount({
+        username: data.account?.username || form.mst.trim(),
+        password: data.account?.defaultPassword || "12345678",
+      });
       setStage("account");
     } catch (e: any) {
       const msg = e?.message || "";
@@ -632,11 +643,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
           <div className="px-6 py-5 space-y-2">
             <p className="text-sm text-gray-700">
               <span className="font-medium">• Tài khoản:</span>{" "}
-              <span className="font-bold">{form.mst}</span>
+              <span className="font-bold">{createdAccount.username}</span>
             </p>
             <p className="text-sm text-gray-700">
               <span className="font-medium">• Mật khẩu:</span>{" "}
-              <span className="font-bold">12345678</span>
+              <span className="font-bold">{createdAccount.password}</span>
             </p>
           </div>
           {/* Footer */}

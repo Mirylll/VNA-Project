@@ -139,6 +139,9 @@ export class UsersService {
 
   async softRemove(id: string): Promise<void> {
     const user = await this.findOne(id);
+    user.email = user.email ? `deleted-${user.id}-${user.email}` : undefined;
+    user.username = `deleted-${user.id}-${user.username}`.slice(0, 50);
+    await this.userRepo.save(user);
     await this.userRepo.softRemove(user);
   }
 

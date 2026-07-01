@@ -260,6 +260,10 @@ function mapEnterpriseAttachments(attachments: EnterpriseAttachment[] = []): Att
   return [...mapped, ...missingDefaultRows];
 }
 
+function isPersistedAttachmentId(id: string) {
+  return /^\d+$/.test(id);
+}
+
 function updateStoredAuthEmail(newEmail: string) {
   if (typeof window === 'undefined') return;
 
@@ -700,6 +704,46 @@ export default function EnterpriseCompanyInfoPage() {
 
       if (!response.ok) {
         throw new Error(data.message || 'Cập nhật thông tin doanh nghiệp thất bại');
+      }
+
+      for (const attachment of attachmentFiles) {
+        const persistedId = isPersistedAttachmentId(attachment.id) ? Number(attachment.id) : null;
+
+        if (persistedId && (!attachment.url || attachment.file)) {
+          const deleteResponse = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/attachments/${persistedId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!deleteResponse.ok) {
+            throw new Error('Xóa file đính kèm cũ thất bại');
+          }
+        }
+
+        if (attachment.file) {
+          const formData = new FormData();
+          formData.append('name', attachment.name);
+          formData.append('file', attachment.file);
+
+          const uploadResponse = await fetch(`${BASE_URL}/enterprises/${enterpriseId}/attachments`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            const uploadError = (await uploadResponse.json().catch(() => ({}))) as { message?: string };
+            throw new Error(uploadError.message || `Upload file "${attachment.name}" thất bại`);
+          }
+        }
+      }
+
+      const refreshedResponse = await fetch(`${BASE_URL}/enterprises/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (refreshedResponse.ok) {
+        const refreshedData = (await refreshedResponse.json()) as EnterpriseApiData;
+        setAttachmentFiles(mapEnterpriseAttachments(refreshedData.attachments));
       }
 
       setSaveMessage('Cập nhật thông tin doanh nghiệp thành công.');
