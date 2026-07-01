@@ -5,6 +5,7 @@ import { EnterprisesService } from './enterprises.service';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
 import { RequirePermission } from '../../libs/core/decorators/require-permission.decorator';
+import { Public } from '../../libs/core/decorators/public.decorator';
 import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Controller('enterprises')
@@ -70,6 +71,21 @@ export class EnterprisesController {
     @Body('name') name: string,
   ) {
     return this.service.uploadAttachment(id, file, name);
+  }
+
+  @Public()
+  @Post(':id/registration-attachments')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
+  async uploadRegistrationAttachment(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: any,
+    @Body('name') name: string,
+    @Body('uploadToken') uploadToken: string,
+  ) {
+    return this.service.uploadRegistrationAttachment(id, file, name, uploadToken);
   }
 
   @Delete(':id/attachments/:attachmentId')

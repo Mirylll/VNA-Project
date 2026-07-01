@@ -393,6 +393,9 @@ const REVIEW_EMPLOYER_CAUSES = [
 const REVIEW_EMPLOYEE_CAUSES = [
   { code: '7', label: 'Vi phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
   { code: '8', label: 'Không sử dụng phương tiện bảo vệ cá nhân' },
+];
+
+const REVIEW_OTHER_CAUSES = [
   { code: '9', label: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến' },
 ];
 
@@ -484,9 +487,13 @@ function AdminTnldReportSummaryTable({
   const subsidyMetrics = toMetrics(report.subsidyData);
   const totalMetrics = addMetrics(overviewMetrics, subsidyMetrics);
   const accidentDetails = report.accidentDetails || [];
-  const causeRows = buildFixedRows(accidentDetails, 'cause', [...REVIEW_EMPLOYER_CAUSES, ...REVIEW_EMPLOYEE_CAUSES]);
-  const injuryFactorRows = buildFixedRows(accidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS);
-  const occupationRows = buildFixedRows(accidentDetails, 'occupation', DEFAULT_OCCUPATIONS);
+  const employerCauseRows = buildFixedRows(accidentDetails, 'cause', REVIEW_EMPLOYER_CAUSES);
+  const employeeCauseRows = buildFixedRows(accidentDetails, 'cause', REVIEW_EMPLOYEE_CAUSES);
+  const otherCauseRows = buildFixedRows(accidentDetails, 'cause', REVIEW_OTHER_CAUSES);
+  const injuryFactorRows = buildFixedRows(accidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS)
+    .filter((row) => hasMetrics(row.metrics));
+  const occupationRows = buildFixedRows(accidentDetails, 'occupation', DEFAULT_OCCUPATIONS)
+    .filter((row) => hasMetrics(row.metrics));
   const overviewData = report.overviewData || fallbackOverviewData;
   const subsidyData = report.subsidyData || toMetricSource();
   const damageTotals = {
@@ -557,7 +564,24 @@ function AdminTnldReportSummaryTable({
             <td className="border border-slate-200 p-2 text-center" />
             <td colSpan={11} className="border border-slate-200" />
           </tr>
-          {causeRows.map((row) => renderRow(row, 'cause', 'pl-6'))}
+          <tr className="italic text-slate-600 font-semibold bg-slate-50/50 print:bg-white">
+            <td className="border border-slate-200 p-2 pl-6">a. Do người sử dụng lao động</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
+          </tr>
+          {employerCauseRows.map((row) => renderRow(row, 'cause-employer', 'pl-8'))}
+          <tr className="italic text-slate-600 font-semibold bg-slate-50/50 print:bg-white">
+            <td className="border border-slate-200 p-2 pl-6">b. Do người lao động</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
+          </tr>
+          {employeeCauseRows.map((row) => renderRow(row, 'cause-employee', 'pl-8'))}
+          <tr className="italic text-slate-600 font-semibold bg-slate-50/50 print:bg-white">
+            <td className="border border-slate-200 p-2 pl-6">c. Khách quan khó tránh/ Nguyên nhân chưa kể đến</td>
+            <td className="border border-slate-200 p-2 text-center" />
+            <td colSpan={11} className="border border-slate-200" />
+          </tr>
+          {otherCauseRows.map((row) => renderRow(row, 'cause-other', 'pl-8'))}
 
           <tr className="bg-slate-50 print:bg-white font-bold">
             <td className="border border-slate-200 p-2 pl-4 font-bold">1.2 Phân theo yếu tố gây chấn thương</td>
