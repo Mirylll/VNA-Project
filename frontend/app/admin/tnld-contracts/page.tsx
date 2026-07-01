@@ -525,8 +525,8 @@ function AdminTnldReportSummaryTable({
       <table className="w-full border-collapse border border-slate-200 text-xs text-slate-700 bg-white">
         <thead className="sticky top-0 bg-slate-100 z-10 print:static print:bg-white">
           <tr className="border border-slate-200">
-            <th rowSpan={3} className="border border-slate-200 p-2 text-left font-bold min-w-[250px] bg-slate-100 print:bg-white">Tên chỉ tiêu thống kê</th>
-            <th rowSpan={3} className="border border-slate-200 p-2 text-center font-bold w-16 bg-slate-100 print:bg-white">Mã số</th>
+            <th rowSpan={4} className="border border-slate-200 p-2 text-left font-bold min-w-[250px] bg-slate-100 print:bg-white">Tên chỉ tiêu thống kê</th>
+            <th rowSpan={4} className="border border-slate-200 p-2 text-center font-bold w-16 bg-slate-100 print:bg-white">Mã số</th>
             <th colSpan={11} className="border border-slate-200 p-1.5 text-center font-bold bg-slate-100 print:bg-white">Phân loại TNLĐ theo mức độ thương tật</th>
           </tr>
           <tr className="border border-slate-200">
@@ -534,9 +534,15 @@ function AdminTnldReportSummaryTable({
             <th colSpan={8} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Số người bị nạn (Người)</th>
           </tr>
           <tr className="border border-slate-200">
-            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
-            <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Số vụ có người chết</th>
-            <th className="border border-slate-200 p-1 text-center font-bold w-14 bg-slate-50 print:bg-white">Số vụ có từ 2 người bị nạn trở lên</th>
+            <th rowSpan={2} className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
+            <th rowSpan={2} className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Số vụ có người chết</th>
+            <th rowSpan={2} className="border border-slate-200 p-1 text-center font-bold w-14 bg-slate-50 print:bg-white">Số vụ có từ 2 người bị nạn trở lên</th>
+            <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Tổng số</th>
+            <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Số LĐ nữ</th>
+            <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Số người bị chết</th>
+            <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50 print:bg-white">Số người bị thương nặng</th>
+          </tr>
+          <tr className="border border-slate-200">
             <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
             <th className="border border-slate-200 p-1 text-center font-bold w-16 bg-slate-50 print:bg-white">NN không thuộc quyền quản lý</th>
             <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50 print:bg-white">Tổng số</th>
