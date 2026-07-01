@@ -491,34 +491,43 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
   // ---- Enterprise Types ----
   const enterpriseTypeRepo = dataSource.getRepository(EnterpriseType);
-  const etCount = await enterpriseTypeRepo.count();
-  if (etCount === 0) {
-    const types = [
-      { code: 'CP', name: 'Công ty cổ phần' },
-      { code: 'CPDC', name: 'Công ty cổ phần đại chúng' },
-      { code: 'TNHH', name: 'Công ty TNHH' },
-      { code: 'TNHH1TV', name: 'Công ty TNHH 1 thành viên' },
-      { code: 'DNTN', name: 'Doanh nghiệp tư nhân' },
-      { code: 'DNNN', name: 'Doanh nghiệp nhà nước' },
-      { code: 'FDI', name: 'Doanh nghiệp có vốn đầu tư nước ngoài' },
-      { code: 'LD', name: 'Công ty liên doanh' },
-      { code: 'VPDD', name: 'Văn phòng đại diện' },
-      { code: 'CN', name: 'Chi nhánh' },
-      { code: 'NH', name: 'Ngân hàng' },
-      { code: 'BH', name: 'Công ty bảo hiểm' },
-      { code: 'TCT', name: 'Tổng công ty' },
-      { code: 'CK', name: 'Công ty chứng khoán' },
-      { code: 'QD', name: 'Doanh nghiệp quân đội' },
-      { code: 'DNCK', name: 'Doanh nghiệp chế xuất' },
-      { code: 'HTXCP', name: 'Hợp tác xã cổ phần' },
-      { code: 'DNXH', name: 'Doanh nghiệp xã hội' },
-      { code: 'HKD', name: 'Hộ kinh doanh' },
-      { code: 'HTX', name: 'Hợp tác xã' },
-    ];
-    for (const et of types) {
+  const types = [
+    { code: 'CP', name: 'Công ty cổ phần' },
+    { code: 'CPDC', name: 'Công ty cổ phần đại chúng' },
+    { code: 'TNHH', name: 'Công ty TNHH' },
+    { code: 'TNHH1TV', name: 'Công ty TNHH 1 thành viên' },
+    { code: 'DNTN', name: 'Doanh nghiệp tư nhân' },
+    { code: 'DNNN', name: 'Doanh nghiệp nhà nước' },
+    { code: 'FDI', name: 'Doanh nghiệp có vốn đầu tư nước ngoài' },
+    { code: 'LD', name: 'Công ty liên doanh' },
+    { code: 'VPDD', name: 'Văn phòng đại diện' },
+    { code: 'CN', name: 'Chi nhánh' },
+    { code: 'NH', name: 'Ngân hàng' },
+    { code: 'BH', name: 'Công ty bảo hiểm' },
+    { code: 'TCT', name: 'Tổng công ty' },
+    { code: 'CK', name: 'Công ty chứng khoán' },
+    { code: 'QD', name: 'Doanh nghiệp quân đội' },
+    { code: 'DNCK', name: 'Doanh nghiệp chế xuất' },
+    { code: 'HTXCP', name: 'Hợp tác xã cổ phần' },
+    { code: 'DNXH', name: 'Doanh nghiệp xã hội' },
+    { code: 'HKD', name: 'Hộ kinh doanh' },
+    { code: 'HTX', name: 'Hợp tác xã' },
+  ];
+  let insertedEnterpriseTypes = 0;
+  for (const et of types) {
+    const existing = await enterpriseTypeRepo.findOne({
+      where: [{ code: et.code }, { name: et.name }],
+    });
+    if (!existing) {
       await enterpriseTypeRepo.save(enterpriseTypeRepo.create(et));
+      insertedEnterpriseTypes++;
+    } else if (existing.isActive === false) {
+      existing.isActive = true;
+      await enterpriseTypeRepo.save(existing);
     }
-    console.log('✅ Seeded enterprise types');
+  }
+  if (insertedEnterpriseTypes > 0) {
+    console.log(`✅ Seeded ${insertedEnterpriseTypes} missing enterprise types`);
   }
 
   // ---- Industries ----

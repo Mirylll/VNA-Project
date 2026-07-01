@@ -104,6 +104,21 @@ export class AuthService {
     if (!otpRecord) throw new BadRequestException('Không tìm thấy mã OTP hợp lệ hoặc đã hết hạn');
     const valid = await this.otpService.verifyOtp(otpRecord, otpValue);
     if (!valid) throw new BadRequestException('Mã OTP không đúng');
+
+    const existingUser = await this.userRepository.findOne({ where: { email: otpRecord.targetValue } });
+    if (existingUser && existingUser.id !== user.id) {
+      throw new BadRequestException('Email mới đã tồn tại trên hệ thống, vui lòng kiểm tra lại dữ liệu');
+    }
+
+    const existingEnterprise = await this.enterpriseRepository.findOne({ where: { email: otpRecord.targetValue } });
+    if (
+      existingEnterprise &&
+      existingEnterprise.username !== user.username &&
+      existingEnterprise.taxCode !== user.username
+    ) {
+      throw new BadRequestException('Email mới đã tồn tại trên hệ thống, vui lòng kiểm tra lại dữ liệu');
+    }
+
     user.email = otpRecord.targetValue;
     await this.userRepository.save(user);
 
@@ -401,6 +416,10 @@ export class AuthService {
         username: data.mst,
         defaultPassword,
       },
+      uploadToken: this.jwtService.sign(
+        { enterpriseId: result.enterprise.id, purpose: 'enterprise-registration-upload' },
+        { expiresIn: '10m' },
+      ),
       enterprise: {
         id: result.enterprise.id,
         taxCode: result.enterprise.taxCode,
@@ -500,5 +519,16 @@ export class AuthService {
     if (existing) return existing;
 
     return repository.save(repository.create({ name, province }));
+  }
+
+  async getEnterpriseTypes() {
+    return this.enterpriseTypeRepository.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async getIndustries() {
+    return this.industryRepository.find({
+      where: { isActive: true, level: 4 },
+      order: { code: 'ASC' },
+    });
   }
 }

@@ -292,7 +292,43 @@ export class EnterprisesService {
 
   async remove(id: number): Promise<void> {
     const entity = await this.findOne(id);
-    await this.repo.delete(entity.id);
+
+    await this.repo.manager.transaction(async (manager) => {
+      const enterpriseRepo = manager.getRepository(Enterprise);
+      const userRepo = manager.getRepository(User);
+
+      await enterpriseRepo.delete(entity.id);
+
+      const candidateWhere = [
+        ...(entity.username ? [{ username: entity.username }] : []),
+        ...(entity.taxCode ? [{ username: entity.taxCode }] : []),
+        ...(entity.email ? [{ email: entity.email }] : []),
+      ];
+
+      const candidateUsers =
+        candidateWhere.length > 0
+          ? await userRepo.find({
+              where: candidateWhere,
+              relations: ['role'],
+            })
+          : [];
+
+      const enterpriseUsers = candidateUsers.filter((user) => {
+        const matchesIdentity =
+          user.username === entity.username ||
+          user.username === entity.taxCode ||
+          (!!entity.email && user.email === entity.email);
+
+        return (
+          matchesIdentity &&
+          (user.accountType === AccountType.ENTERPRISE || user.role?.code === 'ROLE_ENTERPRISE')
+        );
+      });
+
+      if (enterpriseUsers.length > 0) {
+        await userRepo.delete(enterpriseUsers.map((user) => user.id));
+      }
+    });
   }
 
   async findAttachments(enterpriseId: number): Promise<Attachment[]> {
@@ -333,6 +369,35 @@ export class EnterprisesService {
       enterprise: { id: enterpriseId } as any,
     });
     return this.attachmentRepo.save(attachment);
+  }
+
+  async uploadRegistrationAttachment(
+    enterpriseId: number,
+    file: any,
+    name: string,
+    uploadToken?: string,
+  ): Promise<Attachment> {
+    if (!uploadToken) {
+      throw new UnauthorizedException('Missing upload token');
+    }
+
+    try {
+      const payload = this.jwtService.verify(uploadToken) as {
+        enterpriseId?: number;
+        purpose?: string;
+      };
+
+      if (
+        payload.purpose !== 'enterprise-registration-upload' ||
+        Number(payload.enterpriseId) !== enterpriseId
+      ) {
+        throw new UnauthorizedException('Invalid upload token');
+      }
+    } catch {
+      throw new UnauthorizedException('Invalid or expired upload token');
+    }
+
+    return this.uploadAttachment(enterpriseId, file, name);
   }
 
   async removeAttachment(enterpriseId: number, attachmentId: number): Promise<void> {

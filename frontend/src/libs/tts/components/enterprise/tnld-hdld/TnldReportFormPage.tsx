@@ -53,6 +53,7 @@ type TnldDraftPayload = {
   step?: StepId;
   accidentTab?: AccidentTab;
   reportRecordId?: number;
+  touched?: boolean;
 };
 
 type ReviewMetricValues = [
@@ -121,15 +122,18 @@ const DEFAULT_OCCUPATIONS: TnldHierarchicalCategory[] = [
 const REVIEW_EMPLOYER_CAUSES = [
   { code: '1', label: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn' },
   { code: '2', label: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt' },
-  { code: '3', label: 'Tổ chức lao động không hợp lý' },
-  { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn vệ sinh lao động chưa đầy đủ' },
+  { code: '3', label: 'Tổ chức lao động chưa hợp lý' },
+  { code: '4', label: 'Chưa huấn luyện hoặc huấn luyện an toàn, vệ sinh lao động chưa đầy đủ' },
   { code: '5', label: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn' },
   { code: '6', label: 'Điều kiện làm việc không tốt' },
 ];
 
 const REVIEW_EMPLOYEE_CAUSES = [
-  { code: '7', label: 'Quy phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
+  { code: '7', label: 'Vi phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn' },
   { code: '8', label: 'Không sử dụng phương tiện bảo vệ cá nhân' },
+];
+
+const REVIEW_OTHER_CAUSES = [
   { code: '9', label: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến' },
 ];
 
@@ -156,6 +160,13 @@ function getTnldReportPeriodFromPath() {
 
   const reportId = window.location.pathname.split('/').filter(Boolean).at(-1) || '';
   return reportId.includes('year') || reportId.includes('12m') ? 'year' : '6m';
+}
+
+function isPersistedReportRoute() {
+  if (typeof window === 'undefined') return false;
+
+  const reportId = window.location.pathname.split('/').filter(Boolean).at(-1) || '';
+  return /^\d+$/.test(reportId);
 }
 
 function isDraftAccidentDetail(value: unknown): value is AccidentDetail {
@@ -427,22 +438,22 @@ function createAccidentDetail(index: number): AccidentDetail {
     cause: DEFAULT_INJURY_TYPES[0].name,
     injuryFactor: DEFAULT_INJURY_FACTORS[3].name,
     occupation: DEFAULT_OCCUPATIONS[2].name,
-    totalAccidents: '1',
-    fatalAccidents: index === 0 ? '1' : '0',
-    multiVictimAccidents: '1',
-    totalVictims: '10',
-    femaleVictims: '5',
-    deadVictims: index === 0 ? '5' : '0',
-    severeVictims: '10',
+    totalAccidents: '0',
+    fatalAccidents: '0',
+    multiVictimAccidents: '0',
+    totalVictims: '0',
+    femaleVictims: '0',
+    deadVictims: '0',
+    severeVictims: '0',
     unmanagedVictims: '0',
     unmanagedFemaleVictims: '0',
     unmanagedDeadVictims: '0',
     unmanagedSevereVictims: '0',
-    medicalCost: '10.000.000',
-    treatmentSalaryCost: '10.000.000',
-    compensationCost: '10.000.000',
-    workdaysLost: '20',
-    assetDamage: '10.000.000',
+    medicalCost: '0',
+    treatmentSalaryCost: '0',
+    compensationCost: '0',
+    workdaysLost: '0',
+    assetDamage: '0',
   };
 }
 
@@ -457,21 +468,6 @@ function getAccidentDetailTotalCost(detail: AccidentDetail) {
 
 function getAccidentDetailErrors(detail: AccidentDetail) {
   return {
-    totalAccidents: getRequiredIntegerError(detail.totalAccidents),
-    fatalAccidents:
-      firstError(
-        getRequiredIntegerError(detail.fatalAccidents),
-        parseInteger(detail.fatalAccidents) > parseInteger(detail.totalAccidents)
-        ? 'Tổng số vụ có người chết phải nhỏ hơn hoặc bằng Tổng số vụ'
-          : '',
-      ),
-    multiVictimAccidents:
-      firstError(
-        getRequiredIntegerError(detail.multiVictimAccidents),
-        parseInteger(detail.multiVictimAccidents) > parseInteger(detail.totalAccidents)
-        ? 'Tổng số vụ có từ 2 người bị nạn trở lên phải nhỏ hơn hoặc bằng Tổng số vụ'
-          : '',
-      ),
     totalVictims: getRequiredIntegerError(detail.totalVictims),
     femaleVictims:
       firstError(
@@ -575,33 +571,26 @@ function hasReviewMetrics(metrics: ReviewMetricValues) {
   return metrics.some((value) => value > 0);
 }
 
-function buildDynamicReviewRows(
+function buildFixedReviewRows(
   details: AccidentDetail[],
   field: 'cause' | 'injuryFactor' | 'occupation',
-  getCode: (label: string) => string,
+  options: Array<{ code: string; label: string }>,
 ): ReviewSummaryRow[] {
-  const groupedDetails = new Map<string, AccidentDetail[]>();
-
-  details.forEach((detail) => {
-    const label = detail[field]?.trim();
-    if (!label) return;
-
-    groupedDetails.set(label, [...(groupedDetails.get(label) || []), detail]);
+  return options.map((opt) => {
+    const matchingDetails = details.filter((d) => d[field]?.trim() === opt.label.trim());
+    return {
+      code: opt.code,
+      label: opt.label,
+      metrics: sumAccidentDetailMetrics(matchingDetails),
+    };
   });
-
-  return Array.from(groupedDetails.entries())
-    .map(([label, group]) => ({
-      code: getCode(label),
-      label,
-      metrics: sumAccidentDetailMetrics(group),
-    }))
-    .filter((row) => hasReviewMetrics(row.metrics));
 }
 
 export default function TnldReportFormPage() {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const draftHydratedRef = useRef(false);
+  const hasUserEditedDraftRef = useRef(false);
 
   const [readOnly, setReadOnly] = useState(false);
   const [reportYear, setReportYear] = useState('2026');
@@ -628,43 +617,43 @@ export default function TnldReportFormPage() {
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [form, setForm] = useState({
-    totalEmployees: '10',
-    femaleEmployees: '5',
+    totalEmployees: '0',
+    femaleEmployees: '0',
     payroll: '',
-    totalAccidents: '2',
-    fatalAccidents: '1',
-    multiVictimAccidents: '1',
-    totalVictims: '5',
-    femaleVictims: '1',
-    deadVictims: '1',
-    severeVictims: '1',
+    totalAccidents: '0',
+    fatalAccidents: '0',
+    multiVictimAccidents: '0',
+    totalVictims: '0',
+    femaleVictims: '0',
+    deadVictims: '0',
+    severeVictims: '0',
     unmanagedVictims: '0',
     unmanagedFemaleVictims: '0',
     unmanagedDeadVictims: '0',
     unmanagedSevereVictims: '0',
-    medicalCost: '100.000',
-    treatmentSalaryCost: '100.000',
-    compensationCost: '100.000',
-    workdaysLost: '20',
+    medicalCost: '0',
+    treatmentSalaryCost: '0',
+    compensationCost: '0',
+    workdaysLost: '0',
     assetDamage: '0',
-    subsidyTotalAccidents: '1',
-    subsidyFatalAccidents: '1',
-    subsidyMultiVictimAccidents: '1',
-    subsidyTotalVictims: '10',
-    subsidyFemaleVictims: '5',
-    subsidyDeadVictims: '5',
-    subsidySevereVictims: '10',
+    subsidyTotalAccidents: '0',
+    subsidyFatalAccidents: '0',
+    subsidyMultiVictimAccidents: '0',
+    subsidyTotalVictims: '0',
+    subsidyFemaleVictims: '0',
+    subsidyDeadVictims: '0',
+    subsidySevereVictims: '0',
     subsidyUnmanagedVictims: '0',
     subsidyUnmanagedFemaleVictims: '0',
     subsidyUnmanagedDeadVictims: '0',
     subsidyUnmanagedSevereVictims: '0',
-    subsidyMedicalCost: '10.000.000',
-    subsidyTreatmentSalaryCost: '10.000.000',
-    subsidyCompensationCost: '10.000.000',
-    subsidyWorkdaysLost: '20',
-    subsidyAssetDamage: '10.000.000',
-    subsidyVictims: '5',
-    subsidyCost: '100.000',
+    subsidyMedicalCost: '0',
+    subsidyTreatmentSalaryCost: '0',
+    subsidyCompensationCost: '0',
+    subsidyWorkdaysLost: '0',
+    subsidyAssetDamage: '0',
+    subsidyVictims: '0',
+    subsidyCost: '0',
   });
 
   const activeStepIndex = STEPS.findIndex((item) => item.id === step);
@@ -785,37 +774,28 @@ export default function TnldReportFormPage() {
     () => addReviewMetrics(accidentOverviewMetrics, subsidyMetrics),
     [accidentOverviewMetrics, subsidyMetrics],
   );
-  const reviewCauseRows = useMemo(
-    () =>
-      buildDynamicReviewRows(activeAccidentDetails, 'cause', (label) => {
-        const knownCause = [...REVIEW_EMPLOYER_CAUSES, ...REVIEW_EMPLOYEE_CAUSES].find((item) => item.label === label);
-        return knownCause?.code || injuryTypes.find((item) => item.name === label)?.code || '';
-      }),
-    [activeAccidentDetails, injuryTypes],
-  );
   const reviewEmployerCauseRows = useMemo(
-    () => reviewCauseRows.filter((row) => REVIEW_EMPLOYER_CAUSES.some((item) => item.label === row.label)),
-    [reviewCauseRows],
+    () => buildFixedReviewRows(activeAccidentDetails, 'cause', REVIEW_EMPLOYER_CAUSES),
+    [activeAccidentDetails],
   );
   const reviewEmployeeCauseRows = useMemo(
-    () => reviewCauseRows.filter((row) => REVIEW_EMPLOYEE_CAUSES.some((item) => item.label === row.label)),
-    [reviewCauseRows],
+    () => buildFixedReviewRows(activeAccidentDetails, 'cause', REVIEW_EMPLOYEE_CAUSES),
+    [activeAccidentDetails],
   );
-  const reviewOtherCauseRows = useMemo(
-    () =>
-      reviewCauseRows.filter(
-        (row) =>
-          !REVIEW_EMPLOYER_CAUSES.some((item) => item.label === row.label) &&
-          !REVIEW_EMPLOYEE_CAUSES.some((item) => item.label === row.label),
-      ),
-    [reviewCauseRows],
+  const reviewOtherCauseRows = useMemo<ReviewSummaryRow[]>(
+    () => buildFixedReviewRows(activeAccidentDetails, 'cause', REVIEW_OTHER_CAUSES),
+    [activeAccidentDetails],
   );
   const reviewInjuryFactorRows = useMemo(
-    () => buildFixedReviewRows(activeAccidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS.map(f => ({ code: f.id, label: f.name }))),
+    () =>
+      buildFixedReviewRows(activeAccidentDetails, 'injuryFactor', DEFAULT_INJURY_FACTORS.map(f => ({ code: f.id, label: f.name })))
+        .filter((row) => hasReviewMetrics(row.metrics)),
     [activeAccidentDetails],
   );
   const reviewOccupationRows = useMemo(
-    () => buildFixedReviewRows(activeAccidentDetails, 'occupation', DEFAULT_OCCUPATIONS.map(o => ({ code: o.code, label: o.name }))),
+    () =>
+      buildFixedReviewRows(activeAccidentDetails, 'occupation', DEFAULT_OCCUPATIONS.map(o => ({ code: o.code, label: o.name })))
+        .filter((row) => hasReviewMetrics(row.metrics)),
     [activeAccidentDetails],
   );
 
@@ -826,9 +806,6 @@ export default function TnldReportFormPage() {
     if (accidentCount === 0) return [];
 
     const checks = [
-      { label: 'Tổng số vụ', total: parseInteger(form.totalAccidents), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'totalAccidents') },
-      { label: 'Tổng số vụ có người chết', total: parseInteger(form.fatalAccidents), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'fatalAccidents') },
-      { label: 'Tổng số vụ có từ 2 người bị nạn trở lên', total: parseInteger(form.multiVictimAccidents), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'multiVictimAccidents') },
       { label: 'Tổng số người bị nạn', total: parseInteger(form.totalVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'totalVictims') },
       { label: 'Tổng số lao động nữ bị nạn', total: parseInteger(form.femaleVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'femaleVictims') },
       { label: 'Tổng số người bị chết', total: parseInteger(form.deadVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'deadVictims') },
@@ -1061,24 +1038,32 @@ export default function TnldReportFormPage() {
       try {
         const rawDraft = localStorage.getItem(getTnldDraftKey());
         const parsedDraft = rawDraft ? (JSON.parse(rawDraft) as TnldDraftPayload) : null;
+        const shouldLoadDraft = parsedDraft?.touched === true || typeof parsedDraft?.reportRecordId === 'number';
 
-        if (parsedDraft?.form && typeof parsedDraft.form === 'object') {
+        if (parsedDraft && !shouldLoadDraft) {
+          localStorage.removeItem(getTnldDraftKey());
+        }
+
+        if (shouldLoadDraft && parsedDraft?.form && typeof parsedDraft.form === 'object') {
           setForm((current) => ({ ...current, ...parsedDraft.form }));
         }
 
-        if (Array.isArray(parsedDraft?.accidentDetails)) {
+        if (shouldLoadDraft && Array.isArray(parsedDraft?.accidentDetails)) {
           const validDetails = parsedDraft.accidentDetails.filter(isDraftAccidentDetail);
           if (validDetails.length > 0) setAccidentDetails(validDetails);
         }
 
-        if (typeof parsedDraft?.uploadedFile === 'string') setUploadedFile(parsedDraft.uploadedFile);
-        if (typeof parsedDraft?.reportRecordId === 'number') setSavedReportId(parsedDraft.reportRecordId);
-        if (parsedDraft?.reportYear) setReportYear(parsedDraft.reportYear);
-        const draftStep = parsedDraft?.step ?? null;
+        if (shouldLoadDraft && typeof parsedDraft?.uploadedFile === 'string') setUploadedFile(parsedDraft.uploadedFile);
+        if (shouldLoadDraft && isPersistedReportRoute() && typeof parsedDraft?.reportRecordId === 'number') {
+          setSavedReportId(parsedDraft.reportRecordId);
+        }
+        if (shouldLoadDraft && parsedDraft?.reportYear) setReportYear(parsedDraft.reportYear);
+        const draftStep = shouldLoadDraft ? parsedDraft?.step ?? null : null;
         if (!isStepId(stepFromUrl) && isStepId(draftStep)) {
           setStep(draftStep);
         }
-        if (isAccidentTab(parsedDraft?.accidentTab)) setAccidentTab(parsedDraft.accidentTab);
+        if (shouldLoadDraft && isAccidentTab(parsedDraft?.accidentTab)) setAccidentTab(parsedDraft.accidentTab);
+        if (shouldLoadDraft) hasUserEditedDraftRef.current = true;
       } catch {
         localStorage.removeItem(getTnldDraftKey());
       }
@@ -1089,7 +1074,7 @@ export default function TnldReportFormPage() {
   }, []);
 
   useEffect(() => {
-    if (!draftHydratedRef.current || readOnly) return;
+    if (!draftHydratedRef.current || readOnly || !hasUserEditedDraftRef.current) return;
 
     const draft: TnldDraftPayload = {
       form,
@@ -1099,6 +1084,7 @@ export default function TnldReportFormPage() {
       reportYear,
       step,
       accidentTab,
+      touched: true,
     };
 
     localStorage.setItem(getTnldDraftKey(), JSON.stringify(draft));
@@ -1121,7 +1107,11 @@ export default function TnldReportFormPage() {
         const overview = data.overview || {};
         const subsidy = data.subsidy || {};
         const toText = (value: unknown) => (value === null || value === undefined ? '' : String(value));
-        const toMoneyText = (value: unknown) => formatVndNumber(toText(value));
+        const toMoneyText = (value: unknown) => {
+          if (value === null || value === undefined || value === '') return '';
+          const num = Number(value);
+          return Number.isFinite(num) ? formatVndNumber(String(Math.round(num))) : '';
+        };
 
         setSavedReportId(Number(data.id));
         setReportYear(String(data.year || reportYear));
@@ -1274,6 +1264,7 @@ export default function TnldReportFormPage() {
   }, [accidentCount]);
 
   function updateField(field: keyof typeof form, value: string) {
+    hasUserEditedDraftRef.current = true;
     setForm((current) => ({ ...current, [field]: value }));
   }
 
@@ -1282,6 +1273,7 @@ export default function TnldReportFormPage() {
   }
 
   function updateAccidentDetail(index: number, field: keyof AccidentDetail, value: string) {
+    hasUserEditedDraftRef.current = true;
     setAccidentDetails((current) => {
       const next = [...current];
       next[index] = {
@@ -1321,9 +1313,26 @@ export default function TnldReportFormPage() {
     contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function buildReportPayload(status: 'draft' | 'submitted') {
+  async function resolveCurrentEnterpriseId() {
+    if (enterpriseId) return enterpriseId;
+
+    const token = getAuthToken();
+    if (!token || !BASE_URL) return null;
+
+    const response = await fetch(`${BASE_URL}/enterprises/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok || typeof data?.id !== 'number') return null;
+
+    setEnterpriseId(data.id);
+    return data.id;
+  }
+
+  function buildReportPayload(status: 'draft' | 'submitted', resolvedEnterpriseId = enterpriseId) {
     return {
-      enterpriseId: enterpriseId ?? undefined,
+      enterpriseId: resolvedEnterpriseId ?? undefined,
       year: Number(reportYear) || new Date().getFullYear(),
       period: getTnldReportPeriodFromPath(),
       status,
@@ -1404,19 +1413,47 @@ export default function TnldReportFormPage() {
   async function saveReport(status: 'draft' | 'submitted') {
     if (isSavingReport || hasCurrentStepError) return;
 
+    if (status === 'submitted' && !uploadedFile) {
+      setSaveMessage('Vui lòng đính kèm báo cáo TNLĐ có dấu mộc công ty trước khi gửi.');
+      return;
+    }
+
     setIsSavingReport(true);
     setSaveMessage('');
 
     try {
-      const response = await fetch(
+      const currentEnterpriseId = await resolveCurrentEnterpriseId();
+      if (!currentEnterpriseId) {
+        throw new Error('Không xác định được doanh nghiệp hiện tại. Vui lòng đăng nhập lại tài khoản doanh nghiệp.');
+      }
+
+      const token = getAuthToken();
+      const requestPayload = JSON.stringify(buildReportPayload(status, currentEnterpriseId));
+      let response = await fetch(
         savedReportId ? `${BASE_URL}/tnld-contract-reports/${savedReportId}` : `${BASE_URL}/tnld-contract-reports`,
         {
           method: savedReportId ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildReportPayload(status)),
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: requestPayload,
         },
       );
-      const data = await response.json().catch(() => ({}));
+      let data = await response.json().catch(() => ({}));
+
+      if (!response.ok && savedReportId && String(data?.message || '').includes('không tồn tại')) {
+        setSavedReportId(null);
+        response = await fetch(`${BASE_URL}/tnld-contract-reports`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: requestPayload,
+        });
+        data = await response.json().catch(() => ({}));
+      }
 
       if (!response.ok) {
         throw new Error(data?.message || 'Không lưu được báo cáo');
@@ -1473,7 +1510,7 @@ export default function TnldReportFormPage() {
                 <button
                   type="button"
                   onClick={step === 'review' ? () => saveReport('submitted') : goNext}
-                  disabled={(step === 'review' && !uploadedFile) || hasCurrentStepError || isSavingReport}
+                  disabled={hasCurrentStepError || isSavingReport}
                   className="inline-flex h-8 items-center gap-2 rounded-md border border-blue-600 bg-white px-4 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-blue-200 disabled:text-blue-300"
                 >
                   {step === 'review' ? (
@@ -1562,12 +1599,14 @@ export default function TnldReportFormPage() {
                   error={femaleEmployeesError}
                   onChange={(value) => updateIntegerField('femaleEmployees', value)}
                 />
-                <MoneyField
+                <Field
                   label="Tổng quỹ lương"
                   required
                   value={form.payroll}
                   error={payrollError}
-                  onChange={(value) => updateField('payroll', value)}
+                  readOnly={readOnly}
+                  suffix="VNĐ"
+                  onChange={(value) => updateField('payroll', formatMoneyInput(value))}
                 />
               </div>
             </section>
@@ -1762,12 +1801,14 @@ export default function TnldReportFormPage() {
                                   label="1. Phân theo nguyên nhân xảy ra TNLĐ"
                                   value={detail.cause}
                                   options={causeOptions}
+                                  disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'cause', value)}
                                 />
                                 <SelectField
                                   label="2. Phân theo yếu tố gây chấn thương"
                                   value={detail.injuryFactor}
                                   options={injuryFactorOptions}
+                                  disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'injuryFactor', value)}
                                 />
                               </div>
@@ -1777,6 +1818,7 @@ export default function TnldReportFormPage() {
                                   label="3. Phân theo nghề nghiệp"
                                   value={detail.occupation}
                                   options={occupationOptions}
+                                  disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'occupation', value)}
                                 />
                               </div>
@@ -1784,29 +1826,6 @@ export default function TnldReportFormPage() {
                               <div className="mb-5">
                                 <h4 className="mb-4 text-sm font-bold text-gray-900">4. Chi tiết vụ tai nạn số {item}</h4>
                                 <div className="space-y-5">
-                                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                                    <Field
-                                      label="Tổng số vụ"
-                                      required
-                                      value={detail.totalAccidents}
-                                      error={detailErrors.totalAccidents}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'totalAccidents', value)}
-                                    />
-                                    <Field
-                                      label="Tổng số vụ có người chết"
-                                      required
-                                      value={detail.fatalAccidents}
-                                      error={detailErrors.fatalAccidents}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'fatalAccidents', value)}
-                                    />
-                                    <Field
-                                      label="Tổng số vụ có 2 người bị nạn trở lên"
-                                      required
-                                      value={detail.multiVictimAccidents}
-                                      error={detailErrors.multiVictimAccidents}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'multiVictimAccidents', value)}
-                                    />
-                                  </div>
                                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
                                     <Field
                                       label="Tổng số người bị nạn"
@@ -2023,18 +2042,23 @@ export default function TnldReportFormPage() {
                   </h2>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-red-500 font-bold">
                     <span>**Vui lòng đính kèm báo cáo TNLĐ có dấu mộc công ty:</span>
-                    <label className="cursor-pointer font-semibold text-blue-600 hover:underline">
-                      Tải đây
-                      <input
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        className="hidden"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          setUploadedFile(file?.type === 'application/pdf' || file?.name.toLowerCase().endsWith('.pdf') ? file.name : '');
-                        }}
-                      />
-                    </label>
+                    {!readOnly ? (
+                      <label className="cursor-pointer font-semibold text-blue-600 hover:underline">
+                        Tải đây
+                        <input
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            hasUserEditedDraftRef.current = true;
+                            setUploadedFile(file?.type === 'application/pdf' || file?.name.toLowerCase().endsWith('.pdf') ? file.name : '');
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <span className="text-gray-400 font-normal">Tải đây (Chỉ xem)</span>
+                    )}
                     <span className={`ml-6 font-medium ${uploadedFile ? 'text-blue-600' : 'text-gray-400'}`}>
                       {uploadedFile || 'Chưa chọn file PDF'}
                     </span>
@@ -2045,8 +2069,8 @@ export default function TnldReportFormPage() {
                   <table className="w-full border-collapse border border-slate-200 text-xs text-slate-700 bg-white">
                     <thead className="sticky top-0 bg-slate-100 z-10">
                       <tr className="border border-slate-200">
-                        <th rowSpan={3} className="border border-slate-200 p-2 text-left font-bold min-w-[250px] bg-slate-100">Tên chỉ tiêu thống kê</th>
-                        <th rowSpan={3} className="border border-slate-200 p-2 text-center font-bold w-16 bg-slate-100">Mã số</th>
+                        <th rowSpan={4} className="border border-slate-200 p-2 text-left font-bold min-w-[250px] bg-slate-100">Tên chỉ tiêu thống kê</th>
+                        <th rowSpan={4} className="border border-slate-200 p-2 text-center font-bold w-16 bg-slate-100">Mã số</th>
                         <th colSpan={11} className="border border-slate-200 p-1.5 text-center font-bold bg-slate-100">Phân loại TNLĐ theo mức độ thương tật</th>
                       </tr>
                       <tr className="border border-slate-200">
@@ -2054,9 +2078,15 @@ export default function TnldReportFormPage() {
                         <th colSpan={8} className="border border-slate-200 p-1 text-center font-bold bg-slate-50">Số người bị nạn (Người)</th>
                       </tr>
                       <tr className="border border-slate-200">
-                        <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50">Tổng số</th>
-                        <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50">Số vụ có người chết</th>
-                        <th className="border border-slate-200 p-1 text-center font-bold w-14 bg-slate-50">Số vụ có từ 2 người bị nạn trở lên</th>
+                        <th rowSpan={2} className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50">Tổng số</th>
+                        <th rowSpan={2} className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50">Số vụ có người chết</th>
+                        <th rowSpan={2} className="border border-slate-200 p-1 text-center font-bold w-14 bg-slate-50">Số vụ có từ 2 người bị nạn trở lên</th>
+                        <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50">Tổng số</th>
+                        <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50">Số LĐ nữ</th>
+                        <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50">Số người bị chết</th>
+                        <th colSpan={2} className="border border-slate-200 p-1 text-center font-bold bg-slate-50">Số người bị thương nặng</th>
+                      </tr>
+                      <tr className="border border-slate-200">
                         <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50">Tổng số</th>
                         <th className="border border-slate-200 p-1 text-center font-bold w-16 bg-slate-50 font-medium">NN không thuộc quyền quản lý</th>
                         <th className="border border-slate-200 p-1 text-center font-bold w-12 bg-slate-50">Tổng số</th>
@@ -2083,108 +2113,93 @@ export default function TnldReportFormPage() {
                         ))}
                       </tr>
 
-                      {reviewCauseRows.length > 0 && (
-                        <>
-                          <tr className="bg-slate-50 font-bold">
-                            <td className="border border-slate-200 p-2 pl-4 font-bold">1.1. Phân theo nguyên nhân xảy ra TNLĐ</td>
-                            <td className="border border-slate-200 p-2 text-center" />
-                            <td colSpan={11} className="border border-slate-200" />
-                          </tr>
-                          {reviewEmployerCauseRows.length > 0 && (
-                            <>
-                              <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
-                                <td className="border border-slate-200 p-2 pl-6">a. Do người sử dụng lao động</td>
-                                <td className="border border-slate-200 p-2 text-center" />
-                                <td colSpan={11} className="border border-slate-200" />
-                              </tr>
-                              {reviewEmployerCauseRows.map((row) => (
-                                <tr key={`cause-employer-${row.label}`}>
-                                  <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
-                                  <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                                  {row.metrics.map((value, index) => (
-                                    <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                      {value}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </>
-                          )}
-                          {reviewEmployeeCauseRows.length > 0 && (
-                            <>
-                              <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
-                                <td className="border border-slate-200 p-2 pl-6">b. Do người lao động</td>
-                                <td className="border border-slate-200 p-2 text-center" />
-                                <td colSpan={11} className="border border-slate-200" />
-                              </tr>
-                              {reviewEmployeeCauseRows.map((row) => (
-                                <tr key={`cause-employee-${row.label}`}>
-                                  <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
-                                  <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                                  {row.metrics.map((value, index) => (
-                                    <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                      {value}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </>
-                          )}
-                          {reviewOtherCauseRows.map((row) => (
-                            <tr key={`cause-other-${row.label}`}>
-                              <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
-                              <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                              {row.metrics.map((value, index) => (
-                                <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="border border-slate-200 p-2 pl-4 font-bold">1.1. Phân theo nguyên nhân xảy ra TNLĐ</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
+                        <td className="border border-slate-200 p-2 pl-6">a. Do người sử dụng lao động</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewEmployerCauseRows.map((row) => (
+                        <tr key={`cause-employer-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
                           ))}
-                        </>
-                      )}
+                        </tr>
+                      ))}
+                      <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
+                        <td className="border border-slate-200 p-2 pl-6">b. Do người lao động</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewEmployeeCauseRows.map((row) => (
+                        <tr key={`cause-employee-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                      <tr className="italic text-slate-600 font-semibold bg-slate-50/50">
+                        <td className="border border-slate-200 p-2 pl-6">c. Khách quan khó tránh/ Nguyên nhân chưa kể đến</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewOtherCauseRows.map((row) => (
+                        <tr key={`cause-other-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-8">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
 
-                      {reviewInjuryFactorRows.length > 0 && (
-                        <>
-                          <tr className="bg-slate-50 font-bold">
-                            <td className="border border-slate-200 p-2 pl-4 font-bold">1.2. Phân theo yếu tố gây chấn thương</td>
-                            <td className="border border-slate-200 p-2 text-center" />
-                            <td colSpan={11} className="border border-slate-200" />
-                          </tr>
-                          {reviewInjuryFactorRows.map((row) => (
-                            <tr key={`injury-factor-${row.label}`}>
-                              <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
-                              <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                              {row.metrics.map((value, index) => (
-                                <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="border border-slate-200 p-2 pl-4 font-bold">1.2. Phân theo yếu tố gây chấn thương</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewInjuryFactorRows.map((row) => (
+                        <tr key={`injury-factor-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
                           ))}
-                        </>
-                      )}
+                        </tr>
+                      ))}
 
-                      {reviewOccupationRows.length > 0 && (
-                        <>
-                          <tr className="bg-slate-50 font-bold">
-                            <td className="border border-slate-200 p-2 pl-4 font-bold">1.3. Phân theo nghề nghiệp</td>
-                            <td className="border border-slate-200 p-2 text-center" />
-                            <td colSpan={11} className="border border-slate-200" />
-                          </tr>
-                          {reviewOccupationRows.map((row) => (
-                            <tr key={`occupation-${row.label}`}>
-                              <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
-                              <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
-                              {row.metrics.map((value, index) => (
-                                <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
-                                  {value}
-                                </td>
-                              ))}
-                            </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="border border-slate-200 p-2 pl-4 font-bold">1.3. Phân theo nghề nghiệp</td>
+                        <td className="border border-slate-200 p-2 text-center" />
+                        <td colSpan={11} className="border border-slate-200" />
+                      </tr>
+                      {reviewOccupationRows.map((row) => (
+                        <tr key={`occupation-${row.label}`}>
+                          <td className="border border-slate-200 p-2 pl-6">{row.label}</td>
+                          <td className="border border-slate-200 p-2 text-center font-mono">{row.code}</td>
+                          {row.metrics.map((value, index) => (
+                            <td key={`${row.label}-${index}`} className="border border-slate-200 p-2 text-center">
+                              {value}
+                            </td>
                           ))}
-                        </>
-                      )}
+                        </tr>
+                      ))}
 
                       <tr className="bg-slate-100 font-bold">
                         <td className="border border-slate-200 p-2 font-bold">

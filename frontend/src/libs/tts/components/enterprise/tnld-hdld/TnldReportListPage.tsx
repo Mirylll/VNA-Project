@@ -257,10 +257,11 @@ export default function TnldReportListPage() {
                   <tr key={report.id} className="transition hover:bg-blue-50/40">
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-3 text-gray-400">
-                        {report.status !== 'DA_BAO_CAO' && (
+                        {/* Chỉ hiện nút edit khi báo cáo CHƯA được gửi (draft) - theo mentor: đã gửi thì không được sửa */}
+                        {(report.status === 'CHO_BAO_CAO' || report.status === 'DANG_BAO_CAO') && (
                           <button
                             type="button"
-                            onClick={() => (report.status === 'CHO_TIEP_NHAN' ? openReportEdit(report) : openReport(report))}
+                            onClick={() => openReport(report)}
                             className="rounded p-1 transition hover:bg-white hover:text-blue-600"
                             aria-label="Chỉnh sửa báo cáo"
                           >

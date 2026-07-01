@@ -6,7 +6,6 @@ import { RequirePermission } from '../../libs/core/decorators/require-permission
 import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Controller('enterprise-types')
-@UseGuards(PermissionsGuard)
 export class EnterpriseTypesController {
   constructor(private readonly service: EnterpriseTypesService) {}
 
@@ -21,6 +20,7 @@ export class EnterpriseTypesController {
   }
 
   @Post()
+  @UseGuards(PermissionsGuard)
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission('ADMIN_C_ENTERPRISE_TYPE_CREATE')
   async create(@Body() dto: CreateEnterpriseTypeDto) {
@@ -28,12 +28,14 @@ export class EnterpriseTypesController {
   }
 
   @Put(':id')
+  @UseGuards(PermissionsGuard)
   @RequirePermission('ADMIN_C_ENTERPRISE_TYPE_UPDATE')
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEnterpriseTypeDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
+  @UseGuards(PermissionsGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission('ADMIN_C_ENTERPRISE_TYPE_DELETE')
   async remove(@Param('id', ParseIntPipe) id: number) {
