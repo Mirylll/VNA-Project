@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import { HCM_WARDS, ENTERPRISE_TYPES, INDUSTRIES } from '@/libs/tts/data/hcm-districts';
+import DatePicker from '@/libs/tts/components/DatePicker';
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -946,12 +947,11 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
 
               {/* Ngày cấp GPKD */}
               <FieldWrap label="Ngày cấp GPKD" required error={errors.ngayCap}>
-                <input
-                  type="date"
+                <DatePicker
                   value={form.ngayCap}
-                  max={getTodayDateValue()}
-                  onChange={(e) => handleLicenseDateChange(e.target.value)}
-                  className={inputCls(!!errors.ngayCap)}
+                  onChange={(iso) => handleLicenseDateChange(iso)}
+                  error={errors.ngayCap}
+                  className="w-full"
                 />
               </FieldWrap>
 
