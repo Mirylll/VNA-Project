@@ -81,6 +81,7 @@ export default function Sidebar() {
   const [openMenu, setOpenMenu] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     'he-thong',
+    'tai-nan-lao-dong',
   ]);
   const [activeItem, setActiveItem] = useState('');
   const [token, setToken] = useState<string | null>(null);

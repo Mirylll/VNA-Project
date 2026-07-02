@@ -28,6 +28,7 @@ export default function EnterpriseSidebar() {
   const [openUserMenu, setOpenUserMenu] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     'he-thong',
+    'tai-nan-lao-dong',
   ]);
   const [enterpriseName, setEnterpriseName] = useState(getEnterpriseDisplayName);
   const [user, setUser] = useState<{ avatarUrl?: string; fullName?: string } | null>(null);
