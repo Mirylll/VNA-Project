@@ -480,9 +480,9 @@ export class AuthService {
     const raw = value?.trim();
     if (!raw) return null;
 
-    const [rawCode, ...rawNameParts] = raw.split('-');
+    const [rawCode, ...rawNameParts] = raw.split(' - ');
     const code = rawCode.trim();
-    const name = rawNameParts.join('-').trim() || raw;
+    const name = rawNameParts.join(' - ').trim() || raw;
     const existing = await repository.findOne({
       where: [{ code }, { name }, { name: ILike(name) }],
     });
