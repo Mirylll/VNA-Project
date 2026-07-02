@@ -35,20 +35,6 @@ interface AccidentCause {
   isActive?: boolean;
 }
 
-const DEFAULT_ACCIDENT_CAUSES: AccidentCause[] = [
-  { code: 'a', name: 'Do người sử dụng lao động', level: 1, isActive: true },
-  { code: 'a1', name: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn', level: 2, parentCode: 'a', isActive: true },
-  { code: 'a2', name: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt', level: 2, parentCode: 'a', isActive: true },
-  { code: 'a3', name: 'Tổ chức lao động không hợp lý', level: 2, parentCode: 'a', isActive: true },
-  { code: 'a4', name: 'Chưa huấn luyện hoặc huấn luyện an toàn vệ sinh lao động chưa đầy đủ', level: 2, parentCode: 'a', isActive: true },
-  { code: 'a5', name: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn', level: 2, parentCode: 'a', isActive: true },
-  { code: 'a6', name: 'Điều kiện làm việc không tốt', level: 2, parentCode: 'a', isActive: true },
-  { code: 'b', name: 'Do người lao động', level: 1, isActive: true },
-  { code: 'b1', name: 'Quy phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn', level: 2, parentCode: 'b', isActive: true },
-  { code: 'b2', name: 'Không sử dụng phương tiện bảo vệ cá nhân', level: 2, parentCode: 'b', isActive: true },
-  { code: 'c', name: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến', level: 1, isActive: true },
-];
-
 // Initial seed data
 const DEFAULT_INJURY_FACTORS: InjuryFactor[] = [
   { id: '1', name: 'Điện', isActive: true },
@@ -80,11 +66,21 @@ const DEFAULT_OCCUPATIONS: Occupation[] = [
   { code: '21', name: 'Chuyên gia trong lĩnh vực khoa học và kỹ thuật', level: 2, parentCode: '2' }
 ];
 
-export default function TnldCategoriesPage() {
-  const canCreate = hasPermission('ADMIN_C_TNLD_CATEGORY_CREATE');
-  const canUpdate = hasPermission('ADMIN_C_TNLD_CATEGORY_UPDATE');
-  const canDelete = hasPermission('ADMIN_C_TNLD_CATEGORY_DELETE');
+const DEFAULT_ACCIDENT_CAUSES: AccidentCause[] = [
+  { code: 'a', name: 'Do người sử dụng lao động', level: 1, isActive: true },
+  { code: 'a1', name: 'Không có thiết bị an toàn hoặc thiết bị không đảm bảo an toàn', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a2', name: 'Không có phương tiện bảo vệ cá nhân hoặc phương tiện bảo vệ cá nhân không tốt', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a3', name: 'Tổ chức lao động không hợp lý', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a4', name: 'Chưa huấn luyện hoặc huấn luyện an toàn vệ sinh lao động chưa đầy đủ', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a5', name: 'Không có quy trình an toàn hoặc biện pháp làm việc an toàn', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a6', name: 'Điều kiện làm việc không tốt', level: 2, parentCode: 'a', isActive: true },
+  { code: 'b', name: 'Do người lao động', level: 1, isActive: true },
+  { code: 'b1', name: 'Quy phạm nội quy, quy trình, quy chuẩn, biện pháp làm việc an toàn', level: 2, parentCode: 'b', isActive: true },
+  { code: 'b2', name: 'Không sử dụng phương tiện bảo vệ cá nhân', level: 2, parentCode: 'b', isActive: true },
+  { code: 'c', name: 'Khách quan khó tránh/ Nguyên nhân chưa kể đến', level: 1, isActive: true },
+];
 
+export default function TnldCategoriesPage() {
   // Category tab state: 'factor' | 'type' | 'occupation' | 'cause'
   const [activeCategory, setActiveCategory] = useState<'factor' | 'type' | 'occupation' | 'cause'>('factor');
 
@@ -106,6 +102,14 @@ export default function TnldCategoriesPage() {
 
   // Expanded groups for collapsible type/occupation table rows
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
+
+  // Mounted state to avoid hydration mismatch on permission checks
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const canCreate = mounted && hasPermission('ADMIN_C_TNLD_CATEGORY_CREATE');
+  const canUpdate = mounted && hasPermission('ADMIN_C_TNLD_CATEGORY_UPDATE');
+  const canDelete = mounted && hasPermission('ADMIN_C_TNLD_CATEGORY_DELETE');
 
   function toggleExpand(code: string) {
     setExpandedCodes(prev => {
@@ -149,43 +153,35 @@ export default function TnldCategoriesPage() {
   // Load / Save to LocalStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // 1. Factors
       try {
         const storedFactors = localStorage.getItem('vna_tnld_factors');
         if (storedFactors) {
           const parsed = JSON.parse(storedFactors);
           if (Array.isArray(parsed)) setFactors(parsed);
-          else throw new Error();
+          else setFactors(DEFAULT_INJURY_FACTORS);
         } else {
           setFactors(DEFAULT_INJURY_FACTORS);
           localStorage.setItem('vna_tnld_factors', JSON.stringify(DEFAULT_INJURY_FACTORS));
         }
       } catch {
         setFactors(DEFAULT_INJURY_FACTORS);
-        localStorage.setItem('vna_tnld_factors', JSON.stringify(DEFAULT_INJURY_FACTORS));
       }
 
-      // 2. Types
       try {
         const storedTypes = localStorage.getItem('vna_tnld_types');
         if (storedTypes) {
           const parsed = JSON.parse(storedTypes);
           if (Array.isArray(parsed)) {
-            const mapped = parsed.map((t: any) => ({ ...t, isActive: t.isActive !== false }));
-            setTypes(mapped);
-          } else throw new Error();
+            setTypes(parsed.map((t: any) => ({ ...t, isActive: t.isActive !== false })));
+          } else setTypes(DEFAULT_INJURY_TYPES.map(t => ({ ...t, isActive: true })));
         } else {
-          const seed = DEFAULT_INJURY_TYPES.map((t: InjuryType) => ({ ...t, isActive: true }));
-          setTypes(seed);
-          localStorage.setItem('vna_tnld_types', JSON.stringify(seed));
+          setTypes(DEFAULT_INJURY_TYPES.map(t => ({ ...t, isActive: true })));
+          localStorage.setItem('vna_tnld_types', JSON.stringify(DEFAULT_INJURY_TYPES.map(t => ({ ...t, isActive: true }))));
         }
       } catch {
-        const seed = DEFAULT_INJURY_TYPES.map((t: InjuryType) => ({ ...t, isActive: true }));
-        setTypes(seed);
-        localStorage.setItem('vna_tnld_types', JSON.stringify(seed));
+        setTypes(DEFAULT_INJURY_TYPES.map(t => ({ ...t, isActive: true })));
       }
 
-      // 3. Occupations
       try {
         const storedOccs = localStorage.getItem('vna_tnld_occs');
         if (storedOccs) {
@@ -194,36 +190,36 @@ export default function TnldCategoriesPage() {
             const mapped = parsed.map((o: any) => ({ ...o, isActive: o.isActive !== false }));
             setOccupations(mapped);
             setExpandedCodes(new Set(mapped.filter((o: Occupation) => o.level === 1).map((o: Occupation) => o.code)));
-          } else throw new Error();
+          } else {
+            const seed = DEFAULT_OCCUPATIONS.map(o => ({ ...o, isActive: true }));
+            setOccupations(seed);
+            setExpandedCodes(new Set(seed.filter(o => o.level === 1).map(o => o.code)));
+          }
         } else {
-          const seed = DEFAULT_OCCUPATIONS.map((o: Occupation) => ({ ...o, isActive: true }));
+          const seed = DEFAULT_OCCUPATIONS.map(o => ({ ...o, isActive: true }));
           setOccupations(seed);
-          setExpandedCodes(new Set(seed.filter((o: Occupation) => o.level === 1).map((o: Occupation) => o.code)));
+          setExpandedCodes(new Set(seed.filter(o => o.level === 1).map(o => o.code)));
           localStorage.setItem('vna_tnld_occs', JSON.stringify(seed));
         }
       } catch {
-        const seed = DEFAULT_OCCUPATIONS.map((o: Occupation) => ({ ...o, isActive: true }));
+        const seed = DEFAULT_OCCUPATIONS.map(o => ({ ...o, isActive: true }));
         setOccupations(seed);
-        setExpandedCodes(new Set(seed.filter((o: Occupation) => o.level === 1).map((o: Occupation) => o.code)));
-        localStorage.setItem('vna_tnld_occs', JSON.stringify(seed));
+        setExpandedCodes(new Set(seed.filter(o => o.level === 1).map(o => o.code)));
       }
 
-      // 4. Causes
       try {
         const storedCauses = localStorage.getItem('vna_tnld_causes');
         if (storedCauses) {
           const parsed = JSON.parse(storedCauses);
           if (Array.isArray(parsed)) {
-            const mapped = parsed.map((c: any) => ({ ...c, isActive: c.isActive !== false }));
-            setCauses(mapped);
-          } else throw new Error();
+            setCauses(parsed.map((c: any) => ({ ...c, isActive: c.isActive !== false })));
+          } else setCauses(DEFAULT_ACCIDENT_CAUSES);
         } else {
           setCauses(DEFAULT_ACCIDENT_CAUSES);
           localStorage.setItem('vna_tnld_causes', JSON.stringify(DEFAULT_ACCIDENT_CAUSES));
         }
       } catch {
         setCauses(DEFAULT_ACCIDENT_CAUSES);
-        localStorage.setItem('vna_tnld_causes', JSON.stringify(DEFAULT_ACCIDENT_CAUSES));
       }
     }
   }, []);
@@ -248,7 +244,7 @@ export default function TnldCategoriesPage() {
     localStorage.setItem('vna_tnld_causes', JSON.stringify(data));
   };
 
-  // Switch Active Status
+  // Switch Active Status (Factors only)
   const handleToggleFactorActive = (id: string) => {
     const updated = factors.map((f) =>
       f.id === id ? { ...f, isActive: !f.isActive } : f
@@ -295,39 +291,27 @@ export default function TnldCategoriesPage() {
       if (filterCode && !t.code.toLowerCase().includes(filterCode.toLowerCase())) return false;
       if (filterName && !t.name.toLowerCase().includes(filterName.toLowerCase())) return false;
       if (filterLevel && !`cấp ${t.level}`.toLowerCase().includes(filterLevel.toLowerCase()) && !String(t.level).includes(filterLevel)) return false;
-      if (filterStatus) {
-        const checkActive = filterStatus === 'active';
-        if (t.isActive !== checkActive) return false;
-      }
       return true;
     });
-  }, [types, filterCode, filterName, filterLevel, filterStatus]);
+  }, [types, filterCode, filterName, filterLevel]);
 
   const filteredOccupations = useMemo(() => {
     return occupations.filter((o) => {
       if (filterCode && !o.code.toLowerCase().includes(filterCode.toLowerCase())) return false;
       if (filterName && !o.name.toLowerCase().includes(filterName.toLowerCase())) return false;
       if (filterLevel && !`cấp ${o.level}`.toLowerCase().includes(filterLevel.toLowerCase()) && !String(o.level).includes(filterLevel)) return false;
-      if (filterStatus) {
-        const checkActive = filterStatus === 'active';
-        if (o.isActive !== checkActive) return false;
-      }
       return true;
     });
-  }, [occupations, filterCode, filterName, filterLevel, filterStatus]);
+  }, [occupations, filterCode, filterName, filterLevel]);
 
   const filteredCauses = useMemo(() => {
     return causes.filter((c) => {
       if (filterCode && !c.code.toLowerCase().includes(filterCode.toLowerCase())) return false;
       if (filterName && !c.name.toLowerCase().includes(filterName.toLowerCase())) return false;
       if (filterLevel && !`cấp ${c.level}`.toLowerCase().includes(filterLevel.toLowerCase()) && !String(c.level).includes(filterLevel)) return false;
-      if (filterStatus) {
-        const checkActive = filterStatus === 'active';
-        if (c.isActive !== checkActive) return false;
-      }
       return true;
     });
-  }, [causes, filterCode, filterName, filterLevel, filterStatus]);
+  }, [causes, filterCode, filterName, filterLevel]);
 
   // Handle Add New open
   const handleAddNew = () => {
@@ -351,7 +335,6 @@ export default function TnldCategoriesPage() {
       setFormCode(item.code);
       setFormName(item.name);
       setFormParentCode(item.parentCode || '');
-      setFormActive(item.isActive !== false);
     }
     setFormErrors({});
     setShowModal(true);
@@ -383,7 +366,7 @@ export default function TnldCategoriesPage() {
         return true;
       });
     } else if (activeCategory === 'cause') {
-      // For causes, level limit is 2, so parents can only be Level 1
+      // For causes, level limit is 2, so parents must be Level 1
       return causes.filter((c) => {
         if (c.level >= 2) return false;
         if (editingItem && c.code === editingItem.code) return false;
@@ -439,11 +422,8 @@ export default function TnldCategoriesPage() {
         }
       }
 
-      // Business Rule: For injury types, level 2 & 3 must select parent
-      if (activeCategory === 'type' && codeTrim.length > 1 && !formParentCode) {
-        errors.parent = 'Bắt buộc phải chọn loại chấn thương cha cho cấp này';
-      }
-      if (activeCategory === 'cause' && codeTrim.length > 1 && !formParentCode && codeTrim !== 'c') {
+      // Business Rule: For injury types & causes, level 2+ must select parent
+      if ((activeCategory === 'type' || activeCategory === 'cause') && codeTrim.length > 1 && !formParentCode) {
         errors.parent = 'Bắt buộc phải chọn nhóm cha cho cấp này';
       }
     }
@@ -494,7 +474,7 @@ export default function TnldCategoriesPage() {
 
         const updated = types.map((t) =>
           t.code === editingItem.code
-            ? { ...t, code: codeTrim, name: nameTrim, parentCode: formParentCode || undefined, level: calculatedLevel, isActive: formActive }
+            ? { ...t, code: codeTrim, name: nameTrim, parentCode: formParentCode || undefined, level: calculatedLevel }
             : t
         );
         saveTypes(updated);
@@ -505,7 +485,6 @@ export default function TnldCategoriesPage() {
           name: nameTrim,
           level: calculatedLevel,
           parentCode: formParentCode || undefined,
-          isActive: formActive,
         };
         saveTypes([...types, newItem]);
       }
@@ -527,7 +506,7 @@ export default function TnldCategoriesPage() {
 
         const updated = occupations.map((o) =>
           o.code === editingItem.code
-            ? { ...o, code: codeTrim, name: nameTrim, parentCode: formParentCode || undefined, level: calculatedLevel, isActive: formActive }
+            ? { ...o, code: codeTrim, name: nameTrim, parentCode: formParentCode || undefined, level: calculatedLevel }
             : o
         );
         saveOccs(updated);
@@ -538,12 +517,10 @@ export default function TnldCategoriesPage() {
           name: nameTrim,
           level: calculatedLevel,
           parentCode: formParentCode || undefined,
-          isActive: formActive,
         };
         saveOccs([...occupations, newItem]);
       }
     } else if (activeCategory === 'cause') {
-      // Cause
       let calculatedLevel = 1;
       if (formParentCode) {
         const parent = causes.find((c) => c.code === formParentCode);
@@ -551,7 +528,6 @@ export default function TnldCategoriesPage() {
       }
 
       if (editingItem) {
-        // Edit cause
         const hasChildren = causes.some((c) => c.parentCode === editingItem.code);
         if (hasChildren && formParentCode !== editingItem.parentCode) {
           setFormErrors({ parent: 'Không thể thay đổi nhóm cha của mục đang có nhóm con' });
@@ -560,18 +536,17 @@ export default function TnldCategoriesPage() {
 
         const updated = causes.map((c) =>
           c.code === editingItem.code
-            ? { ...c, code: codeTrim, name: nameTrim, parentCode: formParentCode || undefined, level: calculatedLevel, isActive: formActive }
+            ? { ...c, code: codeTrim, name: nameTrim, parentCode: formParentCode || undefined, level: calculatedLevel }
             : c
         );
         saveCauses(updated);
       } else {
-        // Add cause
         const newItem: AccidentCause = {
           code: codeTrim,
           name: nameTrim,
           level: calculatedLevel,
           parentCode: formParentCode || undefined,
-          isActive: formActive,
+          isActive: true,
         };
         saveCauses([...causes, newItem]);
       }
@@ -632,19 +607,19 @@ export default function TnldCategoriesPage() {
         csvContent += `"${f.id}","${f.name}","${f.isActive ? 'Sử dụng' : 'Ngừng hoạt động'}"\n`;
       });
     } else if (activeCategory === 'type') {
-      csvContent += "Mã số,Tên loại chấn thương,Cấp,Mã cha,Trạng thái\n";
+      csvContent += "Mã số,Tên loại chấn thương,Cấp,Mã cha\n";
       filteredTypes.forEach(t => {
-        csvContent += `"${t.code}","${t.name}","${t.level}","${t.parentCode || ''}","${t.isActive ? 'Sử dụng' : 'Ngừng hoạt động'}"\n`;
+        csvContent += `"${t.code}","${t.name}","${t.level}","${t.parentCode || ''}"\n`;
       });
     } else if (activeCategory === 'occupation') {
-      csvContent += "Mã ngành,Tên ngành,Cấp,Mã cha,Trạng thái\n";
+      csvContent += "Mã ngành,Tên ngành,Cấp,Mã cha\n";
       filteredOccupations.forEach(o => {
-        csvContent += `"${o.code}","${o.name}","${o.level}","${o.parentCode || ''}","${o.isActive ? 'Sử dụng' : 'Ngừng hoạt động'}"\n`;
+        csvContent += `"${o.code}","${o.name}","${o.level}","${o.parentCode || ''}"\n`;
       });
     } else if (activeCategory === 'cause') {
-      csvContent += "Mã số,Tên nguyên nhân,Cấp,Mã cha,Trạng thái\n";
+      csvContent += "Mã số,Tên nguyên nhân,Cấp,Mã cha\n";
       filteredCauses.forEach(c => {
-        csvContent += `"${c.code}","${c.name}","${c.level}","${c.parentCode || ''}","${c.isActive ? 'Sử dụng' : 'Ngừng hoạt động'}"\n`;
+        csvContent += `"${c.code}","${c.name}","${c.level}","${c.parentCode || ''}"\n`;
       });
     }
 
@@ -661,7 +636,7 @@ export default function TnldCategoriesPage() {
     } else if (activeCategory === 'occupation') {
       fileName = 'Danh mục nghề nghiệp.csv';
     } else if (activeCategory === 'cause') {
-      fileName = 'Nguyên nhân xảy ra TNLĐ.csv';
+      fileName = 'Nguyên nhân TNLĐ.csv';
     }
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
@@ -713,14 +688,12 @@ export default function TnldCategoriesPage() {
             const name = parts[1];
             const level = parts[2] ? parseInt(parts[2]) : 1;
             const parentCode = parts[3] || undefined;
-            const activeStr = parts[4] || '';
-            const isActive = activeStr !== 'Ngừng hoạt động';
             
             const idx = newTypes.findIndex(t => t.code.toLowerCase() === code.toLowerCase());
             if (idx >= 0) {
-              newTypes[idx] = { code, name, level, parentCode, isActive };
+              newTypes[idx] = { code, name, level, parentCode };
             } else {
-              newTypes.push({ code, name, level, parentCode, isActive });
+              newTypes.push({ code, name, level, parentCode });
             }
           }
         }
@@ -734,14 +707,12 @@ export default function TnldCategoriesPage() {
             const name = parts[1];
             const level = parts[2] ? parseInt(parts[2]) : 1;
             const parentCode = parts[3] || undefined;
-            const activeStr = parts[4] || '';
-            const isActive = activeStr !== 'Ngừng hoạt động';
             
             const idx = newOccs.findIndex(o => o.code.toLowerCase() === code.toLowerCase());
             if (idx >= 0) {
-              newOccs[idx] = { code, name, level, parentCode, isActive };
+              newOccs[idx] = { code, name, level, parentCode };
             } else {
-              newOccs.push({ code, name, level, parentCode, isActive });
+              newOccs.push({ code, name, level, parentCode });
             }
           }
         }
@@ -755,18 +726,17 @@ export default function TnldCategoriesPage() {
             const name = parts[1];
             const level = parts[2] ? parseInt(parts[2]) : 1;
             const parentCode = parts[3] || undefined;
-            const activeStr = parts[4] || '';
-            const isActive = activeStr !== 'Ngừng hoạt động';
-
+            
             const idx = newCauses.findIndex(c => c.code.toLowerCase() === code.toLowerCase());
             if (idx >= 0) {
-              newCauses[idx] = { code, name, level, parentCode, isActive };
+              newCauses[idx] = { code, name, level, parentCode };
             } else {
-              newCauses.push({ code, name, level, parentCode, isActive });
+              newCauses.push({ code, name, level, parentCode });
             }
           }
         }
         saveCauses(newCauses);
+      }
       alert('Nhập danh mục từ file thành công!');
     };
     reader.readAsText(file);
@@ -787,13 +757,11 @@ export default function TnldCategoriesPage() {
           >
             Xuất danh sách
           </button>
-          {canCreate && (
-            <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-medium bg-white hover:bg-blue-50 transition-colors cursor-pointer">
-              <Upload size={16} />
-              Thêm từ file
-              <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
-            </label>
-          )}
+          <label className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-500 text-blue-500 text-sm font-medium bg-white hover:bg-blue-50 transition-colors cursor-pointer">
+            <Upload size={16} />
+            Thêm từ file
+            <input type="file" accept=".csv" onChange={handleImport} className="hidden" />
+          </label>
           {canCreate && (
             <button
               onClick={handleAddNew}
@@ -817,7 +785,7 @@ export default function TnldCategoriesPage() {
             <option value="factor">Yếu tố gây chấn thương</option>
             <option value="type">Loại chấn thương</option>
             <option value="occupation">Danh mục nghề nghiệp</option>
-            <option value="cause">Nguyên nhân xảy ra TNLĐ</option>
+            <option value="cause">Nguyên nhân TNLĐ</option>
           </select>
           <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
         </div>
@@ -830,19 +798,17 @@ export default function TnldCategoriesPage() {
             {/* Columns headers */}
             {activeCategory === 'factor' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                {canDelete && (
-                  <th className="w-12 px-4 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={filteredFactors.length > 0 && selectedIds.length === filteredFactors.length}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedIds(filteredFactors.map((f) => f.id));
-                        else setSelectedIds([]);
-                      }}
-                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                    />
-                  </th>
-                )}
+                <th className="w-12 px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredFactors.length > 0 && selectedIds.length === filteredFactors.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds(filteredFactors.map((f) => f.id));
+                      else setSelectedIds([]);
+                    }}
+                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                  />
+                </th>
                 {canUpdate && (
                   <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                     Thao tác
@@ -854,27 +820,27 @@ export default function TnldCategoriesPage() {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Yếu tố gây chấn thương
                 </th>
-                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Trạng thái
-                </th>
+                {canUpdate && (
+                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Trạng thái
+                  </th>
+                )}
               </tr>
             )}
 
             {activeCategory === 'type' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                {canDelete && (
-                  <th className="w-12 px-4 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={filteredTypes.length > 0 && selectedIds.length === filteredTypes.length}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedIds(filteredTypes.map((t) => t.code));
-                        else setSelectedIds([]);
-                      }}
-                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                    />
-                  </th>
-                )}
+                <th className="w-12 px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredTypes.length > 0 && selectedIds.length === filteredTypes.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds(filteredTypes.map((t) => t.code));
+                      else setSelectedIds([]);
+                    }}
+                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                  />
+                </th>
                 {canUpdate && (
                   <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                     Thao tác
@@ -886,30 +852,30 @@ export default function TnldCategoriesPage() {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Tên loại chấn thương
                 </th>
-                <th className="w-32 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                   Cấp
                 </th>
-                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Trạng thái
-                </th>
+                {canUpdate && (
+                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Trạng thái
+                  </th>
+                )}
               </tr>
             )}
 
             {activeCategory === 'occupation' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                {canDelete && (
-                  <th className="w-12 px-4 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={filteredOccupations.length > 0 && selectedIds.length === filteredOccupations.length}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedIds(filteredOccupations.map((o) => o.code));
-                        else setSelectedIds([]);
-                      }}
-                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                    />
-                  </th>
-                )}
+                <th className="w-12 px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredOccupations.length > 0 && selectedIds.length === filteredOccupations.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds(filteredOccupations.map((o) => o.code));
+                      else setSelectedIds([]);
+                    }}
+                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                  />
+                </th>
                 {canUpdate && (
                   <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                     Thao tác
@@ -921,30 +887,30 @@ export default function TnldCategoriesPage() {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Tên nghề nghiệp
                 </th>
-                <th className="w-32 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                   Cấp
                 </th>
-                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Trạng thái
-                </th>
+                {canUpdate && (
+                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Trạng thái
+                  </th>
+                )}
               </tr>
             )}
 
             {activeCategory === 'cause' && (
               <tr className="bg-slate-50/75 border-b border-slate-200">
-                {canDelete && (
-                  <th className="w-12 px-4 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={filteredCauses.length > 0 && selectedIds.length === filteredCauses.length}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedIds(filteredCauses.map((c) => c.code));
-                        else setSelectedIds([]);
-                      }}
-                      className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                    />
-                  </th>
-                )}
+                <th className="w-12 px-4 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredCauses.length > 0 && selectedIds.length === filteredCauses.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedIds(filteredCauses.map((c) => c.code));
+                      else setSelectedIds([]);
+                    }}
+                    className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                  />
+                </th>
                 {canUpdate && (
                   <th className="w-16 px-2 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                     Thao tác
@@ -956,26 +922,28 @@ export default function TnldCategoriesPage() {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Tên nguyên nhân
                 </th>
-                <th className="w-32 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                   Cấp
                 </th>
-                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                  Trạng thái
-                </th>
+                {canUpdate && (
+                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                    Trạng thái
+                  </th>
+                )}
               </tr>
             )}
 
             {/* Filter inputs row */}
             <tr className="border-b border-slate-200 bg-white">
-              {canDelete && <td className="px-4 py-2" />}
-              {canUpdate && <td className="px-2 py-2" />}
+              <td className="px-4 py-2" />
+              <td className="px-2 py-2" />
               <td className="px-2 py-2">
                 <input
                   type="text"
                   placeholder={
                     activeCategory === 'factor' ? 'Lọc theo mã yếu tố...' :
                     activeCategory === 'type' ? 'Lọc theo mã số...' :
-                    activeCategory === 'cause' ? 'Lọc theo mã số...' : 'Lọc theo mã nghề...'
+                    activeCategory === 'occupation' ? 'Lọc theo mã nghề...' : 'Lọc theo mã số...'
                   }
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
@@ -988,37 +956,36 @@ export default function TnldCategoriesPage() {
                   placeholder={
                     activeCategory === 'factor' ? 'Lọc theo tên yếu tố...' :
                     activeCategory === 'type' ? 'Lọc theo tên loại...' :
-                    activeCategory === 'cause' ? 'Lọc theo tên nguyên nhân...' : 'Lọc theo tên nghề...'
+                    activeCategory === 'occupation' ? 'Lọc theo tên nghề...' : 'Lọc theo tên nguyên nhân...'
                   }
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
-              {activeCategory !== 'factor' && (
-                <td className="px-2 py-2">
+              <td className="px-2 py-2">
+                {activeCategory === 'factor' ? (
+                  <div className="relative">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="w-full appearance-none border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-600"
+                    >
+                      <option value="">Tất cả</option>
+                      <option value="active">Hoạt động</option>
+                      <option value="inactive">Không sử dụng</option>
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                  </div>
+                ) : (
                   <input
                     type="text"
-                    placeholder="Lọc cấp..."
+                    placeholder=""
                     value={filterLevel}
                     onChange={(e) => setFilterLevel(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-center"
                   />
-                </td>
-              )}
-              <td className="px-2 py-2">
-                <div className="relative">
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full appearance-none border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-600"
-                  >
-                    <option value="">Lọc trạng thái</option>
-                    <option value="active">Hoạt động</option>
-                    <option value="inactive">Không sử dụng</option>
-                  </select>
-                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-                </div>
+                )}
               </td>
             </tr>
           </thead>
@@ -1027,27 +994,25 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'factor' && (
               filteredFactors.length === 0 ? (
                 <tr>
-                  <td colSpan={3 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy yếu tố nào
                   </td>
                 </tr>
               ) : (
                 filteredFactors.map((item) => (
                   <tr key={item.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                    {canDelete && (
-                      <td className="px-4 py-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(item.id)}
-                          onChange={() => {
-                            setSelectedIds((prev) =>
-                              prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
-                            );
-                          }}
-                          className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
-                        />
-                      </td>
-                    )}
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => {
+                          setSelectedIds((prev) =>
+                            prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+                          );
+                        }}
+                        className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]"
+                      />
+                    </td>
                     {canUpdate && (
                       <td className="px-2 py-3 text-center">
                         <button
@@ -1064,8 +1029,8 @@ export default function TnldCategoriesPage() {
                     <td className="px-3 py-3 text-sm text-slate-700 font-medium">
                       {item.name}
                     </td>
-                    <td className="px-3 py-3 text-center">
-                      {canUpdate ? (
+                    {canUpdate ? (
+                      <td className="px-3 py-3 text-center">
                         <button
                           type="button"
                           onClick={() => handleToggleFactorActive(item.id)}
@@ -1079,12 +1044,12 @@ export default function TnldCategoriesPage() {
                             }`}
                           />
                         </button>
-                      ) : (
-                        <span className={`text-xs font-medium ${item.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                          {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                        </span>
-                      )}
-                    </td>
+                      </td>
+                    ) : (
+                      <td className="px-3 py-3 text-center text-xs text-slate-500">
+                        {item.isActive ? 'Sử dụng' : 'Ngừng hoạt động'}
+                      </td>
+                    )}
                   </tr>
                 ))
               )
@@ -1094,7 +1059,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'type' && (
               filteredTypes.length === 0 ? (
                 <tr>
-                  <td colSpan={4 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy loại chấn thương nào
                   </td>
                 </tr>
@@ -1108,13 +1073,11 @@ export default function TnldCategoriesPage() {
                   if (filterCode || filterName || filterLevel) {
                     return filteredTypes.map(item => (
                       <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                        {canDelete && (
-                          <td className="px-4 py-3 text-center">
-                            <input type="checkbox" checked={selectedIds.includes(item.code)}
-                              onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
-                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                          </td>
-                        )}
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox" checked={selectedIds.includes(item.code)}
+                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                        </td>
                         {canUpdate && (
                           <td className="px-2 py-3 text-center">
                             <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1125,27 +1088,25 @@ export default function TnldCategoriesPage() {
                           <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
                         </td>
                         <td className="px-3 py-3 text-sm text-slate-500 text-center">Cấp {item.level}</td>
-                        <td className="px-3 py-3 text-center">
-                          {canUpdate ? (
+                        {canUpdate ? (
+                          <td className="px-3 py-3 text-center">
                             <button
                               type="button"
                               onClick={() => handleToggleTypeActive(item.code)}
-                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                item.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
-                              }`}
-                            >
-                              <span
-                                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                    item.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                  }`}
-                              />
-                            </button>
-                          ) : (
-                            <span className={`text-xs font-medium ${item.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                              {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                            </span>
-                          )}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
+                              item.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                              item.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                            }`} />
+                          </button>
                         </td>
+                        ) : (
+                          <td className="px-3 py-3 text-center text-xs text-slate-500">
+                            {item.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                          </td>
+                        )}
                       </tr>
                     ));
                   }
@@ -1158,13 +1119,11 @@ export default function TnldCategoriesPage() {
                       <Fragment key={group.code}>
                         {/* Group (Cấp 1) row */}
                         <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
-                          {canDelete && (
-                            <td className="px-4 py-3.5 text-center">
-                              <input type="checkbox" checked={selectedIds.includes(group.code)}
-                                onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
-                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                            </td>
-                          )}
+                          <td className="px-4 py-3.5 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(group.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
                           {canUpdate && (
                             <td className="px-2 py-3.5 text-center">
                               <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1172,53 +1131,45 @@ export default function TnldCategoriesPage() {
                           )}
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-1.5">
-                              {children.length > 0 ? (
-                                <button
-                                  onClick={() => toggleExpand(group.code)}
-                                  className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
-                                >
-                                  {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </button>
-                              ) : (
-                                <span className="w-[14px]" />
-                              )}
+                              <button
+                                onClick={() => toggleExpand(group.code)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                              >
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
                               <span className="text-sm font-semibold text-blue-600 font-mono">{group.code}</span>
                             </div>
                           </td>
                           <td className="px-3 py-3.5 text-sm font-semibold text-blue-600">{group.name}</td>
                           <td className="px-3 py-3.5 text-sm text-blue-500 text-center font-medium">Cấp 1</td>
-                          <td className="px-3 py-3.5 text-center">
-                            {canUpdate ? (
+                          {canUpdate ? (
+                            <td className="px-3 py-3.5 text-center">
                               <button
                                 type="button"
                                 onClick={() => handleToggleTypeActive(group.code)}
-                                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                  group.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
-                                }`}
-                              >
-                                <span
-                                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                    group.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                  }`}
-                                />
-                              </button>
-                            ) : (
-                              <span className={`text-xs font-medium ${group.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                                {group.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                              </span>
-                            )}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
+                                group.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                              }`}
+                            >
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                group.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                              }`} />
+                            </button>
                           </td>
+                          ) : (
+                            <td className="px-3 py-3.5 text-center text-xs text-slate-500">
+                              {group.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                            </td>
+                          )}
                         </tr>
                         {/* Children rows */}
                         {isOpen && children.map(child => (
                           <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            {canDelete && (
-                              <td className="px-4 py-3 text-center">
-                                <input type="checkbox" checked={selectedIds.includes(child.code)}
-                                  onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
-                                  className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                              </td>
-                            )}
+                            <td className="px-4 py-3 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
                             {canUpdate && (
                               <td className="px-2 py-3 text-center">
                                 <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1229,27 +1180,25 @@ export default function TnldCategoriesPage() {
                               <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
                             </td>
                             <td className="px-3 py-3 text-sm text-slate-400 text-center">Cấp {child.level}</td>
-                            <td className="px-3 py-3 text-center">
-                              {canUpdate ? (
+                            {canUpdate ? (
+                              <td className="px-3 py-3 text-center">
                                 <button
                                   type="button"
                                   onClick={() => handleToggleTypeActive(child.code)}
                                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                    child.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                    child.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                                   }`}
                                 >
-                                  <span
-                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                      child.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                    }`}
-                                  />
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                    child.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                                  }`} />
                                 </button>
-                              ) : (
-                                <span className={`text-xs font-medium ${child.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                                  {child.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                                </span>
-                              )}
-                            </td>
+                              </td>
+                            ) : (
+                              <td className="px-3 py-3 text-center text-xs text-slate-500">
+                                {child.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </Fragment>
@@ -1263,7 +1212,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'occupation' && (
               filteredOccupations.length === 0 ? (
                 <tr>
-                  <td colSpan={4 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy nghề nghiệp nào
                   </td>
                 </tr>
@@ -1276,13 +1225,11 @@ export default function TnldCategoriesPage() {
                   if (filterCode || filterName || filterLevel) {
                     return filteredOccupations.map(item => (
                       <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                        {canDelete && (
-                          <td className="px-4 py-3 text-center">
-                            <input type="checkbox" checked={selectedIds.includes(item.code)}
-                              onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
-                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                          </td>
-                        )}
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox" checked={selectedIds.includes(item.code)}
+                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                        </td>
                         {canUpdate && (
                           <td className="px-2 py-3 text-center">
                             <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1293,27 +1240,25 @@ export default function TnldCategoriesPage() {
                           <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
                         </td>
                         <td className="px-3 py-3 text-sm text-slate-500 text-center">Cấp {item.level}</td>
-                        <td className="px-3 py-3 text-center">
-                          {canUpdate ? (
+                        {canUpdate ? (
+                          <td className="px-3 py-3 text-center">
                             <button
                               type="button"
                               onClick={() => handleToggleOccActive(item.code)}
                               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                item.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                item.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                               }`}
                             >
-                              <span
-                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                  item.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                }`}
-                              />
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                item.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                              }`} />
                             </button>
-                          ) : (
-                            <span className={`text-xs font-medium ${item.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                              {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                            </span>
-                          )}
-                        </td>
+                          </td>
+                        ) : (
+                          <td className="px-3 py-3 text-center text-xs text-slate-500">
+                            {item.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                          </td>
+                        )}
                       </tr>
                     ));
                   }
@@ -1326,13 +1271,11 @@ export default function TnldCategoriesPage() {
                       <Fragment key={group.code}>
                         {/* Group (Cấp 1) row */}
                         <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
-                          {canDelete && (
-                            <td className="px-4 py-3.5 text-center">
-                              <input type="checkbox" checked={selectedIds.includes(group.code)}
-                                onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
-                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                            </td>
-                          )}
+                          <td className="px-4 py-3.5 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(group.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
                           {canUpdate && (
                             <td className="px-2 py-3.5 text-center">
                               <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1340,53 +1283,45 @@ export default function TnldCategoriesPage() {
                           )}
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-1.5">
-                              {children.length > 0 ? (
-                                <button
-                                  onClick={() => toggleExpand(group.code)}
-                                  className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
-                                >
-                                  {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </button>
-                              ) : (
-                                <span className="w-[14px]" />
-                              )}
+                              <button
+                                onClick={() => toggleExpand(group.code)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                              >
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
                               <span className="text-sm font-semibold text-blue-600 font-mono">{group.code}</span>
                             </div>
                           </td>
                           <td className="px-3 py-3.5 text-sm font-semibold text-blue-600">{group.name}</td>
                           <td className="px-3 py-3.5 text-sm text-blue-500 text-center font-medium">Cấp 1</td>
-                          <td className="px-3 py-3.5 text-center">
-                            {canUpdate ? (
+                          {canUpdate ? (
+                            <td className="px-3 py-3.5 text-center">
                               <button
                                 type="button"
                                 onClick={() => handleToggleOccActive(group.code)}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                  group.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                  group.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                                 }`}
                               >
-                                <span
-                                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                    group.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                  }`}
-                                />
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                  group.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                                }`} />
                               </button>
-                            ) : (
-                              <span className={`text-xs font-medium ${group.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                                {group.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                              </span>
-                            )}
-                          </td>
+                            </td>
+                          ) : (
+                            <td className="px-3 py-3.5 text-center text-xs text-slate-500">
+                              {group.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                            </td>
+                          )}
                         </tr>
                         {/* Children rows */}
                         {isOpen && children.map(child => (
                           <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            {canDelete && (
-                              <td className="px-4 py-3 text-center">
-                                <input type="checkbox" checked={selectedIds.includes(child.code)}
-                                  onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
-                                  className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                              </td>
-                            )}
+                            <td className="px-4 py-3 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
                             {canUpdate && (
                               <td className="px-2 py-3 text-center">
                                 <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1397,27 +1332,25 @@ export default function TnldCategoriesPage() {
                               <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
                             </td>
                             <td className="px-3 py-3 text-sm text-slate-400 text-center">Cấp {child.level}</td>
-                            <td className="px-3 py-3 text-center">
-                              {canUpdate ? (
+                            {canUpdate ? (
+                              <td className="px-3 py-3 text-center">
                                 <button
                                   type="button"
                                   onClick={() => handleToggleOccActive(child.code)}
                                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                    child.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                    child.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                                   }`}
                                 >
-                                  <span
-                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                      child.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                    }`}
-                                  />
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                    child.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                                  }`} />
                                 </button>
-                              ) : (
-                                <span className={`text-xs font-medium ${child.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                                  {child.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                                </span>
-                              )}
-                            </td>
+                              </td>
+                            ) : (
+                              <td className="px-3 py-3 text-center text-xs text-slate-500">
+                                {child.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </Fragment>
@@ -1431,7 +1364,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'cause' && (
               filteredCauses.length === 0 ? (
                 <tr>
-                  <td colSpan={4 + (canDelete ? 1 : 0) + (canUpdate ? 1 : 0)} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy nguyên nhân nào
                   </td>
                 </tr>
@@ -1444,13 +1377,11 @@ export default function TnldCategoriesPage() {
                   if (filterCode || filterName || filterLevel) {
                     return filteredCauses.map(item => (
                       <tr key={item.code} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                        {canDelete && (
-                          <td className="px-4 py-3 text-center">
-                            <input type="checkbox" checked={selectedIds.includes(item.code)}
-                              onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
-                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                          </td>
-                        )}
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox" checked={selectedIds.includes(item.code)}
+                            onChange={() => setSelectedIds(prev => prev.includes(item.code) ? prev.filter(c => c !== item.code) : [...prev, item.code])}
+                            className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                        </td>
                         {canUpdate && (
                           <td className="px-2 py-3 text-center">
                             <button onClick={() => handleEdit(item)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1461,45 +1392,40 @@ export default function TnldCategoriesPage() {
                           <span className="text-slate-400 font-mono select-none">{renderDashes(item.level)}</span>{item.name}
                         </td>
                         <td className="px-3 py-3 text-sm text-slate-500 text-center">Cấp {item.level}</td>
-                        <td className="px-3 py-3 text-center">
-                          {canUpdate ? (
+                        {canUpdate ? (
+                          <td className="px-3 py-3 text-center">
                             <button
                               type="button"
                               onClick={() => handleToggleCauseActive(item.code)}
                               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                item.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                item.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                               }`}
                             >
-                              <span
-                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                  item.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                }`}
-                              />
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                item.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                              }`} />
                             </button>
-                          ) : (
-                            <span className={`text-xs font-medium ${item.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                              {item.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                            </span>
-                          )}
-                        </td>
+                          </td>
+                        ) : (
+                          <td className="px-3 py-3 text-center text-xs text-slate-500">
+                            {item.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                          </td>
+                        )}
                       </tr>
                     ));
                   }
 
-                  // Grouped view
                   return level1Items.map(group => {
                     const isOpen = expandedCodes.has(group.code);
                     const children = childItems.filter(c => c.parentCode === group.code);
                     return (
                       <Fragment key={group.code}>
                         <tr className="border-b border-slate-200 hover:bg-blue-50/40 transition-colors bg-slate-50/50">
-                          {canDelete && (
-                            <td className="px-4 py-3.5 text-center">
-                              <input type="checkbox" checked={selectedIds.includes(group.code)}
-                                onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
-                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                            </td>
-                          )}
+                          <td className="px-4 py-3.5 text-center">
+                            <input type="checkbox" checked={selectedIds.includes(group.code)}
+                              onChange={() => setSelectedIds(prev => prev.includes(group.code) ? prev.filter(c => c !== group.code) : [...prev, group.code])}
+                              className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                          </td>
                           {canUpdate && (
                             <td className="px-2 py-3.5 text-center">
                               <button onClick={() => handleEdit(group)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1507,52 +1433,44 @@ export default function TnldCategoriesPage() {
                           )}
                           <td className="px-3 py-3.5">
                             <div className="flex items-center gap-1.5">
-                              {children.length > 0 ? (
-                                <button
-                                  onClick={() => toggleExpand(group.code)}
-                                  className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
-                                >
-                                  {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </button>
-                              ) : (
-                                <span className="w-[14px]" />
-                              )}
+                              <button
+                                onClick={() => toggleExpand(group.code)}
+                                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                              >
+                                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
                               <span className="text-sm font-semibold text-blue-600 font-mono">{group.code}</span>
                             </div>
                           </td>
                           <td className="px-3 py-3.5 text-sm font-semibold text-blue-600">{group.name}</td>
-                          <td className="px-3 py-3.5 text-sm text-blue-500 text-center font-medium">Cấp 1</td>
-                          <td className="px-3 py-3.5 text-center">
-                            {canUpdate ? (
+                          <td className="px-3 py-3.5 text-sm text-blue-500 text-center font-medium">Cấp {group.level}</td>
+                          {canUpdate ? (
+                            <td className="px-3 py-3.5 text-center">
                               <button
                                 type="button"
                                 onClick={() => handleToggleCauseActive(group.code)}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                  group.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                  group.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                                 }`}
                               >
-                                <span
-                                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                    group.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                  }`}
-                                />
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                  group.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                                }`} />
                               </button>
-                            ) : (
-                              <span className={`text-xs font-medium ${group.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                                {group.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                              </span>
-                            )}
-                          </td>
+                            </td>
+                          ) : (
+                            <td className="px-3 py-3.5 text-center text-xs text-slate-500">
+                              {group.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                            </td>
+                          )}
                         </tr>
                         {isOpen && children.map(child => (
                           <tr key={child.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                            {canDelete && (
-                              <td className="px-4 py-3 text-center">
-                                <input type="checkbox" checked={selectedIds.includes(child.code)}
-                                  onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
-                                  className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
-                              </td>
-                            )}
+                            <td className="px-4 py-3 text-center">
+                              <input type="checkbox" checked={selectedIds.includes(child.code)}
+                                onChange={() => setSelectedIds(prev => prev.includes(child.code) ? prev.filter(c => c !== child.code) : [...prev, child.code])}
+                                className="rounded text-[#1D4ED8] focus:ring-[#1D4ED8]" />
+                            </td>
                             {canUpdate && (
                               <td className="px-2 py-3 text-center">
                                 <button onClick={() => handleEdit(child)} className="text-slate-400 hover:text-[#1D4ED8] transition"><Pencil size={14} /></button>
@@ -1563,27 +1481,25 @@ export default function TnldCategoriesPage() {
                               <span className="text-slate-300 font-mono select-none">{renderDashes(child.level)}</span>{child.name}
                             </td>
                             <td className="px-3 py-3 text-sm text-slate-400 text-center">Cấp {child.level}</td>
-                            <td className="px-3 py-3 text-center">
-                              {canUpdate ? (
+                            {canUpdate ? (
+                              <td className="px-3 py-3 text-center">
                                 <button
                                   type="button"
                                   onClick={() => handleToggleCauseActive(child.code)}
                                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                                    child.isActive ? 'bg-[#1D4ED8]' : 'bg-gray-300'
+                                    child.isActive !== false ? 'bg-[#1D4ED8]' : 'bg-gray-300'
                                   }`}
                                 >
-                                  <span
-                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
-                                      child.isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'
-                                    }`}
-                                  />
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
+                                    child.isActive !== false ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                                  }`} />
                                 </button>
-                              ) : (
-                                <span className={`text-xs font-medium ${child.isActive ? 'text-green-600' : 'text-slate-400'}`}>
-                                  {child.isActive ? 'Hoạt động' : 'Không sử dụng'}
-                                </span>
-                              )}
-                            </td>
+                              </td>
+                            ) : (
+                              <td className="px-3 py-3 text-center text-xs text-slate-500">
+                                {child.isActive !== false ? 'Sử dụng' : 'Ngừng hoạt động'}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </Fragment>
@@ -1608,7 +1524,7 @@ export default function TnldCategoriesPage() {
               <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500" />
             </div>
           </div>
-          <span>
+           <span>
             1 - {
               activeCategory === 'factor' ? filteredFactors.length :
               activeCategory === 'type' ? filteredTypes.length :
@@ -1629,7 +1545,7 @@ export default function TnldCategoriesPage() {
       </div>
 
       {/* Floating Selection Bar for bulk actions */}
-      {canDelete && selectedIds.length > 0 && (
+      {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-slate-900/95 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-800 animate-in slide-in-from-bottom duration-200">
           <span className="text-xs font-semibold">Đang chọn {selectedIds.length} mục</span>
           <div className="h-4 w-[1px] bg-slate-700" />
@@ -1639,17 +1555,19 @@ export default function TnldCategoriesPage() {
           >
             Bỏ chọn
           </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-md"
-          >
-            Xoá đã chọn
-          </button>
+          {canDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-md"
+            >
+              Xoá đã chọn
+            </button>
+          )}
         </div>
       )}
 
       {/* Delete Confirmation Alert Overlay */}
-      {canDelete && showDeleteConfirm && (
+      {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
           <div className="w-full max-w-sm bg-white rounded-xl shadow-xl p-6 border border-slate-100 animate-in zoom-in-95 duration-150">
             <h3 className="text-slate-800 font-bold text-base mb-2">Xác nhận xoá</h3>
@@ -1790,14 +1708,14 @@ export default function TnldCategoriesPage() {
               </div>
             </div>
           ) : (
-            /* Loại chấn thương, Danh mục nghề nghiệp, Nguyên nhân xảy ra TNLĐ Modals */
+            /* Loại chấn thương and Danh mục nghề nghiệp Modals */
             <div className="w-full max-w-md bg-white rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
               {/* Solid Blue Header */}
               <div className="flex items-center justify-between bg-[#1D4ED8] px-6 py-3.5 text-white">
                 <h2 className="font-bold text-sm">
                   {editingItem 
-                    ? (activeCategory === 'type' ? 'Chỉnh sửa loại chấn thương' : activeCategory === 'occupation' ? 'Chỉnh sửa nghề nghiệp' : 'Chỉnh sửa nguyên nhân') 
-                    : (activeCategory === 'type' ? 'Thêm mới loại chấn thương' : activeCategory === 'occupation' ? 'Thêm mới nghề nghiệp' : 'Thêm mới nguyên nhân')}
+                    ? (activeCategory === 'type' ? 'Chỉnh sửa loại chấn thương' : activeCategory === 'cause' ? 'Chỉnh sửa nguyên nhân TNLĐ' : 'Chỉnh sửa nghề nghiệp') 
+                    : (activeCategory === 'type' ? 'Thêm mới loại chấn thương' : activeCategory === 'cause' ? 'Thêm mới nguyên nhân TNLĐ' : 'Thêm mới nghề nghiệp')}
                 </h2>
                 <button
                   onClick={() => setShowModal(false)}
@@ -1818,7 +1736,7 @@ export default function TnldCategoriesPage() {
                       setFormCode(e.target.value);
                       if (formErrors.code) setFormErrors((p) => ({ ...p, code: '' }));
                     }}
-                    placeholder={activeCategory === 'type' ? 'Mã số *' : activeCategory === 'occupation' ? 'Mã ngành *' : 'Mã số *'}
+                    placeholder={activeCategory === 'type' ? 'Mã số *' : activeCategory === 'cause' ? 'Mã số *' : 'Mã ngành *'}
                     disabled={!!editingItem}
                     className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
                       editingItem
@@ -1830,7 +1748,7 @@ export default function TnldCategoriesPage() {
                   />
                   {formCode && (
                     <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                      {activeCategory === 'type' ? 'Mã số' : activeCategory === 'occupation' ? 'Mã ngành' : 'Mã số'} <span className="text-red-500">*</span>
+                      {activeCategory === 'type' ? 'Mã số' : activeCategory === 'cause' ? 'Mã số' : 'Mã ngành'} <span className="text-red-500">*</span>
                     </label>
                   )}
                   {formErrors.code && (
@@ -1847,7 +1765,7 @@ export default function TnldCategoriesPage() {
                       setFormName(e.target.value);
                       if (formErrors.name) setFormErrors((p) => ({ ...p, name: '' }));
                     }}
-                    placeholder={activeCategory === 'type' ? 'Tên loại chấn thương *' : activeCategory === 'occupation' ? 'Tên ngành *' : 'Tên nguyên nhân *'}
+                    placeholder={activeCategory === 'type' ? 'Tên loại chấn thương *' : activeCategory === 'cause' ? 'Tên nguyên nhân *' : 'Tên ngành *'}
                     className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
                       formErrors.name
                         ? 'border-red-500 focus:ring-1 focus:ring-red-500'
@@ -1856,7 +1774,7 @@ export default function TnldCategoriesPage() {
                   />
                   {formName && (
                     <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                      {activeCategory === 'type' ? 'Tên loại chấn thương' : activeCategory === 'occupation' ? 'Tên ngành' : 'Tên nguyên nhân'} <span className="text-red-500">*</span>
+                      {activeCategory === 'type' ? 'Tên loại chấn thương' : activeCategory === 'cause' ? 'Tên nguyên nhân' : 'Tên ngành'} <span className="text-red-500">*</span>
                     </label>
                   )}
                   {formErrors.name && (
@@ -1880,7 +1798,7 @@ export default function TnldCategoriesPage() {
                       }`}
                     >
                       <option value="">
-                        {activeCategory === 'type' ? 'Không có (Cấp 1)' : activeCategory === 'occupation' ? 'Không có (Ngành cấp 1)' : 'Không có (Cấp 1)'}
+                        {activeCategory === 'type' ? 'Không có (Cấp 1)' : activeCategory === 'cause' ? 'Không có (Cấp 1)' : 'Không có (Ngành cấp 1)'}
                       </option>
                       {activeCategory === 'type' ? (
                         // Group injury types: Level-1 as optgroup labels, Level-2+ as options
@@ -1899,7 +1817,17 @@ export default function TnldCategoriesPage() {
                             </optgroup>
                           ));
                         })()
-                      ) : activeCategory === 'occupation' ? (
+                      ) : activeCategory === 'cause' ? (
+                        // Group causes: Level-1 as optgroup labels, Level-2 as options
+                        (() => {
+                          const level1 = parentOptions.filter(c => c.level === 1);
+                          return level1.map(grp => (
+                            <optgroup key={grp.code} label={`${grp.code} – ${grp.name}`}>
+                              <option value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
+                            </optgroup>
+                          ));
+                        })()
+                      ) : (
                         // Group occupations: Level-1 as optgroup labels, rest as nested options
                         (() => {
                           const level1 = parentOptions.filter(o => o.level === 1);
@@ -1915,43 +1843,17 @@ export default function TnldCategoriesPage() {
                             </optgroup>
                           ));
                         })()
-                      ) : (
-                        // Group accident causes: Level-1 options
-                        (() => {
-                          const level1 = parentOptions.filter(c => c.level === 1);
-                          return level1.map(grp => (
-                            <option key={grp.code} value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
-                          ));
-                        })()
                       )}
                     </select>
                     <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                   </div>
                   <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                    {activeCategory === 'type' ? 'Tên loại chấn thương cha' : activeCategory === 'occupation' ? 'Nhóm ngành cha' : 'Nhóm nguyên nhân cha'}
-                    {(activeCategory === 'type' || (activeCategory === 'cause' && formCode.trim() !== 'c')) && formCode.length > 1 && <span className="text-red-500"> *</span>}
+                    {activeCategory === 'type' ? 'Tên loại chấn thương cha' : activeCategory === 'cause' ? 'Tên nguyên nhân cha' : 'Nhóm ngành cha'}
+                    {activeCategory === 'type' && formCode.length > 1 && <span className="text-red-500"> *</span>}
                   </label>
                   {formErrors.parent && (
                     <p className="text-red-500 text-xs mt-1">{formErrors.parent}</p>
                   )}
-                </div>
-
-                {/* Status selector */}
-                <div className="relative">
-                  <div className="relative">
-                    <select
-                      value={formActive ? 'active' : 'inactive'}
-                      onChange={(e) => setFormActive(e.target.value === 'active')}
-                      className="w-full appearance-none rounded-lg border border-slate-200 px-3 py-2 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                    >
-                      <option value="active">Sử dụng</option>
-                      <option value="inactive">Ngừng hoạt động</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-                  </div>
-                  <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
-                    Trạng thái <span className="text-red-500">*</span>
-                  </label>
                 </div>
               </div>
 
@@ -1976,5 +1878,4 @@ export default function TnldCategoriesPage() {
       )}
     </div>
   );
-}
 }
