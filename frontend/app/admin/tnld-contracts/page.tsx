@@ -196,7 +196,7 @@ interface CompanyReport {
   ward: string;
   period: string; // e.g. "6 tháng", "Cả năm"
   year: number; // e.g. 2022
-  status: 'draft' | 'submitted' | 'accepted'; // draft = Đang báo cáo, submitted = Đã tiếp nhận, accepted = Đã báo cáo
+  status: 'draft' | 'submitted' | 'accepted'; // draft = Đã lưu nháp, submitted = Chờ duyệt, accepted = Đã duyệt
   data: ReportData;
   overviewData?: ReportMetricSource;
   subsidyData?: ReportMetricSource;
@@ -1344,9 +1344,9 @@ export default function TnldContractsPage() {
                         className="w-full appearance-none border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 text-xs outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-600"
                       >
                         <option value="">Tất cả</option>
-                        <option value="draft">Đang báo cáo</option>
-                        <option value="submitted">Đã tiếp nhận</option>
-                        <option value="accepted">Đã báo cáo</option>
+                        <option value="draft">Đã lưu nháp</option>
+                        <option value="submitted">Chờ duyệt</option>
+                        <option value="accepted">Đã duyệt</option>
                       </select>
                       <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                     </div>
@@ -1404,17 +1404,17 @@ export default function TnldContractsPage() {
                       {report.status === 'accepted' ? (
                         <span className="inline-flex items-center gap-1.5 text-blue-600 font-medium">
                           <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                          Đã báo cáo
+                          Đã duyệt
                         </span>
                       ) : report.status === 'submitted' ? (
                         <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium">
                           <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-                          Đã tiếp nhận
+                          Chờ duyệt
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium">
                           <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-                          Đang báo cáo
+                          Đã lưu nháp
                         </span>
                       )}
                     </td>

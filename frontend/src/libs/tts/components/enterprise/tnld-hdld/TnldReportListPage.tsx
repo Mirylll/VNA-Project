@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 
-type ReportStatus = 'CHO_BAO_CAO' | 'DANG_BAO_CAO' | 'CHO_TIEP_NHAN' | 'DA_BAO_CAO';
+type ReportStatus = 'CHO_BAO_CAO' | 'DANG_BAO_CAO' | 'CHO_DUYET' | 'DA_DUYET';
 
 type ReportRow = {
   id: string;
@@ -41,19 +41,19 @@ const REPORT_CATEGORIES: Array<{ id: ReportStepId; label: string }> = [
 function StatusBadge({ status }: { status: ReportStatus }) {
   const config = {
     CHO_BAO_CAO: {
-      label: 'Chờ báo cáo',
+      label: 'Chưa báo cáo',
       className: 'bg-slate-100 text-slate-600',
     },
     DANG_BAO_CAO: {
-      label: 'Đang báo cáo',
+      label: 'Đã lưu nháp',
       className: 'bg-amber-50 text-amber-700',
     },
-    CHO_TIEP_NHAN: {
-      label: 'Đã tiếp nhận',
+    CHO_DUYET: {
+      label: 'Chờ duyệt',
       className: 'bg-slate-100 text-slate-600',
     },
-    DA_BAO_CAO: {
-      label: 'Đã báo cáo',
+    DA_DUYET: {
+      label: 'Đã duyệt',
       className: 'bg-blue-50 text-blue-700',
     },
   }[status];
@@ -76,8 +76,8 @@ function getPeriodSlug(period: string) {
 }
 
 function mapReportStatus(status?: string): ReportStatus {
-  if (status === 'accepted') return 'DA_BAO_CAO';
-  if (status === 'submitted') return 'CHO_TIEP_NHAN';
+  if (status === 'accepted') return 'DA_DUYET';
+  if (status === 'submitted') return 'CHO_DUYET';
   if (status === 'draft') return 'DANG_BAO_CAO';
   return 'CHO_BAO_CAO';
 }
@@ -192,7 +192,7 @@ export default function TnldReportListPage() {
 
   function openReportEdit(report: ReportRow) {
     const reportId = report.backendId || report.id;
-    if (report.status === 'DA_BAO_CAO') {
+    if (report.status === 'DA_DUYET') {
       router.push(`/enterprise/tnld-hdld/${reportId}?mode=view&step=company`);
       return;
     }
@@ -207,7 +207,7 @@ export default function TnldReportListPage() {
   function openReportCategory(step: ReportStepId) {
     if (!selectedReport) return;
     const reportId = selectedReport.backendId || selectedReport.id;
-    const mode = selectedReport.status === 'DA_BAO_CAO' ? 'view' : 'edit';
+    const mode = selectedReport.status === 'DA_DUYET' ? 'view' : 'edit';
     router.push(`/enterprise/tnld-hdld/${reportId}?mode=${mode}&step=${step}`);
   }
 
@@ -274,7 +274,7 @@ export default function TnldReportListPage() {
                             <Edit3 size={17} />
                           </button>
                         )}
-                        {(report.status === 'CHO_TIEP_NHAN' || report.status === 'DA_BAO_CAO') && (
+                        {(report.status === 'CHO_DUYET' || report.status === 'DA_DUYET') && (
                           <button
                             type="button"
                             onClick={() => openReportReview(report)}
