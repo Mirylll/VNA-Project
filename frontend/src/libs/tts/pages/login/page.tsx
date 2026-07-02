@@ -311,6 +311,7 @@ export default function LoginPage() {
                 ĐĂNG NHẬP
               </p>
 
+              <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
               <div className="relative mb-4">
                 <input
                   type="text"
@@ -363,14 +364,14 @@ export default function LoginPage() {
               </div>
 
               <button
-                type="button"
+                type="submit"
 
                 className="mb-3 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:bg-blue-300"
-                onClick={handleLogin}
                 disabled={loading}
               >
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
+              </form>
               {message && !toastVisible ? (
                 <p className="mb-3 text-sm text-center text-red-600">{message}</p>
               ) : null}
