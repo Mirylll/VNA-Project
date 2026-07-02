@@ -407,7 +407,7 @@ export default function EnterpriseStep1({
             )}
           </div>
 
-          <div className="col-span-2 relative border border-slate-200 rounded-lg h-11 px-3 pt-3 pb-2">
+          <div className="col-span-2 self-start relative border border-slate-200 rounded-lg h-11 px-3 pt-2 pb-1.5">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Địa chỉ
             </label>

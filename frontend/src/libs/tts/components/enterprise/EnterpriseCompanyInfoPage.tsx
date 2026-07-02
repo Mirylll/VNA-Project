@@ -419,70 +419,61 @@ export default function EnterpriseCompanyInfoPage() {
       .catch(() => setRegisteredWardOptions([]));
   }, [provinces]);
 
-  useEffect(() => {
-    let active = true;
+  async function loadCurrentEnterprise() {
+    const token = getAuthToken();
+    setAuthToken(token);
+    setLoadingEnterprise(true);
+    setSaveMessage('');
 
-    async function loadCurrentEnterprise() {
-      const token = getAuthToken();
-      setAuthToken(token);
-      setLoadingEnterprise(true);
-      setSaveMessage('');
-
-      if (!token) {
-        setLoadingEnterprise(false);
-        setSaveMessage('Bạn cần đăng nhập để xem thông tin doanh nghiệp.');
-        return;
-      }
-
-      try {
-        const response = await fetch(`${BASE_URL}/enterprises/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = (await response.json().catch(() => ({}))) as EnterpriseApiData & { message?: string };
-        if (!response.ok) {
-          throw new Error(data.message || 'Không tải được thông tin doanh nghiệp');
-        }
-        if (!active) return;
-
-        setEnterpriseId(data.id);
-        setForm({
-          companyName: data.name || '',
-          taxCode: data.taxCode || '',
-          businessTypeId: data.enterpriseType?.id ? String(data.enterpriseType.id) : '',
-          businessType: data.enterpriseType?.name || '',
-          mainIndustry: data.industry?.id ? String(data.industry.id) : '',
-          licenseDate: data.licenseDate || '',
-          registeredProvince: data.province?.name || '',
-          registeredWard: data.ward?.name || '',
-          address: data.address || '',
-          foreignName: data.foreignName || '',
-          email: data.email || '',
-          officePhone: data.phone || '',
-          operatingProvince: data.operationProvince?.name || '',
-          operatingWard: data.operationWard?.name || '',
-          businessLocation: data.operationAddress || '',
-          representativeName: data.leaderName || '',
-          representativePhone: data.leaderPhone || '',
-        });
-        setAttachmentFiles(mapEnterpriseAttachments(data.attachments));
-        if (data.name) {
-          updateStoredEnterpriseName(data.name);
-          window.dispatchEvent(new CustomEvent('enterprise-name-changed', { detail: { name: data.name } }));
-        }
-      } catch (error: any) {
-        if (active) {
-          setSaveMessage(error?.message || 'Không tải được thông tin doanh nghiệp');
-        }
-      } finally {
-        if (active) setLoadingEnterprise(false);
-      }
+    if (!token) {
+      setLoadingEnterprise(false);
+      setSaveMessage('Bạn cần đăng nhập để xem thông tin doanh nghiệp.');
+      return;
     }
 
-    loadCurrentEnterprise();
+    try {
+      const response = await fetch(`${BASE_URL}/enterprises/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await response.json().catch(() => ({}))) as EnterpriseApiData & { message?: string };
+      if (!response.ok) {
+        throw new Error(data.message || 'Không tải được thông tin doanh nghiệp');
+      }
 
-    return () => {
-      active = false;
-    };
+      setEnterpriseId(data.id);
+      setForm({
+        companyName: data.name || '',
+        taxCode: data.taxCode || '',
+        businessTypeId: data.enterpriseType?.id ? String(data.enterpriseType.id) : '',
+        businessType: data.enterpriseType?.name || '',
+        mainIndustry: data.industry?.id ? String(data.industry.id) : '',
+        licenseDate: data.licenseDate || '',
+        registeredProvince: data.province?.name || '',
+        registeredWard: data.ward?.name || '',
+        address: data.address || '',
+        foreignName: data.foreignName || '',
+        email: data.email || '',
+        officePhone: data.phone || '',
+        operatingProvince: data.operationProvince?.name || '',
+        operatingWard: data.operationWard?.name || '',
+        businessLocation: data.operationAddress || '',
+        representativeName: data.leaderName || '',
+        representativePhone: data.leaderPhone || '',
+      });
+      setAttachmentFiles(mapEnterpriseAttachments(data.attachments));
+      if (data.name) {
+        updateStoredEnterpriseName(data.name);
+        window.dispatchEvent(new CustomEvent('enterprise-name-changed', { detail: { name: data.name } }));
+      }
+    } catch (error: any) {
+      setSaveMessage(error?.message || 'Không tải được thông tin doanh nghiệp');
+    } finally {
+      setLoadingEnterprise(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCurrentEnterprise();
   }, []);
 
   useEffect(() => {
@@ -835,7 +826,7 @@ export default function EnterpriseCompanyInfoPage() {
             <div className="flex items-center gap-5">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={loadCurrentEnterprise}
                 className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
               >
                 Huỷ bỏ
@@ -953,7 +944,7 @@ export default function EnterpriseCompanyInfoPage() {
                     <Field
                       label="Địa chỉ"
                       required
-                      className="lg:col-span-2"
+                      className="lg:col-span-2 self-start"
                       value={form.address}
                       error={formErrors.address}
                       onChange={(value) => updateField('address', value)}
