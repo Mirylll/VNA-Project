@@ -192,6 +192,10 @@ export default function TnldReportListPage() {
 
   function openReportEdit(report: ReportRow) {
     const reportId = report.backendId || report.id;
+    if (report.status === 'DA_BAO_CAO') {
+      router.push(`/enterprise/tnld-hdld/${reportId}?mode=view&step=company`);
+      return;
+    }
     router.push(`/enterprise/tnld-hdld/${reportId}?mode=edit&step=company`);
   }
 
@@ -202,7 +206,9 @@ export default function TnldReportListPage() {
 
   function openReportCategory(step: ReportStepId) {
     if (!selectedReport) return;
-    router.push(`/enterprise/tnld-hdld/${selectedReport.id}?mode=edit&step=${step}`);
+    const reportId = selectedReport.backendId || selectedReport.id;
+    const mode = selectedReport.status === 'DA_BAO_CAO' ? 'view' : 'edit';
+    router.push(`/enterprise/tnld-hdld/${reportId}?mode=${mode}&step=${step}`);
   }
 
   return (

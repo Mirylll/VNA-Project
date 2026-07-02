@@ -77,6 +77,11 @@ type ReviewSummaryRow = {
   metrics: ReviewMetricValues;
 };
 
+type SelectOptionGroup = {
+  label: string;
+  options: string[];
+};
+
 const STEPS: Array<{ id: StepId; label: string }> = [
   { id: 'company', label: 'Thông tin doanh nghiệp' },
   { id: 'accident', label: '1. Tai nạn lao động' },
@@ -293,6 +298,7 @@ function SelectField({
   label,
   value,
   options,
+  optionGroups,
   required,
   disabled,
   onChange,
@@ -300,6 +306,7 @@ function SelectField({
   label: string;
   value: string;
   options: string[];
+  optionGroups?: SelectOptionGroup[];
   required?: boolean;
   disabled?: boolean;
   onChange?: (value: string) => void;
@@ -316,11 +323,21 @@ function SelectField({
         onChange={(event) => onChange?.(event.target.value)}
         className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-500"
       >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        {optionGroups
+          ? optionGroups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </optgroup>
+            ))
+          : options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
       </select>
     </label>
   );
@@ -450,7 +467,7 @@ function readStoredCategory<T>(key: string, fallback: T[]): T[] {
 
 function createAccidentDetail(index: number): AccidentDetail {
   return {
-    cause: DEFAULT_ACCIDENT_CAUSES[1].name,
+    cause: REVIEW_EMPLOYER_CAUSES[0].label,
     injuryFactor: DEFAULT_INJURY_FACTORS[3].name,
     occupation: DEFAULT_OCCUPATIONS[2].name,
     totalAccidents: '0',
@@ -673,17 +690,26 @@ export default function TnldReportFormPage() {
   });
 
   const activeStepIndex = STEPS.findIndex((item) => item.id === step);
+  const causeOptionGroups = useMemo<SelectOptionGroup[]>(
+    () => [
+      {
+        label: 'a. Do người sử dụng lao động',
+        options: REVIEW_EMPLOYER_CAUSES.map((item) => item.label),
+      },
+      {
+        label: 'b. Do người lao động',
+        options: REVIEW_EMPLOYEE_CAUSES.map((item) => item.label),
+      },
+      {
+        label: 'c. Khác',
+        options: REVIEW_OTHER_CAUSES.map((item) => item.label),
+      },
+    ],
+    [],
+  );
   const causeOptions = useMemo(
-    () =>
-      accidentCauses
-        .filter(
-          (item) =>
-            item.isActive !== false &&
-            (item.level >= 2 || !accidentCauses.some((c) => c.parentCode === item.code)),
-        )
-        .map((item) => item.name)
-        .filter(Boolean),
-    [accidentCauses],
+    () => causeOptionGroups.flatMap((group) => group.options),
+    [causeOptionGroups],
   );
   const injuryFactorOptions = useMemo(
     () => injuryFactors.filter((item) => item.isActive).map((item) => item.name).filter(Boolean),
@@ -1140,6 +1166,14 @@ export default function TnldReportFormPage() {
         setSavedReportId(Number(data.id));
         setReportYear(String(data.year || reportYear));
         setUploadedFile(data.attachments?.[0]?.fileName || '');
+        if (data.status === 'accepted') {
+          setReadOnly(true);
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('mode') !== 'view') {
+            params.set('mode', 'view');
+            router.replace(`${window.location.pathname}?${params.toString()}`);
+          }
+        }
         setForm((current) => ({
           ...current,
           totalEmployees: toText(overview.totalEmployees),
@@ -1289,6 +1323,7 @@ export default function TnldReportFormPage() {
   }, [accidentCount]);
 
   function updateField(field: keyof typeof form, value: string) {
+    if (readOnly) return;
     hasUserEditedDraftRef.current = true;
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -1298,6 +1333,7 @@ export default function TnldReportFormPage() {
   }
 
   function updateAccidentDetail(index: number, field: keyof AccidentDetail, value: string) {
+    if (readOnly) return;
     hasUserEditedDraftRef.current = true;
     setAccidentDetails((current) => {
       const next = [...current];
@@ -1436,7 +1472,7 @@ export default function TnldReportFormPage() {
   }
 
   async function saveReport(status: 'draft' | 'submitted') {
-    if (isSavingReport || hasCurrentStepError) return;
+    if (readOnly || isSavingReport || hasCurrentStepError) return;
 
     if (status === 'submitted' && !uploadedFile) {
       setSaveMessage('Vui lòng đính kèm báo cáo TNLĐ có dấu mộc công ty trước khi gửi.');
@@ -1826,6 +1862,7 @@ export default function TnldReportFormPage() {
                                   label="1. Phân theo nguyên nhân xảy ra TNLĐ"
                                   value={detail.cause}
                                   options={causeOptions}
+                                  optionGroups={causeOptionGroups}
                                   disabled={readOnly}
                                   onChange={(value) => updateAccidentDetail(index, 'cause', value)}
                                 />
