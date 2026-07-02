@@ -952,6 +952,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   maxYear={new Date().getFullYear()}
                   onChange={(iso) => handleLicenseDateChange(iso)}
                   error={errors.ngayCap}
+                  className="w-full"
                 />
               </FieldWrap>
 
