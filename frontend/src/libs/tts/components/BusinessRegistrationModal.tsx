@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import { HCM_WARDS, ENTERPRISE_TYPES, INDUSTRIES } from '@/libs/tts/data/hcm-districts';
-import DatePicker from '@/libs/tts/components/DatePicker';
+import DatePicker from "@/libs/tts/components/DatePicker";
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -50,8 +50,8 @@ function AutocompleteDropdown({ options, value, onChange, placeholder = "Chọn.
       <div
         onClick={() => setIsOpen(true)}
         className={`w-full flex items-center justify-between rounded-lg border ${
-          error ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-        } px-3 py-2 text-sm text-gray-800 cursor-pointer hover:border-gray-400 transition-colors`}
+          error ? "border-red-400 bg-red-50" : "border-slate-200 bg-white"
+        } px-3 h-11 text-sm text-gray-800 cursor-pointer hover:border-slate-300 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 transition-colors`}
       >
         {isOpen ? (
           <input
@@ -949,6 +949,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
               <FieldWrap label="Ngày cấp GPKD" required error={errors.ngayCap}>
                 <DatePicker
                   value={form.ngayCap}
+                  maxYear={new Date().getFullYear()}
                   onChange={(iso) => handleLicenseDateChange(iso)}
                   error={errors.ngayCap}
                   className="w-full"
@@ -961,7 +962,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.tinhTP}
                   readOnly
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 cursor-not-allowed"
+                  className="w-full rounded-lg border border-slate-200 bg-gray-50 px-3 h-11 text-sm text-gray-700 cursor-not-allowed"
                 />
               </FieldWrap>
 
@@ -1054,7 +1055,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="text"
                   value={form.tinhTPHoatDong}
                   readOnly
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 cursor-not-allowed"
+                  className="w-full rounded-lg border border-slate-200 bg-gray-50 px-3 h-11 text-sm text-gray-700 cursor-not-allowed"
                 />
               </FieldWrap>
 
@@ -1220,14 +1221,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function inputCls(hasError: boolean) {
   return `w-full rounded-lg border ${
-    hasError ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-  } px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100`;
+    hasError ? "border-red-400 bg-red-50" : "border-slate-200 bg-white"
+  } px-3 h-11 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500`;
 }
 
 function selectCls(hasError: boolean) {
   return `w-full rounded-lg border ${
-    hasError ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-  } px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none`;
+    hasError ? "border-red-400 bg-red-50" : "border-slate-200 bg-white"
+  } px-3 h-11 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none`;
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────

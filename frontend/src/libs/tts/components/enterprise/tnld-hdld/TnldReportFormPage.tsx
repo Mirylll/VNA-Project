@@ -17,6 +17,7 @@ type TnldHierarchicalCategory = {
   name: string;
   level: number;
   parentCode?: string;
+  isActive?: boolean;
 };
 type EnterpriseCompanyInfo = {
   name: string;
@@ -117,6 +118,20 @@ const DEFAULT_OCCUPATIONS: TnldHierarchicalCategory[] = [
   { code: '1111', name: 'Trưởng ban, Phó Trưởng ban và tương đương trở lên thuộc cấp Trung ương', level: 4, parentCode: '111' },
   { code: '2', name: 'Chuyên môn kỹ thuật bậc cao', level: 1 },
   { code: '21', name: 'Chuyên gia trong lĩnh vực khoa học và kỹ thuật', level: 2, parentCode: '2' },
+];
+
+const DEFAULT_ACCIDENT_CAUSES: TnldHierarchicalCategory[] = [
+  { code: 'a', name: 'Nguyên nhân do người sử dụng lao động', level: 1, isActive: true },
+  { code: 'a1', name: 'Thiết bị che chắn, an toàn không đảm bảo hoặc không có', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a2', name: 'Không huấn luyện hoặc huấn luyện không đầy đủ về ATVSLĐ', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a3', name: 'Thiếu thiết bị phòng hộ cá nhân hoặc thiết bị không đạt chuẩn', level: 2, parentCode: 'a', isActive: true },
+  { code: 'a4', name: 'Biện pháp an toàn làm việc chưa phù hợp', level: 2, parentCode: 'a', isActive: true },
+  
+  { code: 'b', name: 'Nguyên nhân do người lao động', level: 1, isActive: true },
+  { code: 'b1', name: 'Vi phạm quy trình, quy chuẩn an toàn', level: 2, parentCode: 'b', isActive: true },
+  { code: 'b2', name: 'Không sử dụng phương tiện bảo vệ cá nhân được trang bị', level: 2, parentCode: 'b', isActive: true },
+
+  { code: 'c', name: 'Các nguyên nhân khác', level: 1, isActive: true },
 ];
 
 const REVIEW_EMPLOYER_CAUSES = [
@@ -435,7 +450,7 @@ function readStoredCategory<T>(key: string, fallback: T[]): T[] {
 
 function createAccidentDetail(index: number): AccidentDetail {
   return {
-    cause: DEFAULT_INJURY_TYPES[0].name,
+    cause: DEFAULT_ACCIDENT_CAUSES[1].name,
     injuryFactor: DEFAULT_INJURY_FACTORS[3].name,
     occupation: DEFAULT_OCCUPATIONS[2].name,
     totalAccidents: '0',
@@ -601,6 +616,7 @@ export default function TnldReportFormPage() {
   const [injuryFactors, setInjuryFactors] = useState<TnldInjuryFactor[]>(DEFAULT_INJURY_FACTORS);
   const [injuryTypes, setInjuryTypes] = useState<TnldHierarchicalCategory[]>(DEFAULT_INJURY_TYPES);
   const [occupations, setOccupations] = useState<TnldHierarchicalCategory[]>(DEFAULT_OCCUPATIONS);
+  const [accidentCauses, setAccidentCauses] = useState<TnldHierarchicalCategory[]>(DEFAULT_ACCIDENT_CAUSES);
   const [accidentDetails, setAccidentDetails] = useState<AccidentDetail[]>(() => [
     createAccidentDetail(0),
     createAccidentDetail(1),
@@ -658,15 +674,23 @@ export default function TnldReportFormPage() {
 
   const activeStepIndex = STEPS.findIndex((item) => item.id === step);
   const causeOptions = useMemo(
-    () => injuryTypes.map((item) => item.name).filter(Boolean),
-    [injuryTypes],
+    () =>
+      accidentCauses
+        .filter(
+          (item) =>
+            item.isActive !== false &&
+            (item.level >= 2 || !accidentCauses.some((c) => c.parentCode === item.code)),
+        )
+        .map((item) => item.name)
+        .filter(Boolean),
+    [accidentCauses],
   );
   const injuryFactorOptions = useMemo(
     () => injuryFactors.filter((item) => item.isActive).map((item) => item.name).filter(Boolean),
     [injuryFactors],
   );
   const occupationOptions = useMemo(
-    () => occupations.map((item) => item.name).filter(Boolean),
+    () => occupations.filter((item) => item.isActive !== false).map((item) => item.name).filter(Boolean),
     [occupations],
   );
   const totalCost = useMemo(() => {
@@ -1224,6 +1248,7 @@ export default function TnldReportFormPage() {
       setInjuryFactors(readStoredCategory<TnldInjuryFactor>('vna_tnld_factors', DEFAULT_INJURY_FACTORS));
       setInjuryTypes(readStoredCategory<TnldHierarchicalCategory>('vna_tnld_types', DEFAULT_INJURY_TYPES));
       setOccupations(readStoredCategory<TnldHierarchicalCategory>('vna_tnld_occs', DEFAULT_OCCUPATIONS));
+      setAccidentCauses(readStoredCategory<TnldHierarchicalCategory>('vna_tnld_causes', DEFAULT_ACCIDENT_CAUSES));
     }
 
     loadTnldCategories();
