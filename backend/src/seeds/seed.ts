@@ -9,6 +9,10 @@ import { District } from '../modules/users/entities/district.entity';
 import { EnterpriseType } from '../modules/enterprise-types/entities/enterprise-type.entity';
 import { Industry } from '../modules/industries/entities/industry.entity';
 import { Enterprise } from '../modules/enterprises/entities/enterprise.entity';
+import { TnldContractReport } from '../modules/tnld-contract-reports/entities/tnld-contract-report.entity';
+import { TnldContractReportOverview } from '../modules/tnld-contract-reports/entities/tnld-contract-report-overview.entity';
+import { TnldContractReportAccidentDetail } from '../modules/tnld-contract-reports/entities/tnld-contract-report-accident-detail.entity';
+import { TnldContractReportSubsidy } from '../modules/tnld-contract-reports/entities/tnld-contract-report-subsidy.entity';
 
 interface PermissionSeed {
   code: string;
@@ -581,6 +585,29 @@ export async function seed(dataSource: DataSource): Promise<void> {
     '0': 'Nông, lâm nghiệp và thủy sản',
     '1': 'Công nghiệp chế biến, chế tạo',
     '4': 'Bán buôn, bán lẻ, dịch vụ',
+    '011': 'Trồng cây hàng năm',
+    '012': 'Trồng cây lâu năm',
+    '013': 'Nhân và chăm sóc giống cây trồng',
+    '014': 'Chăn nuôi',
+    '015': 'Trồng trọt, chăn nuôi hỗn hợp',
+    '016': 'Hoạt động dịch vụ nông nghiệp hỗ trợ',
+    '101': 'Chế biến, bảo quản thịt và các sản phẩm từ thịt',
+    '102': 'Chế biến, bảo quản thuỷ sản và các sản phẩm từ thuỷ sản',
+    '103': 'Chế biến và bảo quản rau quả',
+    '104': 'Sản xuất dầu, mỡ động vật, thực vật',
+    '105': 'Sản xuất sản phẩm sữa',
+    '106': 'Xay xát và sản xuất bột thô, tinh bột và các sản phẩm từ tinh bột',
+    '107': 'Sản xuất thực phẩm khác',
+    '451': 'Bán buôn, bán lẻ ô tô và xe có động cơ khác',
+    '452': 'Bảo dưỡng và sửa chữa ô tô và xe có động cơ khác',
+    '453': 'Bán phụ tùng và các bộ phận phụ trợ của ô tô và xe có động cơ khác',
+    '461': 'Đại lý, môi giới, đấu giá hàng hóa',
+    '462': 'Bán buôn nông, lâm sản nguyên liệu và động vật sống',
+    '463': 'Bán buôn lương thực, thực phẩm, đồ uống và sản phẩm thuốc lá, thuốc lào',
+    '464': 'Bán buôn đồ dùng khác cho gia đình',
+    '465': 'Bán buôn máy móc, thiết bị và phụ tùng máy',
+    '466': 'Bán buôn chuyên doanh khác',
+    '469': 'Bán buôn tổng hợp',
   };
 
   for (const ind of parsedIndustries) {
@@ -607,7 +634,8 @@ export async function seed(dataSource: DataSource): Promise<void> {
     // 3. Seed Level 3
     let l3 = lvl3Map.get(code3);
     if (!l3) {
-      l3 = await industryRepo.save(industryRepo.create({ code: mapIndustryCode(code3), name: `Nhóm ngành cấp 3 (${code3})`, level: 3, parent: l2 }));
+      const name = categoryNames[code3] || `Nhóm ngành cấp 3 (${code3})`;
+      l3 = await industryRepo.save(industryRepo.create({ code: mapIndustryCode(code3), name, level: 3, parent: l2 }));
       lvl3Map.set(code3, l3);
     }
 
@@ -912,6 +940,166 @@ export async function seed(dataSource: DataSource): Promise<void> {
         await userRepo.save(user);
       }
       console.log('✅ Seeded enterprise user accounts');
+    }
+
+    // Seed test TnldContractReports
+    const reportRepo = dataSource.getRepository(TnldContractReport);
+    const reportCount = await reportRepo.count();
+    if (reportCount === 0) {
+      const createdEnts = await enterpriseRepo.find({ take: 2 });
+      if (createdEnts.length > 0) {
+        const ent1 = createdEnts[0];
+        const r1 = reportRepo.create({
+          enterprise: ent1,
+          year: 2026,
+          period: '6m',
+          status: 'draft',
+          overview: dataSource.getRepository(TnldContractReportOverview).create({
+            totalEmployees: 100,
+            femaleEmployees: 40,
+            payroll: '500000000',
+            totalAccidents: 1,
+            fatalAccidents: 0,
+            multiVictimAccidents: 0,
+            totalVictims: 1,
+            femaleVictims: 0,
+            deadVictims: 0,
+            severeVictims: 1,
+            unmanagedVictims: 0,
+            unmanagedFemaleVictims: 0,
+            unmanagedDeadVictims: 0,
+            unmanagedSevereVictims: 0,
+            medicalCost: '15000000',
+            treatmentSalaryCost: '10000000',
+            compensationCost: '25000000',
+            workdaysLost: 15,
+            assetDamage: '5000000',
+          }),
+          accidentDetails: [
+            dataSource.getRepository(TnldContractReportAccidentDetail).create({
+              sortOrder: 0,
+              cause: 'Thiết bị che chắn, an toàn không đảm bảo hoặc không có',
+              injuryFactor: 'Thiết bị nâng',
+              occupation: 'Chuyên gia trong lĩnh vực khoa học và kỹ thuật',
+              totalAccidents: 1,
+              fatalAccidents: 0,
+              multiVictimAccidents: 0,
+              totalVictims: 1,
+              femaleVictims: 0,
+              deadVictims: 0,
+              severeVictims: 1,
+              unmanagedVictims: 0,
+              unmanagedFemaleVictims: 0,
+              unmanagedDeadVictims: 0,
+              unmanagedSevereVictims: 0,
+              medicalCost: '15000000',
+              treatmentSalaryCost: '10000000',
+              compensationCost: '25000000',
+              workdaysLost: 15,
+              assetDamage: '5000000',
+            })
+          ],
+          subsidy: dataSource.getRepository(TnldContractReportSubsidy).create({
+            totalAccidents: 0,
+            fatalAccidents: 0,
+            multiVictimAccidents: 0,
+            totalVictims: 0,
+            femaleVictims: 0,
+            deadVictims: 0,
+            severeVictims: 0,
+            unmanagedVictims: 0,
+            unmanagedFemaleVictims: 0,
+            unmanagedDeadVictims: 0,
+            unmanagedSevereVictims: 0,
+            medicalCost: '0',
+            treatmentSalaryCost: '0',
+            compensationCost: '0',
+            totalCost: '0',
+            workdaysLost: 0,
+            assetDamage: '0',
+            note: 'Không có trợ cấp tai nạn lao động theo hợp đồng trong kỳ báo cáo',
+          })
+        });
+        await reportRepo.save(r1);
+
+        if (createdEnts.length > 1) {
+          const ent2 = createdEnts[1];
+          const r2 = reportRepo.create({
+            enterprise: ent2,
+            year: 2026,
+            period: '6m',
+            status: 'submitted',
+            submittedAt: new Date(),
+            overview: dataSource.getRepository(TnldContractReportOverview).create({
+              totalEmployees: 250,
+              femaleEmployees: 120,
+              payroll: '1500000000',
+              totalAccidents: 2,
+              fatalAccidents: 0,
+              multiVictimAccidents: 0,
+              totalVictims: 2,
+              femaleVictims: 1,
+              deadVictims: 0,
+              severeVictims: 2,
+              unmanagedVictims: 0,
+              unmanagedFemaleVictims: 0,
+              unmanagedDeadVictims: 0,
+              unmanagedSevereVictims: 0,
+              medicalCost: '30000000',
+              treatmentSalaryCost: '20000000',
+              compensationCost: '50000000',
+              workdaysLost: 30,
+              assetDamage: '10000000',
+            }),
+            accidentDetails: [
+              dataSource.getRepository(TnldContractReportAccidentDetail).create({
+                sortOrder: 0,
+                cause: 'Không huấn luyện hoặc huấn luyện không đầy đủ về ATVSLĐ',
+                injuryFactor: 'Vật rơi, đổ, sập',
+                occupation: 'Nhà lãnh đạo cơ quan Đảng cộng sản Việt Nam cấp Trung ương',
+                totalAccidents: 2,
+                fatalAccidents: 0,
+                multiVictimAccidents: 0,
+                totalVictims: 2,
+                femaleVictims: 1,
+                deadVictims: 0,
+                severeVictims: 2,
+                unmanagedVictims: 0,
+                unmanagedFemaleVictims: 0,
+                unmanagedDeadVictims: 0,
+                unmanagedSevereVictims: 0,
+                medicalCost: '30000000',
+                treatmentSalaryCost: '20000000',
+                compensationCost: '50000000',
+                workdaysLost: 30,
+                assetDamage: '10000000',
+              })
+            ],
+            subsidy: dataSource.getRepository(TnldContractReportSubsidy).create({
+              totalAccidents: 0,
+              fatalAccidents: 0,
+              multiVictimAccidents: 0,
+              totalVictims: 0,
+              femaleVictims: 0,
+              deadVictims: 0,
+              severeVictims: 0,
+              unmanagedVictims: 0,
+              unmanagedFemaleVictims: 0,
+              unmanagedDeadVictims: 0,
+              unmanagedSevereVictims: 0,
+              medicalCost: '0',
+              treatmentSalaryCost: '0',
+              compensationCost: '0',
+              totalCost: '0',
+              workdaysLost: 0,
+              assetDamage: '0',
+              note: '',
+            })
+          });
+          await reportRepo.save(r2);
+        }
+        console.log('✅ Seeded test tnld contract reports');
+      }
     }
   }
 }
