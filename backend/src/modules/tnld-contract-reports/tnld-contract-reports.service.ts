@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -209,7 +209,10 @@ export class TnldContractReportsService {
   }
 
   async update(id: number, dto: UpdateTnldContractReportDto): Promise<TnldContractReport> {
-    await this.findOne(id);
+    const report = await this.findOne(id);
+    if (report.status === 'accepted') {
+      throw new BadRequestException('Báo cáo đã báo cáo, chỉ được xem chi tiết và không được chỉnh sửa');
+    }
 
     await this.dataSource.transaction(async (manager) => {
       await manager.update(TnldContractReport, id, {
@@ -266,7 +269,10 @@ export class TnldContractReportsService {
   }
 
   async remove(id: number): Promise<void> {
-    await this.findOne(id);
+    const report = await this.findOne(id);
+    if (report.status === 'accepted') {
+      throw new BadRequestException('Báo cáo đã báo cáo, không được xóa');
+    }
     await this.reportRepo.delete(id);
   }
 }
