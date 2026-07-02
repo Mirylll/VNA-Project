@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronDown, Eye, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertTriangle, Check, ChevronDown, Eye, Loader2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import Autocomplete from '@/libs/tts/components/Autocomplete';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
 import ChangeEmailModal from '@/libs/tts/components/ChangeEmailModal';
@@ -335,6 +335,7 @@ function updateStoredEnterpriseName(name: string) {
 
 export default function EnterpriseCompanyInfoPage() {
   const [step, setStep] = useState<1 | 2>(1);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
@@ -373,6 +374,11 @@ export default function EnterpriseCompanyInfoPage() {
     representativePhone: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -826,7 +832,7 @@ export default function EnterpriseCompanyInfoPage() {
             <div className="flex items-center gap-5">
               <button
                 type="button"
-                onClick={loadCurrentEnterprise}
+                onClick={() => setShowCancelDialog(true)}
                 className="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
               >
                 Huỷ bỏ
@@ -844,7 +850,7 @@ export default function EnterpriseCompanyInfoPage() {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={contentRef} className="flex-1 overflow-y-auto">
           <Stepper currentStep={step} />
 
           <div className={`mx-auto w-full px-6 pb-8 ${step === 1 ? 'max-w-[1580px]' : 'max-w-3xl'}`}>
@@ -1131,6 +1137,41 @@ export default function EnterpriseCompanyInfoPage() {
             )}
           </div>
         </div>
+
+      {showCancelDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+              <AlertTriangle className="text-amber-500" size={20} />
+              <h2 className="text-base font-bold text-gray-900">Cảnh báo</h2>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-sm text-gray-600">
+                Dữ liệu đã nhập sẽ không được lưu. Bạn có chắc chắn muốn hủy?
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setShowCancelDialog(false)}
+                className="rounded-md border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelDialog(false);
+                  loadCurrentEnterprise();
+                }}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Đồng ý
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ChangeEmailModal
         open={showChangeEmailModal}
