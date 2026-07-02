@@ -1,15 +1,18 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { DistrictsService } from './districts.service';
+import { Public } from '../../libs/core/decorators/public.decorator';
 
 @Controller()
 export class DistrictsController {
   constructor(private readonly districtsService: DistrictsService) {}
 
+  @Public()
   @Get('provinces')
   async findAllProvinces() {
     return this.districtsService.findAllProvinces();
   }
 
+  @Public()
   @Get('districts')
   async findByProvince(@Query('provinceId') provinceId?: string) {
     if (!provinceId) {

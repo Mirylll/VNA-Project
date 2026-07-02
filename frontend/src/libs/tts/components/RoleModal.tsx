@@ -161,9 +161,11 @@ export default function RoleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-xl bg-white rounded-xl shadow-xl max-h-[85vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+      {/* Modal container: flex column để header/footer cố định, body cuộn */}
+      <div className="w-full max-w-xl bg-white rounded-xl shadow-xl max-h-[85vh] flex flex-col">
+
+        {/* ── Header – cố định, KHÔNG cuộn ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0 rounded-t-xl">
           <h2 className="text-gray-800 font-semibold text-base">
             {isEdit ? 'Cập nhật vai trò' : 'Thêm mới vai trò'}
           </h2>
@@ -175,242 +177,220 @@ export default function RoleModal({
           </button>
         </div>
 
-        {/* Form fields */}
-        <div className="grid grid-cols-2 gap-4 px-6 pt-6">
-          <div className={`relative border rounded-lg px-3 pt-3 pb-2 ${errors.code ? 'border-red-500' : 'border-slate-300'}`}>
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
-              Mã vai trò <span className="text-red-500">*</span>
-            </label>
-            <input
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value);
-                if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
-              }}
-              placeholder="Nhập mã vai trò"
-              maxLength={50}
-              className="w-full border-none outline-none text-sm py-0.5"
-            />
-            {errors.code && <p className="text-xs text-red-500 mt-0.5">{errors.code}</p>}
+        {/* ── Body – CHỈ phần này cuộn ── */}
+        <div className="overflow-y-auto flex-1 min-h-0">
+          {/* Form fields */}
+          <div className="grid grid-cols-2 gap-4 px-6 pt-6">
+            <div className={`relative border rounded-lg px-3 pt-3 pb-2 ${errors.code ? 'border-red-500' : 'border-slate-300'}`}>
+              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
+                Mã vai trò <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  if (errors.code) setErrors((p) => ({ ...p, code: undefined }));
+                }}
+                placeholder="Nhập mã vai trò"
+                maxLength={50}
+                className="w-full border-none outline-none text-sm py-0.5"
+              />
+              {errors.code && <p className="text-xs text-red-500 mt-0.5">{errors.code}</p>}
+            </div>
+            <div className={`relative border rounded-lg px-3 pt-3 pb-2 ${errors.name ? 'border-red-500' : 'border-slate-300'}`}>
+              <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
+                Tên vai trò <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
+                }}
+                placeholder="Nhập tên vai trò"
+                maxLength={100}
+                className="w-full border-none outline-none text-sm py-0.5"
+              />
+              {errors.name && <p className="text-xs text-red-500 mt-0.5">{errors.name}</p>}
+            </div>
           </div>
-          <div className={`relative border rounded-lg px-3 pt-3 pb-2 ${errors.name ? 'border-red-500' : 'border-slate-300'}`}>
-            <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-gray-500">
-              Tên vai trò <span className="text-red-500">*</span>
-            </label>
-            <input
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
-              }}
-              placeholder="Nhập tên vai trò"
-              maxLength={100}
-              className="w-full border-none outline-none text-sm py-0.5"
-            />
-            {errors.name && <p className="text-xs text-red-500 mt-0.5">{errors.name}</p>}
-          </div>
-        </div>
 
-        {/* Permissions table */}
-        <div className="px-6 pt-6 pb-4">
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-slate-200">
-                  <th className="w-10 px-2 py-2.5 text-left">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      ref={(el) => { if (el) el.indeterminate = someSelected; }}
-                      onChange={toggleAllPermissions}
-                      className="accent-blue-600"
-                    />
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-[45%]">
-                    Mã quyền
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-[45%]">
-                    Tên quyền
-                  </th>
-                </tr>
-                <tr className="border-b border-slate-200">
-                  <td className="px-2 py-1.5" />
-                  <td className="px-3 py-1.5">
-                    <input
-                      placeholder=""
-                      value={permFilterCode}
-                      onChange={(e) => {
-                        setPermFilterCode(e.target.value);
-                        setPage(1);
-                      }}
-                      className="w-full border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <input
-                      placeholder=""
-                      value={permFilterName}
-                      onChange={(e) => {
-                        setPermFilterName(e.target.value);
-                        setPage(1);
-                      }}
-                      className="w-full border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </td>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-8 text-center text-sm text-gray-400"
-                    >
-                      Đang tải...
+          {/* Permissions table */}
+          <div className="px-6 pt-6 pb-4">
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-slate-200">
+                    <th className="w-10 px-2 py-2.5 text-left">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                        onChange={toggleAllPermissions}
+                        className="accent-blue-600"
+                      />
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-[45%]">
+                      Mã quyền
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-[45%]">
+                      Tên quyền
+                    </th>
+                  </tr>
+                  <tr className="border-b border-slate-200">
+                    <td className="px-2 py-1.5" />
+                    <td className="px-3 py-1.5">
+                      <input
+                        placeholder=""
+                        value={permFilterCode}
+                        onChange={(e) => {
+                          setPermFilterCode(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <input
+                        placeholder=""
+                        value={permFilterName}
+                        onChange={(e) => {
+                          setPermFilterName(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full border border-slate-200 rounded-lg px-2.5 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
                     </td>
                   </tr>
-                ) : paginatedItems.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={3}
-                      className="px-4 py-8 text-center text-sm text-gray-400"
-                    >
-                      Không tìm thấy quyền
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedItems.map((item: any) => {
-                    const isGroup = item.children !== undefined;
-                    const isExpanded = expandedGroups.includes(item.code);
-                    const childIds = (item.children || []).map(
-                      (c: any) => c.id,
-                    );
-                    const allChildrenSelected =
-                      childIds.length > 0 &&
-                      childIds.every((id: number) =>
-                        selectedIds.includes(id),
-                      );
-                    const someChildrenSelected =
-                      childIds.some((id: number) =>
-                        selectedIds.includes(id),
-                      ) &&
-                      !allChildrenSelected;
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">
+                        Đang tải...
+                      </td>
+                    </tr>
+                  ) : paginatedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-400">
+                        Không tìm thấy quyền
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedItems.map((item: any) => {
+                      const isGroup = item.children !== undefined;
+                      const isExpanded = expandedGroups.includes(item.code);
+                      const childIds = (item.children || []).map((c: any) => c.id);
+                      const allChildrenSelected =
+                        childIds.length > 0 &&
+                        childIds.every((id: number) => selectedIds.includes(id));
+                      const someChildrenSelected =
+                        childIds.some((id: number) => selectedIds.includes(id)) &&
+                        !allChildrenSelected;
 
-                    return (
-                      <tr
-                        key={item.code}
-                        className={`border-b border-slate-100 hover:bg-gray-50 transition-colors ${
-                          isGroup ? '' : ''
-                        }`}
-                      >
-                        <td className="px-2 py-2.5 text-center">
-                          {isGroup ? (
-                            <div className="flex items-center gap-0.5">
-                              <button
-                                onClick={() => toggleGroup(item.code)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                              >
-                                {isExpanded ? (
-                                  <ChevronDown size={14} />
-                                ) : (
-                                  <ChevronRight size={14} />
-                                )}
-                              </button>
+                      return (
+                        <tr
+                          key={item.code}
+                          className="border-b border-slate-100 hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-2 py-2.5 text-center">
+                            {isGroup ? (
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={() => toggleGroup(item.code)}
+                                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown size={14} />
+                                  ) : (
+                                    <ChevronRight size={14} />
+                                  )}
+                                </button>
+                                <input
+                                  type="checkbox"
+                                  checked={allChildrenSelected || someChildrenSelected}
+                                  ref={(el) => {
+                                    if (el) el.indeterminate = someChildrenSelected;
+                                  }}
+                                  onChange={() => toggleGroupPermissions(item)}
+                                  className="accent-blue-600"
+                                />
+                              </div>
+                            ) : (
                               <input
                                 type="checkbox"
-                                checked={allChildrenSelected || someChildrenSelected}
-                                ref={(el) => {
-                                  if (el)
-                                    el.indeterminate = someChildrenSelected;
-                                }}
-                                onChange={() =>
-                                  toggleGroupPermissions(item)
-                                }
-                                className="accent-blue-600"
+                                checked={selectedIds.includes(item.id)}
+                                onChange={() => togglePermission(item.id)}
+                                className="accent-blue-600 ml-6"
                               />
-                            </div>
-                          ) : (
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(item.id)}
-                              onChange={() => togglePermission(item.id)}
-                              className="accent-blue-600 ml-6"
-                            />
-                          )}
-                        </td>
-                        <td
-                          className={`px-3 py-2.5 text-sm font-mono ${
-                            isGroup
-                              ? 'font-semibold text-blue-700'
-                              : 'text-gray-500 ml-6'
-                          }`}
-                        >
-                          <span className={isGroup ? '' : 'ml-0'}>
+                            )}
+                          </td>
+                          <td
+                            className={`px-3 py-2.5 text-sm font-mono ${
+                              isGroup ? 'font-semibold text-blue-700' : 'text-gray-500'
+                            }`}
+                          >
                             {item.code}
-                          </span>
-                        </td>
-                        <td
-                          className={`px-3 py-2.5 text-sm ${
-                            isGroup
-                              ? 'font-semibold text-blue-700'
-                              : 'text-gray-500'
-                          }`}
-                        >
-                          {item.name}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                          </td>
+                          <td
+                            className={`px-3 py-2.5 text-sm ${
+                              isGroup ? 'font-semibold text-blue-700' : 'text-gray-500'
+                            }`}
+                          >
+                            {item.name}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-200 bg-white text-sm text-gray-500">
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="border border-slate-200 rounded px-1.5 py-0.5 text-xs outline-none"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-              <span>
-                {flatItems.length === 0
-                  ? '0 - 0 of 0'
-                  : `${(page - 1) * pageSize + 1} - ${Math.min(
-                      page * pageSize,
-                      flatItems.length,
-                    )} of ${flatItems.length}`}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              {/* Pagination */}
+              <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-slate-200 bg-white text-sm text-gray-500">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="border border-slate-200 rounded px-1.5 py-0.5 text-xs outline-none"
                 >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  onClick={() =>
-                    setPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={page >= totalPages}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight size={16} />
-                </button>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>
+                  {flatItems.length === 0
+                    ? '0 - 0 of 0'
+                    : `${(page - 1) * pageSize + 1} - ${Math.min(
+                        page * pageSize,
+                        flatItems.length,
+                      )} of ${flatItems.length}`}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 flex items-center justify-end border-t border-slate-200">
+        {/* ── Footer – cố định, KHÔNG cuộn ── */}
+        <div className="px-6 py-4 flex items-center justify-end border-t border-slate-200 flex-shrink-0 rounded-b-xl">
           <button
             onClick={async () => {
               const errs: { code?: string; name?: string } = {};
