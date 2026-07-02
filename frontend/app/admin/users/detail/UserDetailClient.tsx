@@ -182,8 +182,15 @@ export default function UserDetailClient({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = 'Email không hợp lệ';
     }
-    if (formData.dateOfBirth && new Date(formData.dateOfBirth) > new Date()) {
-      errs.dateOfBirth = 'Ngày tháng năm sinh không được là ngày tương lai';
+    if (!formData.dateOfBirth) {
+      errs.dateOfBirth = 'Ngày tháng năm sinh không được để trống';
+    } else {
+      const dob = new Date(formData.dateOfBirth);
+      if (isNaN(dob.getTime())) {
+        errs.dateOfBirth = 'Ngày tháng năm sinh không hợp lệ';
+      } else if (dob > new Date()) {
+        errs.dateOfBirth = 'Ngày tháng năm sinh không được là ngày tương lai';
+      }
     }
     if (!formData.titleName.trim()) errs.titleName = 'Vui lòng nhập chức danh';
     if (formData.roleId === '') errs.roleId = 'Vui lòng chọn vai trò';
