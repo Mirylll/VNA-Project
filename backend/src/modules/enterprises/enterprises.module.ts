@@ -7,12 +7,13 @@ import { Industry } from '../industries/entities/industry.entity';
 import { District } from '../users/entities/district.entity';
 import { User } from '../users/entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
+import { Title } from '../titles/entities/title.entity';
 import { EnterprisesController } from './enterprises.controller';
 import { EnterprisesService } from './enterprises.service';
 import { PermissionsGuard } from '../../libs/core/guards/permissions.guard';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Enterprise, Attachment, EnterpriseType, Industry, District, User, Role])],
+  imports: [TypeOrmModule.forFeature([Enterprise, Attachment, EnterpriseType, Industry, District, User, Role, Title])],
   controllers: [EnterprisesController],
   providers: [EnterprisesService, PermissionsGuard],
   exports: [EnterprisesService],

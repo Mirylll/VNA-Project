@@ -14,6 +14,7 @@ import { EnterpriseType } from '../../enterprise-types/entities/enterprise-type.
 import { Industry } from '../../industries/entities/industry.entity';
 import { Province } from '../../users/entities/province.entity';
 import { District } from '../../users/entities/district.entity';
+import { Title } from '../../titles/entities/title.entity';
 
 @Injectable()
 export class AuthService {
@@ -380,6 +381,16 @@ export class AuthService {
         role: enterpriseRole || undefined,
       });
       const savedUser = await userRepository.save(user);
+
+      // Auto-assign "Người đại diện doanh nghiệp" title
+      const titleRepository = manager.getRepository(Title);
+      let enterpriseTitle = await titleRepository.findOne({ where: { name: 'Người đại diện doanh nghiệp' } });
+      if (!enterpriseTitle) {
+        enterpriseTitle = titleRepository.create({ name: 'Người đại diện doanh nghiệp' });
+        enterpriseTitle = await titleRepository.save(enterpriseTitle);
+      }
+      savedUser.title = enterpriseTitle;
+      await userRepository.save(savedUser);
 
       const enterprise = enterpriseRepository.create({
         name: data.tenDN || data.mst,

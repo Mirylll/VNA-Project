@@ -12,6 +12,7 @@ import { Industry } from '../industries/entities/industry.entity';
 import { District } from '../users/entities/district.entity';
 import { User, AccountType } from '../users/entities/user.entity';
 import { Role } from '../roles/entities/role.entity';
+import { Title } from '../titles/entities/title.entity';
 import { CreateEnterpriseDto } from './dto/create-enterprise.dto';
 import { UpdateEnterpriseDto } from './dto/update-enterprise.dto';
 
@@ -32,6 +33,8 @@ export class EnterprisesService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Role)
     private readonly roleRepo: Repository<Role>,
+    @InjectRepository(Title)
+    private readonly titleRepo: Repository<Title>,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -241,6 +244,16 @@ export class EnterprisesService {
     });
 
     await this.userRepo.save(user);
+
+    // Auto-assign "Người đại diện doanh nghiệp" title
+    let enterpriseTitle = await this.titleRepo.findOne({ where: { name: 'Người đại diện doanh nghiệp' } });
+    if (!enterpriseTitle) {
+      enterpriseTitle = this.titleRepo.create({ name: 'Người đại diện doanh nghiệp' });
+      enterpriseTitle = await this.titleRepo.save(enterpriseTitle);
+    }
+    user.title = enterpriseTitle;
+    await this.userRepo.save(user);
+
     return this.repo.save(entity) as unknown as Promise<Enterprise>;
   }
 
