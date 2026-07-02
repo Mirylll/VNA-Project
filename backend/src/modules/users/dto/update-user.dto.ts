@@ -38,7 +38,7 @@ export class UpdateUserDto {
   accountType?: AccountType;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Ngày tháng năm sinh không hợp lệ (YYYY-MM-DD)' })
   dateOfBirth?: string | null;
 
   @IsOptional()
