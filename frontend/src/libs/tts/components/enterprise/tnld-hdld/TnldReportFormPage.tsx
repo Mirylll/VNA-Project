@@ -302,6 +302,8 @@ function SelectField({
   required,
   disabled,
   onChange,
+  placeholder,
+  error,
 }: {
   label: string;
   value: string;
@@ -310,6 +312,8 @@ function SelectField({
   required?: boolean;
   disabled?: boolean;
   onChange?: (value: string) => void;
+  placeholder?: string;
+  error?: string;
 }) {
   return (
     <label className="relative block">
@@ -321,8 +325,15 @@ function SelectField({
         value={value}
         disabled={disabled}
         onChange={(event) => onChange?.(event.target.value)}
-        className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-500"
+        className={`h-10 w-full rounded-md border px-3 text-sm outline-none transition focus:ring-2 disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-500 ${
+          error
+            ? 'border-red-400 bg-red-50 text-gray-900 focus:border-red-500 focus:ring-red-200'
+            : 'border-gray-300 bg-white text-gray-900 focus:border-blue-500 focus:ring-blue-100'
+        }`}
       >
+        {placeholder && !value && (
+          <option value="" disabled>{placeholder}</option>
+        )}
         {optionGroups
           ? optionGroups.map((group) => (
               <optgroup key={group.label} label={group.label}>
@@ -339,6 +350,7 @@ function SelectField({
               </option>
             ))}
       </select>
+      {error && <span className="mt-1 block text-xs font-medium text-red-500">{error}</span>}
     </label>
   );
 }
@@ -467,9 +479,9 @@ function readStoredCategory<T>(key: string, fallback: T[]): T[] {
 
 function createAccidentDetail(index: number): AccidentDetail {
   return {
-    cause: REVIEW_EMPLOYER_CAUSES[0].label,
-    injuryFactor: DEFAULT_INJURY_FACTORS[3].name,
-    occupation: DEFAULT_OCCUPATIONS[2].name,
+    cause: '',
+    injuryFactor: '',
+    occupation: '',
     totalAccidents: '0',
     fatalAccidents: '0',
     multiVictimAccidents: '0',
@@ -627,8 +639,9 @@ export default function TnldReportFormPage() {
   const [readOnly, setReadOnly] = useState(false);
   const [reportYear, setReportYear] = useState('2026');
   const [step, setStep] = useState<StepId>('company');
-  const [accidentTab, setAccidentTab] = useState<AccidentTab>('overview');
+  const [accidentTab, setAccidentTab] = useState<AccidentTab>('details');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [attemptedNext, setAttemptedNext] = useState(false);
   const [collapsedAccidentDetails, setCollapsedAccidentDetails] = useState<Record<number, boolean>>({});
   const [injuryFactors, setInjuryFactors] = useState<TnldInjuryFactor[]>(DEFAULT_INJURY_FACTORS);
   const [injuryTypes, setInjuryTypes] = useState<TnldHierarchicalCategory[]>(DEFAULT_INJURY_TYPES);
@@ -690,26 +703,13 @@ export default function TnldReportFormPage() {
   });
 
   const activeStepIndex = STEPS.findIndex((item) => item.id === step);
-  const causeOptionGroups = useMemo<SelectOptionGroup[]>(
+  const causeOptions = useMemo(
     () => [
-      {
-        label: 'a. Do người sử dụng lao động',
-        options: REVIEW_EMPLOYER_CAUSES.map((item) => item.label),
-      },
-      {
-        label: 'b. Do người lao động',
-        options: REVIEW_EMPLOYEE_CAUSES.map((item) => item.label),
-      },
-      {
-        label: 'c. Khác',
-        options: REVIEW_OTHER_CAUSES.map((item) => item.label),
-      },
+      ...REVIEW_EMPLOYER_CAUSES.map((item) => item.label),
+      ...REVIEW_EMPLOYEE_CAUSES.map((item) => item.label),
+      ...REVIEW_OTHER_CAUSES.map((item) => item.label),
     ],
     [],
-  );
-  const causeOptions = useMemo(
-    () => causeOptionGroups.flatMap((group) => group.options),
-    [causeOptionGroups],
   );
   const injuryFactorOptions = useMemo(
     () => injuryFactors.filter((item) => item.isActive).map((item) => item.name).filter(Boolean),
@@ -760,10 +760,7 @@ export default function TnldReportFormPage() {
     ],
   );
   const accidentCount = parseInteger(form.totalAccidents);
-  const activeAccidentDetails = useMemo(
-    () => Array.from({ length: accidentCount }, (_, index) => accidentDetails[index] ?? createAccidentDetail(index)),
-    [accidentCount, accidentDetails],
-  );
+  const activeAccidentDetails = accidentDetails;
   const accidentOverviewMetrics = useMemo<ReviewMetricValues>(
     () => [
       parseInteger(form.totalAccidents),
@@ -852,48 +849,6 @@ export default function TnldReportFormPage() {
   const hasAccidentDetailErrors = activeAccidentDetails.some((detail) =>
     Object.values(getAccidentDetailErrors(detail)).some(Boolean),
   );
-  const accidentDetailSummaryErrors = useMemo(() => {
-    if (accidentCount === 0) return [];
-
-    const checks = [
-      { label: 'Tổng số người bị nạn', total: parseInteger(form.totalVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'totalVictims') },
-      { label: 'Tổng số lao động nữ bị nạn', total: parseInteger(form.femaleVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'femaleVictims') },
-      { label: 'Tổng số người bị chết', total: parseInteger(form.deadVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'deadVictims') },
-      { label: 'Tổng số người bị thương nặng', total: parseInteger(form.severeVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'severeVictims') },
-      { label: 'Số người bị nạn không QL', total: parseInteger(form.unmanagedVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'unmanagedVictims') },
-      { label: 'Lao động nữ bị nạn không QL', total: parseInteger(form.unmanagedFemaleVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'unmanagedFemaleVictims') },
-      { label: 'Số người chết không QL', total: parseInteger(form.unmanagedDeadVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'unmanagedDeadVictims') },
-      { label: 'Người bị thương nặng không QL', total: parseInteger(form.unmanagedSevereVictims), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'unmanagedSevereVictims') },
-      { label: 'Chi phí y tế', total: parseInteger(form.medicalCost), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'medicalCost'), money: true },
-      { label: 'Chi phí trả lương trong thời gian điều trị', total: parseInteger(form.treatmentSalaryCost), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'treatmentSalaryCost'), money: true },
-      { label: 'Chi phí bồi thường trợ cấp', total: parseInteger(form.compensationCost), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'compensationCost'), money: true },
-      { label: 'Tổng số tiền chi phí', total: parseInteger(totalCost), detailTotal: sumAccidentDetailTotalCost(activeAccidentDetails), money: true },
-      { label: 'Tổng số ngày nghỉ vì TNLĐ', total: parseInteger(form.workdaysLost), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'workdaysLost') },
-      { label: 'Thiệt hại tài sản', total: parseInteger(form.assetDamage), detailTotal: sumAccidentDetailField(activeAccidentDetails, 'assetDamage'), money: true },
-    ];
-
-    return checks.filter((item) => item.total !== item.detailTotal);
-  }, [
-    accidentCount,
-    activeAccidentDetails,
-    form.assetDamage,
-    form.compensationCost,
-    form.deadVictims,
-    form.fatalAccidents,
-    form.femaleVictims,
-    form.medicalCost,
-    form.multiVictimAccidents,
-    form.severeVictims,
-    form.totalAccidents,
-    form.totalVictims,
-    form.treatmentSalaryCost,
-    form.unmanagedDeadVictims,
-    form.unmanagedFemaleVictims,
-    form.unmanagedSevereVictims,
-    form.unmanagedVictims,
-    form.workdaysLost,
-    totalCost,
-  ]);
   const totalEmployeesError = getRequiredIntegerError(form.totalEmployees);
   const femaleEmployeesError = firstError(
     getRequiredIntegerError(form.femaleEmployees),
@@ -1066,11 +1021,8 @@ export default function TnldReportFormPage() {
   const hasCurrentStepError =
     (step === 'company' && companyStepErrors.some(Boolean)) ||
     (step === 'accident' &&
-      accidentTab === 'overview' &&
-      accidentOverviewErrors.some(Boolean)) ||
-    (step === 'accident' &&
       accidentTab === 'details' &&
-      (hasAccidentDetailErrors || accidentDetailSummaryErrors.length > 0)) ||
+      hasAccidentDetailErrors) ||
     (step === 'subsidy' &&
       subsidyStepErrors.some(Boolean));
 
@@ -1297,30 +1249,38 @@ export default function TnldReportFormPage() {
     setAccidentDetails((current) =>
       current.map((detail, index) => ({
         ...detail,
-        cause: causeOptions.includes(detail.cause) ? detail.cause : causeOptions[0] || createAccidentDetail(index).cause,
-        injuryFactor: injuryFactorOptions.includes(detail.injuryFactor)
+        cause: detail.cause && causeOptions.includes(detail.cause) ? detail.cause : '',
+        injuryFactor: detail.injuryFactor && injuryFactorOptions.includes(detail.injuryFactor)
           ? detail.injuryFactor
-          : injuryFactorOptions[0] || createAccidentDetail(index).injuryFactor,
-        occupation: occupationOptions.includes(detail.occupation)
+          : '',
+        occupation: detail.occupation && occupationOptions.includes(detail.occupation)
           ? detail.occupation
-          : occupationOptions[0] || createAccidentDetail(index).occupation,
+          : '',
       })),
     );
   }, [causeOptions, injuryFactorOptions, occupationOptions]);
 
   useEffect(() => {
-    setAccidentDetails((current) => {
-      if (current.length === accidentCount) return current;
-      if (current.length > accidentCount) return current.slice(0, accidentCount);
-
-      return [
-        ...current,
-        ...Array.from({ length: accidentCount - current.length }, (_, index) =>
-          createAccidentDetail(current.length + index),
-        ),
-      ];
-    });
-  }, [accidentCount]);
+    setForm((current) => ({
+      ...current,
+      totalAccidents: String(accidentDetails.length),
+      fatalAccidents: String(sumAccidentDetailField(accidentDetails, 'fatalAccidents')),
+      multiVictimAccidents: String(sumAccidentDetailField(accidentDetails, 'multiVictimAccidents')),
+      totalVictims: String(sumAccidentDetailField(accidentDetails, 'totalVictims')),
+      femaleVictims: String(sumAccidentDetailField(accidentDetails, 'femaleVictims')),
+      deadVictims: String(sumAccidentDetailField(accidentDetails, 'deadVictims')),
+      severeVictims: String(sumAccidentDetailField(accidentDetails, 'severeVictims')),
+      unmanagedVictims: String(sumAccidentDetailField(accidentDetails, 'unmanagedVictims')),
+      unmanagedFemaleVictims: String(sumAccidentDetailField(accidentDetails, 'unmanagedFemaleVictims')),
+      unmanagedDeadVictims: String(sumAccidentDetailField(accidentDetails, 'unmanagedDeadVictims')),
+      unmanagedSevereVictims: String(sumAccidentDetailField(accidentDetails, 'unmanagedSevereVictims')),
+      medicalCost: String(sumAccidentDetailField(accidentDetails, 'medicalCost')),
+      treatmentSalaryCost: String(sumAccidentDetailField(accidentDetails, 'treatmentSalaryCost')),
+      compensationCost: String(sumAccidentDetailField(accidentDetails, 'compensationCost')),
+      workdaysLost: String(sumAccidentDetailField(accidentDetails, 'workdaysLost')),
+      assetDamage: String(sumAccidentDetailField(accidentDetails, 'assetDamage')),
+    }));
+  }, [accidentDetails]);
 
   function updateField(field: keyof typeof form, value: string) {
     if (readOnly) return;
@@ -1350,6 +1310,7 @@ export default function TnldReportFormPage() {
   }
 
   function goNext() {
+    setAttemptedNext(true);
     const nextStep = STEPS[activeStepIndex + 1]?.id;
     if (nextStep) setStep(nextStep);
   }
@@ -1682,25 +1643,199 @@ export default function TnldReportFormPage() {
               <div className="mb-5 flex border-b border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setAccidentTab('overview')}
-                  className={`border-b-2 px-4 py-2 text-sm font-semibold ${
-                    accidentTab === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
-                  }`}
-                >
-                  (1) Tổng số vụ tai nạn lao động
-                </button>
-                <button
-                  type="button"
                   onClick={() => setAccidentTab('details')}
                   className={`border-b-2 px-4 py-2 text-sm font-semibold ${
                     accidentTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
                   }`}
                 >
-                  (2) Chi tiết các vụ tai nạn lao động
+                  (1) Chi tiết các vụ tai nạn lao động
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccidentTab('overview')}
+                  className={`border-b-2 px-4 py-2 text-sm font-semibold ${
+                    accidentTab === 'overview' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+                  }`}
+                >
+                  (2) Tổng số vụ tai nạn lao động
                 </button>
               </div>
 
-              {accidentTab === 'overview' ? (
+              {accidentTab === 'details' ? (
+                <div className="space-y-5">
+                  {activeAccidentDetails.length === 0 && (
+                    <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center text-sm font-medium text-gray-500">
+                      Chưa có vụ tai nạn lao động để khai báo chi tiết.
+                    </div>
+                  )}
+
+                  {activeAccidentDetails.map((detail, index) => {
+                    const item = index + 1;
+                    const isCollapsed = collapsedAccidentDetails[item] === true;
+                    const detailErrors = getAccidentDetailErrors(detail);
+
+                    return (
+                      <div key={item} className="border-b border-gray-200 pb-6 last:border-b-0">
+                        <p className="mb-4 text-sm font-semibold text-gray-800">
+                          **** Doanh nghiệp xảy ra tai nạn lao động vui lòng nhập theo từng bước
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleAccidentDetail(item)}
+                          className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 transition hover:text-blue-600"
+                          aria-expanded={!isCollapsed}
+                        >
+                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                          Chi tiết vụ tai nạn số {item}
+                        </button>
+
+                        {!isCollapsed && (
+                          <>
+                            <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                              <SelectField
+                                label="1. Phân theo nguyên nhân xảy ra TNLĐ"
+                                value={detail.cause}
+                                options={causeOptions}
+                                disabled={readOnly}
+                                onChange={(value) => updateAccidentDetail(index, 'cause', value)}
+                                placeholder="Chọn nguyên nhân xảy ra tai nạn lao động"
+                                error={attemptedNext && !detail.cause ? 'Vui lòng chọn nguyên nhân xảy ra tai nạn lao động' : ''}
+                              />
+                              <SelectField
+                                label="2. Phân theo yếu tố gây chấn thương"
+                                value={detail.injuryFactor}
+                                options={injuryFactorOptions}
+                                disabled={readOnly}
+                                onChange={(value) => updateAccidentDetail(index, 'injuryFactor', value)}
+                                placeholder="Chọn yếu tố gây chấn thương"
+                                error={attemptedNext && !detail.injuryFactor ? 'Vui lòng chọn yếu tố gây chấn thương' : ''}
+                              />
+                            </div>
+
+                            <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                              <SelectField
+                                label="3. Phân theo nghề nghiệp"
+                                value={detail.occupation}
+                                options={occupationOptions}
+                                disabled={readOnly}
+                                onChange={(value) => updateAccidentDetail(index, 'occupation', value)}
+                                placeholder="Chọn nghề nghiệp"
+                                error={attemptedNext && !detail.occupation ? 'Vui lòng chọn nghề nghiệp' : ''}
+                              />
+                            </div>
+
+                            <div className="mb-5">
+                              <h4 className="mb-4 text-sm font-bold text-gray-900">4. Chi tiết vụ tai nạn số {item}</h4>
+                              <div className="space-y-5">
+                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+                                  <Field
+                                    label="Tổng số người bị nạn"
+                                    required
+                                    value={detail.totalVictims}
+                                    error={detailErrors.totalVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'totalVictims', value)}
+                                  />
+                                  <Field
+                                    label="Tổng số lao động nữ bị nạn"
+                                    required
+                                    value={detail.femaleVictims}
+                                    error={detailErrors.femaleVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'femaleVictims', value)}
+                                  />
+                                  <Field
+                                    label="Tổng số người bị chết"
+                                    required
+                                    value={detail.deadVictims}
+                                    error={detailErrors.deadVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'deadVictims', value)}
+                                  />
+                                  <Field
+                                    label="Tổng số người bị thương nặng"
+                                    required
+                                    value={detail.severeVictims}
+                                    error={detailErrors.severeVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'severeVictims', value)}
+                                  />
+                                </div>
+                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+                                  <Field
+                                    label="Số người bị nạn không QL"
+                                    required
+                                    value={detail.unmanagedVictims}
+                                    error={detailErrors.unmanagedVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedVictims', value)}
+                                  />
+                                  <Field
+                                    label="Lao động nữ bị nạn không QL"
+                                    required
+                                    value={detail.unmanagedFemaleVictims}
+                                    error={detailErrors.unmanagedFemaleVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedFemaleVictims', value)}
+                                  />
+                                  <Field
+                                    label="Số người chết không QL"
+                                    required
+                                    value={detail.unmanagedDeadVictims}
+                                    error={detailErrors.unmanagedDeadVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedDeadVictims', value)}
+                                  />
+                                  <Field
+                                    label="Người bị thương nặng không QL"
+                                    required
+                                    value={detail.unmanagedSevereVictims}
+                                    error={detailErrors.unmanagedSevereVictims}
+                                    onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedSevereVictims', value)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="mb-4 text-sm font-bold text-gray-900">5. Thiệt hại do tai nạn lao động số {item}</h4>
+                              <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
+                                <Field label="Chi phí y tế" required value={detail.medicalCost} error={detailErrors.medicalCost} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'medicalCost', formatMoneyInput(value))} />
+                                <Field
+                                  label="Chi phí trả lương trong thời gian điều trị"
+                                  required
+                                  value={detail.treatmentSalaryCost}
+                                  error={detailErrors.treatmentSalaryCost}
+                                  suffix="(1.000đ)"
+                                  onChange={(value) => updateAccidentDetail(index, 'treatmentSalaryCost', formatMoneyInput(value))}
+                                />
+                                <Field
+                                  label="Chi phí bồi thường trợ cấp"
+                                  required
+                                  value={detail.compensationCost}
+                                  error={detailErrors.compensationCost}
+                                  suffix="(1.000đ)"
+                                  onChange={(value) => updateAccidentDetail(index, 'compensationCost', formatMoneyInput(value))}
+                                />
+                                <Field label="Tổng số tiền chi phí" required value={getAccidentDetailTotalCost(detail)} suffix="(1.000đ)" readOnly />
+                                <Field label="Tổng số ngày nghỉ vì TNLĐ" required value={detail.workdaysLost} error={detailErrors.workdaysLost} onChange={(value) => updateAccidentDetailInteger(index, 'workdaysLost', value)} />
+                                <Field label="Thiệt hại tài sản" required value={detail.assetDamage} error={detailErrors.assetDamage} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'assetDamage', formatMoneyInput(value))} />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccidentDetails((prev) => [...prev, createAccidentDetail(prev.length)]);
+                        setAccidentTab('details');
+                      }}
+                      className="inline-flex items-center gap-2 rounded-md border border-dashed border-blue-400 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-100"
+                    >
+                      + Thêm vụ tai nạn
+                    </button>
+                  )}
+                </div>
+              ) : (
                 <div className="space-y-6">
                   <div>
                     <h3 className="mb-4 text-sm font-bold text-gray-900">1. Tổng số vụ tai nạn lao động & số nạn nhân tai nạn lao động</h3>
@@ -1710,22 +1845,19 @@ export default function TnldReportFormPage() {
                         label="Tổng số vụ"
                         required
                         value={form.totalAccidents}
-                        error={totalAccidentsError}
-                        onChange={(value) => updateIntegerField('totalAccidents', value)}
+                        readOnly
                       />
                       <Field
                         label="Tổng số vụ có người chết"
                         required
                         value={form.fatalAccidents}
-                        error={fatalAccidentsError}
-                        onChange={(value) => updateIntegerField('fatalAccidents', value)}
+                        readOnly
                       />
                       <Field
                         label="Tổng số vụ có từ 2 người bị nạn trở lên"
                         required
                         value={form.multiVictimAccidents}
-                        error={multiVictimAccidentsError}
-                        onChange={(value) => updateIntegerField('multiVictimAccidents', value)}
+                        readOnly
                       />
                       </div>
                       <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
@@ -1733,29 +1865,25 @@ export default function TnldReportFormPage() {
                         label="Tổng số người bị nạn"
                         required
                         value={form.totalVictims}
-                        error={totalVictimsError}
-                        onChange={(value) => updateIntegerField('totalVictims', value)}
+                        readOnly
                       />
                       <Field
                         label="Tổng số lao động nữ bị nạn"
                         required
                         value={form.femaleVictims}
-                        error={femaleVictimsError}
-                        onChange={(value) => updateIntegerField('femaleVictims', value)}
+                        readOnly
                       />
                       <Field
                         label="Tổng số người bị chết"
                         required
                         value={form.deadVictims}
-                        error={deadVictimsError}
-                        onChange={(value) => updateIntegerField('deadVictims', value)}
+                        readOnly
                       />
                       <Field
                         label="Tổng số người bị thương nặng"
                         required
                         value={form.severeVictims}
-                        error={severeVictimsError}
-                        onChange={(value) => updateIntegerField('severeVictims', value)}
+                        readOnly
                       />
                       </div>
                       <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
@@ -1763,29 +1891,25 @@ export default function TnldReportFormPage() {
                         label="Số người bị nạn không QL"
                         required
                         value={form.unmanagedVictims}
-                        error={unmanagedVictimsError}
-                        onChange={(value) => updateIntegerField('unmanagedVictims', value)}
+                        readOnly
                       />
                       <Field
                         label="Lao động nữ bị nạn không QL"
                         required
                         value={form.unmanagedFemaleVictims}
-                        error={unmanagedFemaleVictimsError}
-                        onChange={(value) => updateIntegerField('unmanagedFemaleVictims', value)}
+                        readOnly
                       />
                       <Field
                         label="Số người chết không QL"
                         required
                         value={form.unmanagedDeadVictims}
-                        error={unmanagedDeadVictimsError}
-                        onChange={(value) => updateIntegerField('unmanagedDeadVictims', value)}
+                        readOnly
                       />
                       <Field
                         label="Người bị thương nặng không QL"
                         required
                         value={form.unmanagedSevereVictims}
-                        error={unmanagedSevereVictimsError}
-                        onChange={(value) => updateIntegerField('unmanagedSevereVictims', value)}
+                        readOnly
                       />
                       </div>
                     </div>
@@ -1794,195 +1918,14 @@ export default function TnldReportFormPage() {
                   <div>
                     <h3 className="mb-4 text-sm font-bold text-gray-900">2. Thiệt hại do tai nạn lao động</h3>
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                      <Field label="Chi phí y tế" required value={form.medicalCost} error={medicalCostError} suffix="(1.000đ)" onChange={(value) => updateField('medicalCost', formatMoneyInput(value))} />
-                      <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.treatmentSalaryCost} error={treatmentSalaryCostError} suffix="(1.000đ)" onChange={(value) => updateField('treatmentSalaryCost', formatMoneyInput(value))} />
-                      <Field label="Chi phí bồi thường trợ cấp" required value={form.compensationCost} error={compensationCostError} suffix="(1.000đ)" onChange={(value) => updateField('compensationCost', formatMoneyInput(value))} />
+                      <Field label="Chi phí y tế" required value={form.medicalCost} readOnly />
+                      <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.treatmentSalaryCost} readOnly />
+                      <Field label="Chi phí bồi thường trợ cấp" required value={form.compensationCost} readOnly />
                       <Field label="Tổng số tiền chi phí" required value={totalCost} suffix="(1.000đ)" readOnly />
-                      <Field label="Tổng số ngày nghỉ vì TNLD" required value={form.workdaysLost} error={workdaysLostError} onChange={(value) => updateIntegerField('workdaysLost', value)} />
-                      <Field label="Thiệt hại tài sản" required value={form.assetDamage} error={assetDamageError} suffix="(1.000đ)" onChange={(value) => updateField('assetDamage', formatMoneyInput(value))} />
+                      <Field label="Tổng số ngày nghỉ vì TNLD" required value={form.workdaysLost} readOnly />
+                      <Field label="Thiệt hại tài sản" required value={form.assetDamage} readOnly />
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {accidentCount === 0 ? (
-                    <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center text-sm font-medium text-gray-500">
-                      Chưa có vụ tai nạn lao động để khai báo chi tiết.
-                    </div>
-                  ) : (
-                    <>
-                      {accidentDetailSummaryErrors.length > 0 && (
-                        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3">
-                          <p className="mb-2 text-sm font-semibold text-red-600">
-                            Tổng số liệu trong các form chi tiết phải bằng số liệu ở mục tổng quan.
-                          </p>
-                          <div className="grid grid-cols-1 gap-2 text-xs text-red-600 md:grid-cols-2">
-                            {accidentDetailSummaryErrors.map((error) => (
-                              <div key={error.label} className="rounded border border-red-100 bg-white px-3 py-2">
-                                <span className="font-semibold">{error.label}:</span>{' '}
-                                chi tiết đang là{' '}
-                                <span className="font-semibold">
-                                  {error.money ? formatVndNumber(String(error.detailTotal)) : error.detailTotal}
-                                </span>
-                                , tổng quan là{' '}
-                                <span className="font-semibold">
-                                  {error.money ? formatVndNumber(String(error.total)) : error.total}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {activeAccidentDetails.map((detail, index) => {
-                      const item = index + 1;
-                      const isCollapsed = collapsedAccidentDetails[item] === true;
-                      const detailErrors = getAccidentDetailErrors(detail);
-
-                      return (
-                        <div key={item} className="border-b border-gray-200 pb-6 last:border-b-0">
-                          <p className="mb-4 text-sm font-semibold text-gray-800">
-                            **** Doanh nghiệp xảy ra tai nạn lao động vui lòng nhập theo từng bước
-                          </p>
-
-                          <button
-                            type="button"
-                            onClick={() => toggleAccidentDetail(item)}
-                            className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 transition hover:text-blue-600"
-                            aria-expanded={!isCollapsed}
-                          >
-                            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                            Chi tiết vụ tai nạn số {item}
-                          </button>
-
-                          {!isCollapsed && (
-                            <>
-                              <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                <SelectField
-                                  label="1. Phân theo nguyên nhân xảy ra TNLĐ"
-                                  value={detail.cause}
-                                  options={causeOptions}
-                                  optionGroups={causeOptionGroups}
-                                  disabled={readOnly}
-                                  onChange={(value) => updateAccidentDetail(index, 'cause', value)}
-                                />
-                                <SelectField
-                                  label="2. Phân theo yếu tố gây chấn thương"
-                                  value={detail.injuryFactor}
-                                  options={injuryFactorOptions}
-                                  disabled={readOnly}
-                                  onChange={(value) => updateAccidentDetail(index, 'injuryFactor', value)}
-                                />
-                              </div>
-
-                              <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                <SelectField
-                                  label="3. Phân theo nghề nghiệp"
-                                  value={detail.occupation}
-                                  options={occupationOptions}
-                                  disabled={readOnly}
-                                  onChange={(value) => updateAccidentDetail(index, 'occupation', value)}
-                                />
-                              </div>
-
-                              <div className="mb-5">
-                                <h4 className="mb-4 text-sm font-bold text-gray-900">4. Chi tiết vụ tai nạn số {item}</h4>
-                                <div className="space-y-5">
-                                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                                    <Field
-                                      label="Tổng số người bị nạn"
-                                      required
-                                      value={detail.totalVictims}
-                                      error={detailErrors.totalVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'totalVictims', value)}
-                                    />
-                                    <Field
-                                      label="Tổng số lao động nữ bị nạn"
-                                      required
-                                      value={detail.femaleVictims}
-                                      error={detailErrors.femaleVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'femaleVictims', value)}
-                                    />
-                                    <Field
-                                      label="Tổng số người bị chết"
-                                      required
-                                      value={detail.deadVictims}
-                                      error={detailErrors.deadVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'deadVictims', value)}
-                                    />
-                                    <Field
-                                      label="Tổng số người bị thương nặng"
-                                      required
-                                      value={detail.severeVictims}
-                                      error={detailErrors.severeVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'severeVictims', value)}
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                                    <Field
-                                      label="Số người bị nạn không QL"
-                                      required
-                                      value={detail.unmanagedVictims}
-                                      error={detailErrors.unmanagedVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedVictims', value)}
-                                    />
-                                    <Field
-                                      label="Lao động nữ bị nạn không QL"
-                                      required
-                                      value={detail.unmanagedFemaleVictims}
-                                      error={detailErrors.unmanagedFemaleVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedFemaleVictims', value)}
-                                    />
-                                    <Field
-                                      label="Số người chết không QL"
-                                      required
-                                      value={detail.unmanagedDeadVictims}
-                                      error={detailErrors.unmanagedDeadVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedDeadVictims', value)}
-                                    />
-                                    <Field
-                                      label="Người bị thương nặng không QL"
-                                      required
-                                      value={detail.unmanagedSevereVictims}
-                                      error={detailErrors.unmanagedSevereVictims}
-                                      onChange={(value) => updateAccidentDetailInteger(index, 'unmanagedSevereVictims', value)}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div>
-                                <h4 className="mb-4 text-sm font-bold text-gray-900">5. Thiệt hại do tai nạn lao động số {item}</h4>
-                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                                  <Field label="Chi phí y tế" required value={detail.medicalCost} error={detailErrors.medicalCost} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'medicalCost', formatMoneyInput(value))} />
-                                  <Field
-                                    label="Chi phí trả lương trong thời gian điều trị"
-                                    required
-                                    value={detail.treatmentSalaryCost}
-                                    error={detailErrors.treatmentSalaryCost}
-                                    suffix="(1.000đ)"
-                                    onChange={(value) => updateAccidentDetail(index, 'treatmentSalaryCost', formatMoneyInput(value))}
-                                  />
-                                  <Field
-                                    label="Chi phí bồi thường trợ cấp"
-                                    required
-                                    value={detail.compensationCost}
-                                    error={detailErrors.compensationCost}
-                                    suffix="(1.000đ)"
-                                    onChange={(value) => updateAccidentDetail(index, 'compensationCost', formatMoneyInput(value))}
-                                  />
-                                  <Field label="Tổng số tiền chi phí" required value={getAccidentDetailTotalCost(detail)} suffix="(1.000đ)" readOnly />
-                                  <Field label="Tổng số ngày nghỉ vì TNLĐ" required value={detail.workdaysLost} error={detailErrors.workdaysLost} onChange={(value) => updateAccidentDetailInteger(index, 'workdaysLost', value)} />
-                                  <Field label="Thiệt hại tài sản" required value={detail.assetDamage} error={detailErrors.assetDamage} suffix="(1.000đ)" onChange={(value) => updateAccidentDetail(index, 'assetDamage', formatMoneyInput(value))} />
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                    </>
-                  )}
                 </div>
               )}
             </section>
