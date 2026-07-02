@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { getAuthToken } from '@/libs/core/utils/auth-token';
+import { HCM_WARDS, ENTERPRISE_TYPES, INDUSTRIES } from '@/libs/tts/data/hcm-districts';
 
 const BASE_URL =
   typeof window !== "undefined"
@@ -224,9 +225,8 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   // ── API data
   const [enterpriseTypes, setEnterpriseTypes] = useState<{ id: number; name: string }[]>([]);
   const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([]);
-  const [provinces, setProvinces] = useState<{ id: number; name: string }[]>([]);
-  const [registrationWards, setRegistrationWards] = useState<{ id: number; name: string }[]>([]);
-  const [operationWards, setOperationWards] = useState<{ id: number; name: string }[]>([]);
+  const [registrationWards, setRegistrationWards] = useState<{ id: string; name: string }[]>([]);
+  const [operationWards, setOperationWards] = useState<{ id: string; name: string }[]>([]);
 
   // ── form
   const [form, setForm] = useState<FormData>({
@@ -304,34 +304,51 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
   useEffect(() => {
     fetch(`${BASE_URL}/auth/enterprise-types`)
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setEnterpriseTypes(data.filter((t: any) => t.isActive !== false)))
-      .catch(() => {});
+      .then((data) => {
+        const filtered = data.filter((t: any) => t.isActive !== false);
+        if (filtered.length > 0) {
+          setEnterpriseTypes(filtered);
+        } else {
+          // Fallback: dùng dữ liệu tĩnh khi DB chưa có seed
+          setEnterpriseTypes(ENTERPRISE_TYPES.map((name, idx) => ({ id: idx + 1, name })));
+        }
+      })
+      .catch(() => {
+        setEnterpriseTypes(ENTERPRISE_TYPES.map((name, idx) => ({ id: idx + 1, name })));
+      });
 
     fetch(`${BASE_URL}/auth/industries`)
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setIndustries(data.filter((d: any) => d.isActive !== false && d.level === 4)))
-      .catch(() => {});
-
-    fetch(`${BASE_URL}/provinces`)
-      .then((res) => res.ok ? res.json() : [])
-      .then(setProvinces)
-      .catch(() => {});
-  }, []);
-
-  // ── load HCMC wards when provinces ready (public endpoint)
-  useEffect(() => {
-    if (provinces.length === 0) return;
-    const hcmc = provinces.find((p) => p.name.includes('Hồ Chí Minh'));
-    if (!hcmc) return;
-
-    fetch(`${BASE_URL}/districts?provinceId=${hcmc.id}`)
-      .then((res) => res.ok ? res.json() : [])
       .then((data) => {
-        setRegistrationWards(data);
-        setOperationWards(data);
+        const filtered = data.filter((d: any) => d.isActive !== false && d.level === 4);
+        if (filtered.length > 0) {
+          setIndustries(filtered);
+        } else {
+          // Fallback: parse dữ liệu tĩnh khi DB chưa có seed
+          const staticInds = INDUSTRIES.map((entry, idx) => {
+            const dashIdx = entry.indexOf(' - ');
+            const code = dashIdx >= 0 ? entry.substring(0, dashIdx).trim() : '';
+            const name = dashIdx >= 0 ? entry.substring(dashIdx + 3).trim() : entry;
+            return { id: idx + 1, code, name, level: 4 };
+          });
+          setIndustries(staticInds);
+        }
       })
-      .catch(() => {});
-  }, [provinces]);
+      .catch(() => {
+        const staticInds = INDUSTRIES.map((entry, idx) => {
+          const dashIdx = entry.indexOf(' - ');
+          const code = dashIdx >= 0 ? entry.substring(0, dashIdx).trim() : '';
+          const name = dashIdx >= 0 ? entry.substring(dashIdx + 3).trim() : entry;
+          return { id: idx + 1, code, name, level: 4 };
+        });
+        setIndustries(staticInds);
+      });
+
+    // Dùng dữ liệu tĩnh cho phường/xã TP.HCM để đảm bảo luôn có data
+    const wardData = HCM_WARDS.map((w) => ({ id: w.code, name: w.name }));
+    setRegistrationWards(wardData);
+    setOperationWards(wardData);
+  }, []);
 
   // ── start OTP countdown
   const startCountdown = () => {

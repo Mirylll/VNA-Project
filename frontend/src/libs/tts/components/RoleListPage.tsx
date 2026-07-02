@@ -152,29 +152,40 @@ export default function RoleListPage() {
     const token = getAuthToken();
     if (!token) return;
 
-    const results = await Promise.allSettled(
-      selectedIds.map((id) =>
-        fetch(`${baseUrl}/roles/${id}`, {
-          method: 'DELETE',
-          headers: { authorization: `Bearer ${token}` },
-        }),
-      ),
-    );
+    const failedMessages: string[] = [];
+    let succeeded = 0;
 
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length;
-    const failed = results.filter((r) => r.status === 'rejected').length;
-    const count = selectedIds.length;
+    for (const id of selectedIds) {
+      const res = await fetch(`${baseUrl}/roles/${id}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${token}` },
+      }).catch(() => null);
+
+      if (!res || !res.ok) {
+        // Cố gắng lấy error message từ backend (res.status === 400 → có message)
+        try {
+          const body = res ? await res.json() : null;
+          const msg = body?.message || `Vai trò ID=${id} không thể xoá`;
+          failedMessages.push(msg);
+        } catch {
+          failedMessages.push(`Vai trò ID=${id} không thể xoá`);
+        }
+      } else {
+        succeeded++;
+      }
+    }
 
     setSelectedIds([]);
     fetchRoles();
 
-    if (failed > 0) {
+    if (failedMessages.length > 0) {
       setError(
-        `Đã xoá ${succeeded}/${count} vai trò. ${
-          failed > 0
-            ? `${failed} vai trò không thể xoá (có thể đang được sử dụng).`
-            : ''
-        }`,
+        [
+          succeeded > 0 ? `Đã xoá thành công ${succeeded} vai trò.` : '',
+          ...failedMessages,
+        ]
+          .filter(Boolean)
+          .join(' '),
       );
     }
   }

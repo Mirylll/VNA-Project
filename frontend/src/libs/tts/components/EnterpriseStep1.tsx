@@ -7,11 +7,15 @@ import { useEnterpriseForm } from '@/libs/tts/contexts/EnterpriseFormContext';
 import { getAuthToken, clearAuthToken } from '@/libs/core/utils/auth-token';
 import DatePicker from '@/libs/tts/components/DatePicker';
 import Autocomplete from '@/libs/tts/components/Autocomplete';
+import { HCM_WARDS } from '@/libs/tts/data/hcm-districts';
 
 const baseUrl =
   typeof window !== 'undefined'
     ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
     : '';
+
+// Dữ liệu phường/xã HCM tĩnh - mặc định hiển thị ngay khi mở form
+const HCM_WARD_OPTIONS = HCM_WARDS.map((w) => ({ id: w.code, name: w.name }));
 
 const requiredFields: { key: string; label: string }[] = [
   { key: 'name', label: 'Tên doanh nghiệp' },
@@ -174,6 +178,12 @@ export default function EnterpriseStep1({
   }, []);
 
   useEffect(() => {
+    // Mặc định luôn hiển thị phường/xã HCM ngay khi form mở
+    setWards(HCM_WARD_OPTIONS);
+    setOperationWards(HCM_WARD_OPTIONS);
+  }, []);
+
+  useEffect(() => {
     if (!formData.provinceId) return;
     const token = getAuthToken();
     if (!token) return;
@@ -181,8 +191,11 @@ export default function EnterpriseStep1({
       headers: { authorization: `Bearer ${token}` },
     })
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setWards(data))
-      .catch(() => {});
+      .then((data) => {
+        // Fallback sang HCM_WARDS nếu API trả về rỗng
+        setWards(data.length > 0 ? data : HCM_WARD_OPTIONS);
+      })
+      .catch(() => setWards(HCM_WARD_OPTIONS));
   }, [formData.provinceId]);
 
   useEffect(() => {
@@ -193,8 +206,10 @@ export default function EnterpriseStep1({
       headers: { authorization: `Bearer ${token}` },
     })
       .then((res) => res.ok ? res.json() : [])
-      .then((data) => setOperationWards(data))
-      .catch(() => {});
+      .then((data) => {
+        setOperationWards(data.length > 0 ? data : HCM_WARD_OPTIONS);
+      })
+      .catch(() => setOperationWards(HCM_WARD_OPTIONS));
   }, [formData.operationProvinceId]);
 
   const handleContinue = () => {

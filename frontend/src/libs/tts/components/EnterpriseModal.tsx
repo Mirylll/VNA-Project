@@ -56,6 +56,7 @@ export default function EnterpriseModal({
       .then((d) => setIndustries(d.filter((item: any) => item.isActive !== false && item.level === 4)))
       .catch(() => {});
 
+    // Lấy phường/xã từ API /districts?provinceId=1 (TP.HCM, đã được seed)
     fetch(`${baseUrl}/districts?provinceId=1`, {
       headers: { authorization: `Bearer ${token}` },
     })
