@@ -1086,7 +1086,7 @@ export default function TnldContractsPage() {
   // Dynamic calculations for aggregate summary
   const summaryCalculations = useMemo(() => {
     const submitted = reports.filter((r) => {
-      if (r.status === 'draft') return false;
+      if (r.status !== 'accepted') return false;
       if (filterYear !== 'Tất cả' && String(r.year) !== filterYear) return false;
       if (filterProvince && normalizeLocationName(r.province) !== normalizeLocationName(filterProvince)) return false;
 
@@ -1480,10 +1480,10 @@ export default function TnldContractsPage() {
           </div>
 
           {/* Details Wrapper */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4">
-            {/* Header Phụ lục XII chuẩn Word */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-4 print:p-0 print:border-none print:shadow-none">
+            {/* Header chuẩn Word */}
             <div className="w-full text-xs text-slate-800 space-y-4 print:text-black">
-              {/* Phụ lục XII và tiêu đề gốc */}
+              {/* Thông tin đơn vị */}
               <div className="flex justify-between items-start">
                 <div className="text-left font-semibold max-w-md">
                   Đơn vị báo cáo: <span className="font-bold uppercase text-slate-900 print:text-black">{selectedReport.name}</span>
@@ -1510,14 +1510,14 @@ export default function TnldContractsPage() {
                     </span>
                   </span>
                   <span>
-                    Mã huyện, quận<sup>1</sup>: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
+                    Mã huyện, quận: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
                       {selectedReport.enterprise?.operationDistrictCode || selectedReport.enterprise?.districtCode || '.............'}
                     </span>
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>
-                    Thuộc loại hình cơ sở<sup>2</sup> (doanh nghiệp): <span className="font-medium text-slate-900 print:text-black">{selectedReport.enterprise?.enterpriseType?.name || '.............'}</span>
+                    Thuộc loại hình cơ sở (doanh nghiệp): <span className="font-medium text-slate-900 print:text-black">{selectedReport.enterprise?.enterpriseType?.name || '.............'}</span>
                   </span>
                   <span>
                     Mã loại hình cơ sở: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
@@ -1527,7 +1527,7 @@ export default function TnldContractsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>
-                    Lĩnh vực sản xuất chính của cơ sở<sup>3</sup>: <span className="font-medium text-slate-900 print:text-black">{selectedReport.enterprise?.industry?.name || '.............'}</span>
+                    Lĩnh vực sản xuất chính của cơ sở: <span className="font-medium text-slate-900 print:text-black">{selectedReport.enterprise?.industry?.name || '.............'}</span>
                   </span>
                   <span>
                     Mã lĩnh vực: <span className="font-mono border-b border-dotted border-slate-400 px-4 print:border-black">
@@ -1589,12 +1589,12 @@ export default function TnldContractsPage() {
             <div className="w-full mt-6 flex justify-between items-start text-[10px] print:text-black leading-normal pt-4 border-t border-dashed border-slate-200 print:border-black">
               <div className="text-slate-400 italic text-[9px] max-w-lg leading-relaxed print:text-black">
                 * Ghi chú:<br/>
-                <sup>1</sup> Ghi mã số theo Danh Mục đơn vị hành chính do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.<br/>
-                <sup>2</sup> Ghi tên, mã số theo danh Mục và mã số các đơn vị kinh tế, hành chính sự nghiệp theo quy định pháp luật hiện hành trong báo cáo thống kê.<br/>
-                <sup>3</sup> Ghi tên ngành, mã ngành theo Hệ thống ngành kinh tế do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.<br/>
-                <sup>4</sup> Ghi 01 nguyên nhân chính gây tai nạn lao động.<br/>
-                <sup>5</sup> Ghi tên và mã số theo danh Mục yếu tố gây chấn thương.<br/>
-                <sup>6</sup> Ghi tên và mã số nghề nghiệp theo danh Mục nghề nghiệp do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.
+                - Ghi mã số theo Danh Mục đơn vị hành chính do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.<br/>
+                - Ghi tên, mã số theo danh Mục và mã số các đơn vị kinh tế, hành chính sự nghiệp theo quy định pháp luật hiện hành trong báo cáo thống kê.<br/>
+                - Ghi tên ngành, mã ngành theo Hệ thống ngành kinh tế do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.<br/>
+                - Ghi 01 nguyên nhân chính gây tai nạn lao động.<br/>
+                - Ghi tên và mã số theo danh Mục yếu tố gây chấn thương.<br/>
+                - Ghi tên và mã số nghề nghiệp theo danh Mục nghề nghiệp do Thủ tướng Chính phủ ban hành theo quy định của Luật Thống kê.
               </div>
               <div className="text-right space-y-1">
                 <div>
@@ -1949,9 +1949,9 @@ export default function TnldContractsPage() {
 
       {/* 3. AGGREGATE SUMMARY REPORT VIEW */}
       {viewState === 'summary' && (
-        <div className="space-y-4">
+        <div className="space-y-4 printable-report">
           {/* Header */}
-          <div className="flex items-center justify-between bg-white px-6 py-4 rounded-xl shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between bg-white px-6 py-4 rounded-xl shadow-sm border border-slate-100 no-print">
             <h1 className="text-base font-bold text-slate-800">
               Báo cáo tổng hợp
             </h1>
@@ -1961,6 +1961,13 @@ export default function TnldContractsPage() {
                 className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition"
               >
                 Huỷ bỏ
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+              >
+                <Printer size={14} />
+                In báo cáo
               </button>
               <button 
                 onClick={handleExportSummary}
@@ -1973,9 +1980,9 @@ export default function TnldContractsPage() {
           </div>
 
           {/* Details Wrapper */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 space-y-6 print:p-0 print:border-none print:shadow-none">
             {/* SCROLLABLE SUMMARY PANEL */}
-            <div className="overflow-auto max-h-[68vh] border border-slate-200 rounded-lg shadow-inner bg-slate-50/25 p-2 space-y-6">
+            <div className="overflow-auto max-h-[68vh] print:max-h-none print:overflow-visible border border-slate-200 rounded-lg shadow-inner bg-slate-50/25 p-2 space-y-6 print:p-0 print:border-none print:shadow-none">
               
               {/* Section I. Thông tin tổng quan */}
               <div className="space-y-2">

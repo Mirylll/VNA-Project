@@ -1011,7 +1011,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="email"
                   value={form.email}
                   onChange={(e) => setField("email", e.target.value)}
-                  placeholder="contact@company.com"
+                  placeholder=""
                   className={inputCls(!!errors.email)}
                 />
               </FieldWrap>
@@ -1022,7 +1022,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="tel"
                   value={form.sdtCoQuan}
                   onChange={(e) => setField("sdtCoQuan", e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  placeholder="Ví dụ: 028XXXXXXXX"
+                  placeholder=""
                   className={inputCls(!!errors.sdtCoQuan)}
                 />
               </FieldWrap>
@@ -1044,7 +1044,7 @@ export default function BusinessRegistrationModal({ onClose }: Props) {
                   type="tel"
                   value={form.sdtNguoiDungDau}
                   onChange={(e) => setField("sdtNguoiDungDau", e.target.value.replace(/\D/g, "").slice(0, 11))}
-                  placeholder="Ví dụ: 09XXXXXXXX"
+                  placeholder=""
                   className={inputCls(!!errors.sdtNguoiDungDau)}
                 />
               </FieldWrap>
