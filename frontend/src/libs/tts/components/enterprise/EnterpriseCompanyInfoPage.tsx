@@ -980,7 +980,7 @@ export default function EnterpriseCompanyInfoPage() {
                     <Field
                       label="Số điện thoại cơ quan"
                       required
-                      placeholder="Số điện thoại cơ quan"
+                      placeholder=""
                       value={form.officePhone}
                       error={officePhoneError}
                       onChange={(value) => updateField('officePhone', cleanPhone(value))}
@@ -1046,7 +1046,7 @@ export default function EnterpriseCompanyInfoPage() {
                       label="SĐT liên hệ người đứng đầu"
                       className="lg:col-span-2"
                       required
-                      placeholder="SĐT liên hệ người đứng đầu"
+                      placeholder=""
                       value={form.representativePhone}
                       error={representativePhoneError}
                       onChange={(value) => updateField('representativePhone', cleanPhone(value))}

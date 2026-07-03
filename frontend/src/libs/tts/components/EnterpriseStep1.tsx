@@ -451,7 +451,7 @@ export default function EnterpriseStep1({
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="vna@gmail.com"
+                placeholder=""
                 maxLength={200}
                 className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
               />
