@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronUp, Eye, Save, Send, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronRight, ChevronUp, Eye, FileText, Save, Send, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
@@ -460,8 +460,9 @@ function firstError(...errors: string[]) {
   return errors.find(Boolean) || '';
 }
 
-function formatMoneyInput(value: string) {
-  return formatVndNumber(value);
+function formatMoneyInput(value: unknown) {
+  if (value === null || value === undefined) return '';
+  return formatVndNumber(String(value));
 }
 
 function readStoredCategory<T>(key: string, fallback: T[]): T[] {
@@ -653,6 +654,7 @@ export default function TnldReportFormPage() {
   ]);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [uploadedFile, setUploadedFile] = useState('');
+  const [uploadedFileUrl, setUploadedFileUrl] = useState('');
   const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
   const [companyInfo, setCompanyInfo] = useState<EnterpriseCompanyInfo>({
     name: '',
@@ -1117,7 +1119,9 @@ export default function TnldReportFormPage() {
 
         setSavedReportId(Number(data.id));
         setReportYear(String(data.year || reportYear));
-        setUploadedFile(data.attachments?.[0]?.fileName || '');
+        const attachment = data.attachments?.[0];
+        setUploadedFile(attachment?.fileName || '');
+        setUploadedFileUrl(attachment?.fileUrl || '');
         if (data.status === 'accepted') {
           setReadOnly(true);
           const params = new URLSearchParams(window.location.search);
@@ -1425,6 +1429,7 @@ export default function TnldReportFormPage() {
         ? [
             {
               fileName: uploadedFile,
+              fileUrl: uploadedFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
               mimeType: 'application/pdf',
             },
           ]
@@ -1624,7 +1629,7 @@ export default function TnldReportFormPage() {
                 <Field
                   label="Tổng quỹ lương"
                   required
-                  value={form.payroll}
+                  value={formatMoneyInput(form.payroll)}
                   error={payrollError}
                   readOnly={readOnly}
                   suffix="VNĐ"
@@ -1918,12 +1923,12 @@ export default function TnldReportFormPage() {
                   <div>
                     <h3 className="mb-4 text-sm font-bold text-gray-900">2. Thiệt hại do tai nạn lao động</h3>
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                      <Field label="Chi phí y tế" required value={form.medicalCost} readOnly />
-                      <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.treatmentSalaryCost} readOnly />
-                      <Field label="Chi phí bồi thường trợ cấp" required value={form.compensationCost} readOnly />
+                      <Field label="Chi phí y tế" required value={formatMoneyInput(form.medicalCost)} readOnly />
+                      <Field label="Chi phí trả lương trong thời gian điều trị" required value={formatMoneyInput(form.treatmentSalaryCost)} readOnly />
+                      <Field label="Chi phí bồi thường trợ cấp" required value={formatMoneyInput(form.compensationCost)} readOnly />
                       <Field label="Tổng số tiền chi phí" required value={totalCost} suffix="(1.000đ)" readOnly />
                       <Field label="Tổng số ngày nghỉ vì TNLD" required value={form.workdaysLost} readOnly />
-                      <Field label="Thiệt hại tài sản" required value={form.assetDamage} readOnly />
+                      <Field label="Thiệt hại tài sản" required value={formatMoneyInput(form.assetDamage)} readOnly />
                     </div>
                   </div>
                 </div>
@@ -2026,12 +2031,12 @@ export default function TnldReportFormPage() {
                 <div>
                   <h3 className="mb-4 text-sm font-bold text-gray-900">2. Thiệt hại do tai nạn lao động</h3>
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-4">
-                    <Field label="Chi phí y tế" required value={form.subsidyMedicalCost} error={subsidyMedicalCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyMedicalCost', formatMoneyInput(value))} />
-                    <Field label="Chi phí trả lương trong thời gian điều trị" required value={form.subsidyTreatmentSalaryCost} error={subsidyTreatmentSalaryCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyTreatmentSalaryCost', formatMoneyInput(value))} />
-                    <Field label="Chi phí bồi thường trợ cấp" required value={form.subsidyCompensationCost} error={subsidyCompensationCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyCompensationCost', formatMoneyInput(value))} />
+                    <Field label="Chi phí y tế" required value={formatMoneyInput(form.subsidyMedicalCost)} error={subsidyMedicalCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyMedicalCost', formatMoneyInput(value))} />
+                    <Field label="Chi phí trả lương trong thời gian điều trị" required value={formatMoneyInput(form.subsidyTreatmentSalaryCost)} error={subsidyTreatmentSalaryCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyTreatmentSalaryCost', formatMoneyInput(value))} />
+                    <Field label="Chi phí bồi thường trợ cấp" required value={formatMoneyInput(form.subsidyCompensationCost)} error={subsidyCompensationCostError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyCompensationCost', formatMoneyInput(value))} />
                     <Field label="Tổng số tiền chi phí" required value={subsidyDamageTotal} suffix="(1.000đ)" readOnly />
                     <Field label="Tổng số ngày nghỉ vì TNLD" required value={form.subsidyWorkdaysLost} error={subsidyWorkdaysLostError} onChange={(value) => updateIntegerField('subsidyWorkdaysLost', value)} />
-                    <Field label="Thiệt hại tài sản" required value={form.subsidyAssetDamage} error={subsidyAssetDamageError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyAssetDamage', formatMoneyInput(value))} />
+                    <Field label="Thiệt hại tài sản" required value={formatMoneyInput(form.subsidyAssetDamage)} error={subsidyAssetDamageError} suffix="(1.000đ)" onChange={(value) => updateField('subsidyAssetDamage', formatMoneyInput(value))} />
                   </div>
                 </div>
               </div>
@@ -2064,9 +2069,21 @@ export default function TnldReportFormPage() {
                     ) : (
                       <span className="text-gray-400 font-normal">Tải đây (Chỉ xem)</span>
                     )}
-                    <span className={`ml-6 font-medium ${uploadedFile ? 'text-blue-600' : 'text-gray-400'}`}>
-                      {uploadedFile || 'Chưa chọn file PDF'}
-                    </span>
+                    {uploadedFile ? (
+                      <a
+                        href={uploadedFileUrl || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-6 font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1.5"
+                      >
+                        <FileText size={16} className="shrink-0" />
+                        <span>{uploadedFile}</span>
+                      </a>
+                    ) : (
+                      <span className="ml-6 font-medium text-gray-400">
+                        Chưa chọn file PDF
+                      </span>
+                    )}
                   </div>
                 </div>
 

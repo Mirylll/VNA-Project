@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { Pencil, Plus, ChevronDown, ChevronRight, X, Save, FileText, Upload } from 'lucide-react';
 import { hasPermission } from '@/libs/core/utils/auth-token';
+import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
 
 // Interfaces for our 3 category types
 interface InjuryFactor {
@@ -820,11 +821,9 @@ export default function TnldCategoriesPage() {
                 <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase">
                   Yếu tố gây chấn thương
                 </th>
-                {canUpdate && (
-                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                    Trạng thái
-                  </th>
-                )}
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                  Trạng thái
+                </th>
               </tr>
             )}
 
@@ -855,11 +854,9 @@ export default function TnldCategoriesPage() {
                 <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                   Cấp
                 </th>
-                {canUpdate && (
-                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                    Trạng thái
-                  </th>
-                )}
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                  Trạng thái
+                </th>
               </tr>
             )}
 
@@ -890,11 +887,9 @@ export default function TnldCategoriesPage() {
                 <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                   Cấp
                 </th>
-                {canUpdate && (
-                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                    Trạng thái
-                  </th>
-                )}
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                  Trạng thái
+                </th>
               </tr>
             )}
 
@@ -925,19 +920,17 @@ export default function TnldCategoriesPage() {
                 <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
                   Cấp
                 </th>
-                {canUpdate && (
-                  <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
-                    Trạng thái
-                  </th>
-                )}
+                <th className="w-40 px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase">
+                  Trạng thái
+                </th>
               </tr>
             )}
 
             {/* Filter inputs row */}
             <tr className="border-b border-slate-200 bg-white">
               <td className="px-4 py-2" />
-              <td className="px-2 py-2" />
-              <td className="px-2 py-2">
+              {canUpdate && <td className="px-2 py-2" />}
+              <td className="px-3 py-2">
                 <input
                   type="text"
                   placeholder={
@@ -947,10 +940,10 @@ export default function TnldCategoriesPage() {
                   }
                   value={filterCode}
                   onChange={(e) => setFilterCode(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
-              <td className="px-2 py-2">
+              <td className="px-3 py-2">
                 <input
                   type="text"
                   placeholder={
@@ -960,22 +953,22 @@ export default function TnldCategoriesPage() {
                   }
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </td>
-              <td className="px-2 py-2">
+              <td className="px-3 py-2">
                 {activeCategory === 'factor' ? (
                   <div className="relative">
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full appearance-none border border-slate-200 rounded-lg px-2.5 py-1.5 pr-8 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-600"
+                      className="w-full appearance-none border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-600"
                     >
                       <option value="">Tất cả</option>
                       <option value="active">Hoạt động</option>
                       <option value="inactive">Không sử dụng</option>
                     </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                   </div>
                 ) : (
                   <input
@@ -983,10 +976,13 @@ export default function TnldCategoriesPage() {
                     placeholder=""
                     value={filterLevel}
                     onChange={(e) => setFilterLevel(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-center"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-center"
                   />
                 )}
               </td>
+              {activeCategory !== 'factor' && (
+                <td className="px-3 py-2" />
+              )}
             </tr>
           </thead>
           <tbody>
@@ -994,7 +990,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'factor' && (
               filteredFactors.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={canUpdate ? 5 : 4} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy yếu tố nào
                   </td>
                 </tr>
@@ -1059,7 +1055,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'type' && (
               filteredTypes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={canUpdate ? 6 : 5} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy loại chấn thương nào
                   </td>
                 </tr>
@@ -1212,7 +1208,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'occupation' && (
               filteredOccupations.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={canUpdate ? 6 : 5} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy nghề nghiệp nào
                   </td>
                 </tr>
@@ -1364,7 +1360,7 @@ export default function TnldCategoriesPage() {
             {activeCategory === 'cause' && (
               filteredCauses.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={canUpdate ? 6 : 5} className="px-4 py-10 text-center text-sm text-slate-400">
                     Không tìm thấy nguyên nhân nào
                   </td>
                 </tr>
@@ -1566,29 +1562,12 @@ export default function TnldCategoriesPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Alert Overlay */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
-          <div className="w-full max-w-sm bg-white rounded-xl shadow-xl p-6 border border-slate-100 animate-in zoom-in-95 duration-150">
-            <h3 className="text-slate-800 font-bold text-base mb-2">Xác nhận xoá</h3>
-            <p className="text-slate-600 text-sm mb-6">Bạn có chắc chắn muốn xoá {selectedIds.length} mục đã chọn không?</p>
-            <div className="flex justify-end gap-3 text-sm">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="text-slate-500 font-semibold hover:text-slate-700 px-4 py-2"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleDeleteSelected}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg transition"
-              >
-                Đồng ý xoá
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDeleteDialog
+        open={showDeleteConfirm}
+        message={`Bạn có chắc chắn muốn xoá ${selectedIds.length} mục đã chọn không?`}
+        onConfirm={handleDeleteSelected}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {/* Add / Edit Dialog Modals */}
       {showModal && (
