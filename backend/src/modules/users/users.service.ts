@@ -43,6 +43,26 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto): Promise<User> {
+    // Check duplicate username
+    const existingByUsername = await this.userRepo.findOne({
+      where: { username: dto.username },
+      withDeleted: true,
+    });
+    if (existingByUsername) {
+      throw new BadRequestException(`Tên đăng nhập "${dto.username}" đã tồn tại`);
+    }
+
+    // Check duplicate email
+    if (dto.email) {
+      const existingByEmail = await this.userRepo.findOne({
+        where: { email: dto.email },
+        withDeleted: true,
+      });
+      if (existingByEmail) {
+        throw new BadRequestException(`Email "${dto.email}" đã được sử dụng bởi một tài khoản khác`);
+      }
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const { roleId, titleId, titleName, provinceId, districtId, ...rest } = dto;
     const user = this.userRepo.create({ ...rest, passwordHash });
@@ -77,6 +97,19 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
     const { roleId, titleId, titleName, provinceId, districtId, password, ...rest } = dto;
+
+
+
+    // Check duplicate email
+    if (dto.email && dto.email !== user.email) {
+      const existingByEmail = await this.userRepo.findOne({
+        where: { email: dto.email },
+        withDeleted: true,
+      });
+      if (existingByEmail) {
+        throw new BadRequestException(`Email "${dto.email}" đã được sử dụng bởi một tài khoản khác`);
+      }
+    }
 
     Object.assign(user, rest);
 
@@ -142,8 +175,11 @@ export class UsersService {
     user.email = user.email ? `deleted-${user.id}-${user.email}` : undefined;
     user.username = `deleted-${user.id}-${user.username}`.slice(0, 50);
     await this.userRepo.save(user);
+    // Huỷ FK role_id trước khi xoá mềm: tránh user bị xoá mềm vẫn chặn việc xoá role
+    await this.userRepo.query(`UPDATE users SET role_id = NULL WHERE id = $1`, [id]);
     await this.userRepo.softRemove(user);
   }
+
 
   async updateAvatar(id: string, file: any, currentUserId: string): Promise<User> {
     const user = await this.userRepo.findOne({

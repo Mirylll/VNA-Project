@@ -41,7 +41,10 @@ export class RolesService {
   }
 
   async remove(id: string): Promise<void> {
-    const userCount = await this.userRepo.count({ where: { role: { id } } });
+    // Chỉ đếm người dùng ACTIVE (không tính soft-deleted vì khi xoá mềm user thì role_id đã bị NULL)
+    const userCount = await this.userRepo.count({
+      where: { role: { id } },
+    });
     if (userCount > 0) {
       throw new BadRequestException(
         `Không thể xoá vai trò đang được ${userCount} người dùng sử dụng`,

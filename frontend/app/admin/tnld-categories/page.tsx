@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { Pencil, Plus, ChevronDown, ChevronRight, X, Save, FileText, Upload } from 'lucide-react';
 import { hasPermission } from '@/libs/core/utils/auth-token';
 import ConfirmDeleteDialog from '@/libs/tts/components/ConfirmDeleteDialog';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
 
 // Interfaces for our 3 category types
 interface InjuryFactor {
@@ -1761,75 +1762,29 @@ export default function TnldCategoriesPage() {
                   )}
                 </div>
 
-                {/* Parent Selection Dropdown */}
-                <div className="relative">
-                  <div className="relative">
-                    <select
-                      value={formParentCode}
-                      onChange={(e) => {
-                        setFormParentCode(e.target.value);
-                        if (formErrors.parent) setFormErrors((p) => ({ ...p, parent: '' }));
-                      }}
-                      className={`w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm outline-none transition bg-white ${
-                        formErrors.parent
-                          ? 'border-red-500 focus:ring-1 focus:ring-red-500'
-                          : 'border-slate-200 focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
-                      }`}
-                    >
-                      <option value="">
-                        {activeCategory === 'type' ? 'Không có (Cấp 1)' : activeCategory === 'cause' ? 'Không có (Cấp 1)' : 'Không có (Ngành cấp 1)'}
-                      </option>
-                      {activeCategory === 'type' ? (
-                        // Group injury types: Level-1 as optgroup labels, Level-2+ as options
-                        (() => {
-                          const level1 = parentOptions.filter(t => t.level === 1);
-                          const level2plus = parentOptions.filter(t => t.level >= 2);
-                          return level1.map(grp => (
-                            <optgroup key={grp.code} label={`${grp.code} – ${grp.name}`}>
-                              {/* also allow selecting the level-1 group itself */}
-                              <option value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
-                              {level2plus.filter(t => t.parentCode === grp.code).map(opt => (
-                                <option key={opt.code} value={opt.code}>
-                                  {'\u00A0\u00A0'}{opt.code} - {opt.name} (Cấp {opt.level})
-                                </option>
-                              ))}
-                            </optgroup>
-                          ));
-                        })()
-                      ) : activeCategory === 'cause' ? (
-                        // Group causes: Level-1 as optgroup labels, Level-2 as options
-                        (() => {
-                          const level1 = parentOptions.filter(c => c.level === 1);
-                          return level1.map(grp => (
-                            <optgroup key={grp.code} label={`${grp.code} – ${grp.name}`}>
-                              <option value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
-                            </optgroup>
-                          ));
-                        })()
-                      ) : (
-                        // Group occupations: Level-1 as optgroup labels, rest as nested options
-                        (() => {
-                          const level1 = parentOptions.filter(o => o.level === 1);
-                          const restOpts = parentOptions.filter(o => o.level >= 2);
-                          return level1.map(grp => (
-                            <optgroup key={grp.code} label={`${grp.code} – ${grp.name}`}>
-                              <option value={grp.code}>{grp.code} - {grp.name} (Cấp 1)</option>
-                              {restOpts.filter(o => o.parentCode === grp.code).map(opt => (
-                                <option key={opt.code} value={opt.code}>
-                                  {'\u00A0\u00A0'}{opt.code} - {opt.name} (Cấp {opt.level})
-                                </option>
-                              ))}
-                            </optgroup>
-                          ));
-                        })()
-                      )}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-                  </div>
+                {/* Parent Selection - Autocomplete */}
+                <div className="relative border border-slate-200 rounded-lg px-3 pt-3 pb-2">
                   <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
                     {activeCategory === 'type' ? 'Tên loại chấn thương cha' : activeCategory === 'cause' ? 'Tên nguyên nhân cha' : 'Nhóm ngành cha'}
                     {activeCategory === 'type' && formCode.length > 1 && <span className="text-red-500"> *</span>}
                   </label>
+                  <Autocomplete
+                    value={formParentCode}
+                    options={[
+                      { id: '', name: activeCategory === 'occupation' ? 'Không có (Ngành cấp 1)' : 'Không có (Cấp 1)' },
+                      ...parentOptions.map((o: any) => ({
+                        id: o.code,
+                        name: `${o.code} - ${o.name} (Cấp ${o.level})`,
+                      })),
+                    ]}
+                    placeholder="Tìm và chọn mục cha..."
+                    onSelect={(val) => {
+                      setFormParentCode(val);
+                      if (formErrors.parent) setFormErrors((p) => ({ ...p, parent: '' }));
+                    }}
+                    className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+                    plain
+                  />
                   {formErrors.parent && (
                     <p className="text-red-500 text-xs mt-1">{formErrors.parent}</p>
                   )}
