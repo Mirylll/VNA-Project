@@ -655,6 +655,15 @@ export default function TnldReportFormPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [uploadedFile, setUploadedFile] = useState('');
   const [uploadedFileUrl, setUploadedFileUrl] = useState('');
+  const [localFileObject, setLocalFileObject] = useState<File | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (uploadedFileUrl && uploadedFileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(uploadedFileUrl);
+      }
+    };
+  }, [uploadedFileUrl]);
   const [enterpriseId, setEnterpriseId] = useState<number | null>(null);
   const [companyInfo, setCompanyInfo] = useState<EnterpriseCompanyInfo>({
     name: '',
@@ -1356,7 +1365,7 @@ export default function TnldReportFormPage() {
     return data.id;
   }
 
-  function buildReportPayload(status: 'draft' | 'submitted', resolvedEnterpriseId = enterpriseId) {
+  function buildReportPayload(status: 'draft' | 'submitted', resolvedEnterpriseId = enterpriseId, customFileUrl?: string) {
     return {
       enterpriseId: resolvedEnterpriseId ?? undefined,
       year: Number(reportYear) || new Date().getFullYear(),
@@ -1429,7 +1438,7 @@ export default function TnldReportFormPage() {
         ? [
             {
               fileName: uploadedFile,
-              fileUrl: uploadedFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+              fileUrl: customFileUrl || uploadedFileUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
               mimeType: 'application/pdf',
             },
           ]
@@ -1455,7 +1464,34 @@ export default function TnldReportFormPage() {
       }
 
       const token = getAuthToken();
-      const requestPayload = JSON.stringify(buildReportPayload(status, currentEnterpriseId));
+
+      // Upload file to backend if selected locally
+      let finalFileUrl = uploadedFileUrl;
+      if (localFileObject) {
+        try {
+          const formData = new FormData();
+          formData.append('file', localFileObject);
+          
+          const uploadRes = await fetch(`${BASE_URL}/tnld-contract-reports/upload`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData,
+          });
+          if (!uploadRes.ok) {
+            throw new Error('Không thể tải file lên máy chủ.');
+          }
+          const uploadData = await uploadRes.json();
+          finalFileUrl = uploadData.fileUrl;
+          setUploadedFileUrl(finalFileUrl);
+          setLocalFileObject(null);
+        } catch (err) {
+          setSaveMessage(err instanceof Error ? err.message : 'Lỗi khi tải file lên');
+          setIsSavingReport(false);
+          return;
+        }
+      }
+
+      const requestPayload = JSON.stringify(buildReportPayload(status, currentEnterpriseId, finalFileUrl));
       let response = await fetch(
         savedReportId ? `${BASE_URL}/tnld-contract-reports/${savedReportId}` : `${BASE_URL}/tnld-contract-reports`,
         {
@@ -2062,7 +2098,20 @@ export default function TnldReportFormPage() {
                           onChange={(event) => {
                             const file = event.target.files?.[0];
                             hasUserEditedDraftRef.current = true;
-                            setUploadedFile(file?.type === 'application/pdf' || file?.name.toLowerCase().endsWith('.pdf') ? file.name : '');
+                            if (file) {
+                              const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                              if (isPdf) {
+                                if (uploadedFileUrl && uploadedFileUrl.startsWith('blob:')) {
+                                  URL.revokeObjectURL(uploadedFileUrl);
+                                }
+                                setLocalFileObject(file);
+                                setUploadedFile(file.name);
+                                const localUrl = URL.createObjectURL(file);
+                                setUploadedFileUrl(localUrl);
+                              } else {
+                                alert('Chỉ chấp nhận file PDF');
+                              }
+                            }
                           }}
                         />
                       </label>
@@ -2071,7 +2120,13 @@ export default function TnldReportFormPage() {
                     )}
                     {uploadedFile ? (
                       <a
-                        href={uploadedFileUrl || '#'}
+                        href={
+                          uploadedFileUrl
+                            ? uploadedFileUrl.startsWith('blob:') || uploadedFileUrl.startsWith('http')
+                              ? uploadedFileUrl
+                              : `${BASE_URL}${uploadedFileUrl}`
+                            : '#'
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="ml-6 font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1.5"

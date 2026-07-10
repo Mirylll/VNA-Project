@@ -1059,19 +1059,19 @@ export default function TnldContractsPage() {
     
     csvContent += "\"Chỉ tiêu\",\"Số vụ/Số người/Số ngày/Chi phí\"\n";
     csvContent += `"1. Số vụ tai nạn lao động","${totals.casesTotal}"\n`;
-    csvContent += `"- Trong đó có người chết","${totals.casesDeath}"\n`;
-    csvContent += `"- Vụ có từ 2 người bị nạn","${totals.casesMultiple}"\n`;
+    csvContent += `"  - Trong đó có người chết","${totals.casesDeath}"\n`;
+    csvContent += `"  - Vụ có từ 2 người bị nạn","${totals.casesMultiple}"\n`;
     csvContent += `"2. Số người bị nạn","${totals.peopleTotal}"\n`;
-    csvContent += `"- Lao động nữ","${totals.peopleFemale}"\n`;
-    csvContent += `"- Người bị chết","${totals.peopleDeath}"\n`;
-    csvContent += `"- Bị thương nặng","${totals.peopleSevere}"\n`;
+    csvContent += `"  - Lao động nữ","${totals.peopleFemale}"\n`;
+    csvContent += `"  - Người bị chết","${totals.peopleDeath}"\n`;
+    csvContent += `"  - Bị thương nặng","${totals.peopleSevere}"\n`;
     csvContent += `"3. Tổng số ngày nghỉ vì tai nạn lao động","${totals.daysOff}"\n`;
     csvContent += "\"4. Chi phí (VNĐ)\",\"\"\n";
-    csvContent += `"- Tổng chi phí","${totals.costTotal}"\n`;
-    csvContent += `"- Chi phí y tế","${totals.costMedical}"\n`;
-    csvContent += `"- Trả lương thời gian điều trị","${totals.costSalary}"\n`;
-    csvContent += `"- Chi phí bồi thường trợ cấp","${totals.costCompensation}"\n`;
-    csvContent += `"- Thiệt hại tài sản","${totals.propertyDamage}"\n`;
+    csvContent += `"  - Tổng chi phí","${totals.costTotal}"\n`;
+    csvContent += `"  - Chi phí y tế","${totals.costMedical}"\n`;
+    csvContent += `"  - Trả lương thời gian điều trị","${totals.costSalary}"\n`;
+    csvContent += `"  - Chi phí bồi thường trợ cấp","${totals.costCompensation}"\n`;
+    csvContent += `"  - Thiệt hại tài sản","${totals.propertyDamage}"\n`;
 
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
