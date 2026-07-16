@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, Loader2, Save } from 'lucide-react';
 import { getAuthToken } from '@/libs/core/utils/auth-token';
+import Autocomplete from '@/libs/tts/components/Autocomplete';
 
 const baseUrl =
   typeof window !== 'undefined'
@@ -158,27 +159,23 @@ export default function IndustryModal({
             )}
           </div>
 
-          <div className="relative">
-            <div className="relative">
-              <select
-                value={parentId ?? ''}
-                onChange={(e) => handleParentChange(e.target.value)}
-                className="w-full appearance-none rounded-lg border border-slate-200 px-3 py-2 pr-8 text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">Không có (ngành cấp 1)</option>
-                {parentOptions
-                  .filter((i: any) => i.isActive)
-                  .map((i: any) => (
-                    <option key={i.id} value={i.id}>
-                      {i.code} - {i.name}
-                    </option>
-                  ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-            </div>
+          <div className="relative border border-slate-200 rounded-lg px-3 pt-3 pb-2">
             <label className="absolute -top-2.5 left-3 bg-white px-1 text-xs text-slate-500">
               Nhóm ngành cha
             </label>
+            <Autocomplete
+              value={parentId ?? ''}
+              options={[
+                { id: '', name: 'Không có (ngành cấp 1)' },
+                ...parentOptions
+                  .filter((i: any) => i.isActive)
+                  .map((i: any) => ({ id: i.id, name: `${i.code} - ${i.name}` })),
+              ]}
+              placeholder="Tìm và chọn ngành cha..."
+              onSelect={(val) => handleParentChange(val)}
+              className="w-full border-none outline-none text-sm py-0.5 placeholder:text-gray-300"
+              plain
+            />
           </div>
 
           <div className="relative">

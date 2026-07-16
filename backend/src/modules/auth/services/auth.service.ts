@@ -106,7 +106,10 @@ export class AuthService {
     const valid = await this.otpService.verifyOtp(otpRecord, otpValue);
     if (!valid) throw new BadRequestException('Mã OTP không đúng');
 
-    const existingUser = await this.userRepository.findOne({ where: { email: otpRecord.targetValue } });
+    const existingUser = await this.userRepository.findOne({
+      where: { email: otpRecord.targetValue },
+      withDeleted: true,
+    });
     if (existingUser && existingUser.id !== user.id) {
       throw new BadRequestException('Email mới đã tồn tại trên hệ thống, vui lòng kiểm tra lại dữ liệu');
     }
@@ -143,7 +146,16 @@ export class AuthService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
     if (data.fullName !== undefined) user.fullName = data.fullName;
-    if (data.email !== undefined) user.email = data.email;
+    if (data.email !== undefined && data.email !== user.email) {
+      const existingUserByEmail = await this.userRepository.findOne({
+        where: { email: data.email },
+        withDeleted: true,
+      });
+      if (existingUserByEmail) {
+        throw new BadRequestException('Email đã được sử dụng bởi một tài khoản khác');
+      }
+      user.email = data.email;
+    }
     await this.userRepository.save(user);
     return { message: 'Cập nhật thông tin thành công', user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName } };
   }
@@ -323,12 +335,18 @@ export class AuthService {
     }
     this.assertLicenseDateNotInFuture(data.ngayCap);
 
-    const existingByUsername = await this.userRepository.findOne({ where: { username: data.mst } });
+    const existingByUsername = await this.userRepository.findOne({
+      where: { username: data.mst },
+      withDeleted: true,
+    });
     if (existingByUsername) {
       throw new BadRequestException('Mã số thuế này đã được đăng ký tài khoản');
     }
 
-    const existingByEmail = await this.userRepository.findOne({ where: { email: data.email } });
+    const existingByEmail = await this.userRepository.findOne({
+      where: { email: data.email },
+      withDeleted: true,
+    });
     if (existingByEmail) {
       throw new BadRequestException('Email này đã được đăng ký tài khoản');
     }

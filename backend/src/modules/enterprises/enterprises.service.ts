@@ -204,9 +204,22 @@ export class EnterprisesService {
       throw new BadRequestException('Cần có tên đăng nhập hoặc mã số thuế để tạo tài khoản');
     }
 
-    const existingUser = await this.userRepo.findOne({ where: { username } });
+    const existingUser = await this.userRepo.findOne({
+      where: { username },
+      withDeleted: true,
+    });
     if (existingUser) {
       throw new BadRequestException(`Tên đăng nhập "${username}" đã tồn tại`);
+    }
+
+    if (dto.email) {
+      const existingUserByEmail = await this.userRepo.findOne({
+        where: { email: dto.email },
+        withDeleted: true,
+      });
+      if (existingUserByEmail) {
+        throw new BadRequestException(`Email "${dto.email}" đã được sử dụng bởi một tài khoản khác`);
+      }
     }
 
     const entity = new Enterprise();
