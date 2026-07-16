@@ -237,7 +237,8 @@ export default function EnterpriseListPage() {
       const typeName = (item.enterpriseType?.name || '').replace(/"/g, '""');
       const indName = (item.industry?.name || '').replace(/"/g, '""');
       const status = item.isActive ? 'Hoạt động' : 'Ngừng';
-      csvContent += `"${name}","${taxCode}","${typeName}","${indName}","${status}"\n`;
+      csvContent += `"${name}","\t${taxCode}","${typeName}","${indName}","${status}"\n`;
+
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
