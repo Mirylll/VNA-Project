@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { EnterprisesService } from './enterprises.service';
@@ -15,8 +15,12 @@ export class EnterprisesController {
 
   @Get()
   @RequirePermission('ADMIN_C_ENTERPRISE_VIEW')
-  async findAll() {
-    return this.service.findAll();
+  async findAll(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.findAll(Number(page) || 1, Number(pageSize) || 20, search);
   }
 
   @Get('me')

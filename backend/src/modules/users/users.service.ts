@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { existsSync, mkdirSync } from 'fs';
 import { writeFile, unlink } from 'fs/promises';
@@ -32,8 +32,28 @@ export class UsersService {
     private readonly avatarRepo: Repository<UserAvatar>,
   ) {}
 
-  async findAll(): Promise<User[]> {
-    return this.userRepo.find({ relations: ['role', 'title', 'province', 'district'], order: { createdAt: 'DESC' } });
+  async findAll(page = 1, pageSize = 20, search?: string): Promise<{ data: User[]; total: number; page: number; pageSize: number }> {
+    const skip = (page - 1) * pageSize;
+    const where: any[] = [];
+
+    if (search && search.trim()) {
+      const keyword = search.trim();
+      where.push(
+        { fullName: ILike(`%${keyword}%`) },
+        { username: ILike(`%${keyword}%`) },
+        { email: ILike(`%${keyword}%`) },
+      );
+    }
+
+    const [data, total] = await this.userRepo.findAndCount({
+      where: where.length > 0 ? where : undefined,
+      relations: ['role', 'title', 'province', 'district'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: pageSize,
+    });
+
+    return { data, total, page, pageSize };
   }
 
   async findOne(id: string): Promise<User> {

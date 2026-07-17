@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
 import { Title } from '../../titles/entities/title.entity';
 import { Province } from './province.entity';
@@ -27,6 +27,7 @@ export class User {
   @Column({ name: 'password_hash', length: 255 })
   passwordHash: string;
 
+  @Index()
   @Column({ name: 'full_name', length: 150 })
   fullName: string;
 
@@ -46,6 +47,7 @@ export class User {
   address?: string;
 
   @Column({ name: 'is_active', default: true })
+  @Index()
   isActive: boolean;
 
   @Column({ name: 'account_type', type: 'varchar', length: 20, default: AccountType.INTERNAL })

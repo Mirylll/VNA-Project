@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UsersService } from './users.service';
@@ -15,8 +15,12 @@ export class UsersController {
 
   @Get()
   @RequirePermission('ADMIN_C_USER_VIEW')
-  async findAll() {
-    return this.usersService.findAll();
+  async findAll(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.findAll(Number(page) || 1, Number(pageSize) || 20, search);
   }
 
   @Get(':id')

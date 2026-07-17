@@ -49,25 +49,6 @@ function ToggleSwitch({
   );
 }
 
-function matches(item: UserData, filters: Record<string, string>) {
-  for (const [key, val] of Object.entries(filters)) {
-    const v = val.toLowerCase().trim();
-    if (!v) continue;
-    if (key === 'fullName' && !item.fullName.toLowerCase().includes(v)) return false;
-    if (key === 'username' && !item.username.toLowerCase().includes(v)) return false;
-    if (key === 'email' && !(item.email || '').toLowerCase().includes(v)) return false;
-    if (key === 'role' && !(item.role?.name || '').toLowerCase().includes(v)) return false;
-    if (key === 'title' && !(item.title?.name || '').toLowerCase().includes(v)) return false;
-    if (key === 'status') {
-      const active = v === 'hoạt động' || v === 'active';
-      const inactive = v === 'ngừng' || v === 'inactive';
-      if (active && !item.isActive) return false;
-      if (inactive && item.isActive) return false;
-    }
-  }
-  return true;
-}
-
 function parseCSV(text: string): string[][] {
   const lines: string[][] = [];
   let row: string[] = [];
@@ -114,6 +95,7 @@ function parseCSV(text: string): string[][] {
 export default function UserListPage() {
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [roles, setRoles] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -135,6 +117,11 @@ export default function UserListPage() {
     status: '',
   });
 
+  function buildSearch(): string | undefined {
+    const parts = ['fullName', 'username', 'email', 'title'].map(k => filters[k]?.trim()).filter(Boolean);
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  }
+
   function fetchUsers() {
     setLoading(true);
     setFetchError(false);
@@ -143,20 +130,32 @@ export default function UserListPage() {
       router.push('/login');
       return;
     }
-    fetch(`${baseUrl}/users`, {
+    const params = new URLSearchParams();
+    params.set('page', String(currentPage));
+    params.set('pageSize', String(itemsPerPage));
+    const search = buildSearch();
+    if (search) params.set('search', search);
+    fetch(`${baseUrl}/users?${params}`, {
       headers: { authorization: `Bearer ${token}` },
     })
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then(setUsers)
+      .then((resp) => {
+        setUsers(resp.data);
+        setTotalUsers(resp.total);
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
-    fetchUsers();
+    const timer = setTimeout(fetchUsers, 300);
+    return () => clearTimeout(timer);
+  }, [currentPage, itemsPerPage, filters.fullName, filters.username, filters.email, filters.title]);
+
+  useEffect(() => {
     const token = getAuthToken();
     fetch(`${baseUrl}/roles`, {
       headers: token ? { authorization: `Bearer ${token}` } : {},
@@ -170,15 +169,13 @@ export default function UserListPage() {
     setCurrentPage(1);
   }, [filters, itemsPerPage]);
 
-  const hasFilters = Object.values(filters).some((v) => v.trim());
-  const filteredUsers = hasFilters
-    ? users.filter((u) => matches(u, filters))
-    : users;
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  const filteredUsers = users.filter((u) => {
+    if (filters.role && (u.role?.name || '').toLowerCase() !== filters.role.toLowerCase()) return false;
+    if (filters.status === 'active' && !u.isActive) return false;
+    if (filters.status === 'inactive' && u.isActive) return false;
+    return true;
+  });
+  const totalPages = Math.ceil(totalUsers / itemsPerPage);
 
   function handleAddNew() {
     router.push('/admin/users/detail');
@@ -586,16 +583,17 @@ export default function UserListPage() {
                   </tr>
                 );
               }
-              if (paginatedUsers.length === 0) {
+              if (filteredUsers.length === 0) {
                 return (
                   <tr>
                     <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-gray-400">
-                      {hasFilters ? 'Không tìm thấy người dùng' : 'Chưa có người dùng nào'}
+                      {filters.fullName || filters.username || filters.email || filters.role || filters.status
+                        ? 'Không tìm thấy người dùng' : 'Chưa có người dùng nào'}
                     </td>
                   </tr>
                 );
               }
-              return paginatedUsers.map((user) => (
+              return filteredUsers.map((user) => (
                 <tr
                   key={user.id}
                   className="border-b border-slate-200 hover:bg-gray-50 transition-colors"
@@ -673,7 +671,7 @@ export default function UserListPage() {
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        totalItems={filteredUsers.length}
+        totalItems={totalUsers}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}

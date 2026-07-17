@@ -154,11 +154,28 @@ export class EnterprisesService {
     }
   }
 
-  async findAll(): Promise<Enterprise[]> {
-    return this.repo.find({
+  async findAll(page = 1, pageSize = 20, search?: string): Promise<{ data: Enterprise[]; total: number; page: number; pageSize: number }> {
+    const skip = (page - 1) * pageSize;
+    const where: any[] = [];
+
+    if (search && search.trim()) {
+      const keyword = search.trim();
+      where.push(
+        { name: ILike(`%${keyword}%`) },
+        { taxCode: ILike(`%${keyword}%`) },
+        { email: ILike(`%${keyword}%`) },
+      );
+    }
+
+    const [data, total] = await this.repo.findAndCount({
+      where: where.length > 0 ? where : undefined,
       relations: ['enterpriseType', 'industry', 'province', 'ward', 'operationProvince', 'operationWard'],
       order: { createdAt: 'DESC' },
+      skip,
+      take: pageSize,
     });
+
+    return { data, total, page, pageSize };
   }
 
   async findOne(id: number): Promise<Enterprise> {

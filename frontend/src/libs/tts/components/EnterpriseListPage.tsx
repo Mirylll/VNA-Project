@@ -85,6 +85,7 @@ function parseCSV(text: string): string[][] {
 export default function EnterpriseListPage() {
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterName, setFilterName] = useState('');
@@ -103,6 +104,11 @@ export default function EnterpriseListPage() {
   const canUpdate = hasPermission('ADMIN_C_ENTERPRISE_UPDATE');
   const canDelete = hasPermission('ADMIN_C_ENTERPRISE_DELETE');
 
+  function buildSearch(): string | undefined {
+    const parts = [filterName, filterTaxCode, filterType, filterIndustry].map(v => v?.trim()).filter(Boolean);
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  }
+
   function fetchItems() {
     setLoading(true);
     setError('');
@@ -114,45 +120,43 @@ export default function EnterpriseListPage() {
       return;
     }
 
-    fetch(`${baseUrl}/enterprises`, {
+    const params = new URLSearchParams();
+    params.set('page', String(currentPage));
+    params.set('pageSize', String(itemsPerPage));
+    const search = buildSearch();
+    if (search) params.set('search', search);
+
+    fetch(`${baseUrl}/enterprises?${params}`, {
       headers: { authorization: `Bearer ${token}` },
     })
       .then((res) => {
         if (!res.ok) throw new Error('Không thể tải danh sách');
         return res.json();
       })
-      .then((data) => setItems(data))
+      .then((resp) => {
+        setItems(resp.data);
+        setTotalItems(resp.total);
+      })
       .catch((err) => setError(err.message || 'Lỗi kết nối backend'))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
-    fetchItems();
-  }, []);
+    const timer = setTimeout(fetchItems, 300);
+    return () => clearTimeout(timer);
+  }, [currentPage, itemsPerPage, filterName, filterTaxCode, filterType, filterIndustry]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [filterName, filterTaxCode, filterType, filterIndustry, filterStatus, itemsPerPage]);
 
   const filteredItems = items.filter((item: any) => {
-    const n = filterName.toLowerCase().trim();
-    const tc = filterTaxCode.toLowerCase().trim();
-    const et = filterType.toLowerCase().trim();
-    const ind = filterIndustry.toLowerCase().trim();
-
-    if (n && !item.name.toLowerCase().includes(n)) return false;
-    if (tc && !(item.taxCode || '').toLowerCase().includes(tc)) return false;
-    if (et && !(item.enterpriseType?.name || '').toLowerCase().includes(et)) return false;
-    if (ind && !(item.industry?.name || '').toLowerCase().includes(ind)) return false;
     if (filterStatus === 'active' && !item.isActive) return false;
     if (filterStatus === 'inactive' && item.isActive) return false;
     return true;
   });
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  const paginatedItems = filteredItems.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const paginatedItems = filteredItems;
 
   function handleAddNew() {
     router.push('/admin/enterprises/create');
@@ -660,7 +664,7 @@ export default function EnterpriseListPage() {
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        totalItems={filteredItems.length}
+        totalItems={totalItems}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
         onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { EnterpriseType } from '../../enterprise-types/entities/enterprise-type.entity';
 import { Industry } from '../../industries/entities/industry.entity';
 import { Province } from '../../users/entities/province.entity';
@@ -10,9 +10,11 @@ export class Enterprise {
   @PrimaryGeneratedColumn('increment', { type: 'int' })
   id: number;
 
+  @Index()
   @Column({ length: 100 })
   name: string;
 
+  @Index()
   @Column({ name: 'tax_code', length: 50, nullable: true })
   taxCode?: string;
 
@@ -41,6 +43,7 @@ export class Enterprise {
   @Column({ name: 'foreign_name', length: 255, nullable: true })
   foreignName?: string;
 
+  @Index()
   @Column({ length: 200, nullable: true })
   email?: string;
 
@@ -70,6 +73,7 @@ export class Enterprise {
   @Column({ length: 255, nullable: true })
   password?: string;
 
+  @Index()
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
