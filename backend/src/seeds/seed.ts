@@ -658,7 +658,7 @@ export async function seed(dataSource: DataSource): Promise<void> {
   if (entCount === 0) {
     const types = await enterpriseTypeRepo.find();
     const industries = await industryRepo.find();
-    const allWards = await dataSource.getRepository(District).find({ take: 14 });
+    const allWards = await dataSource.getRepository(District).find({ take: 28 });
     const province = await dataSource.getRepository(Province).findOne({ where: { id: 1 } });
 
     const td = (wardIdx: number) => ({
