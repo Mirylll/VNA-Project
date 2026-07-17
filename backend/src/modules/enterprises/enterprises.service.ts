@@ -268,7 +268,7 @@ export class EnterprisesService {
       passwordHash,
       fullName: dto.name,
       email: dto.email || undefined,
-      dateOfBirth: dto.licenseDate || null,
+      dateOfBirth: dto.licenseDate || undefined,
       address: dto.address || undefined,
       province: dto.provinceId ? ({ id: dto.provinceId } as any) : undefined,
       district: dto.wardId ? ({ id: dto.wardId } as any) : undefined,

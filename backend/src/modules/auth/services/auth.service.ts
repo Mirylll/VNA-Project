@@ -394,7 +394,7 @@ export class AuthService {
         passwordHash,
         fullName: data.tenDN || data.mst,
         email: data.email,
-        dateOfBirth: data.ngayCap || null,
+        dateOfBirth: data.ngayCap || undefined,
         address: data.diaChi || undefined,
         province: province || undefined,
         district: ward || undefined,
@@ -402,7 +402,7 @@ export class AuthService {
         accountType: AccountType.ENTERPRISE,
         role: enterpriseRole || undefined,
       });
-      const savedUser = await userRepository.save(user);
+      const savedUser = await userRepository.save(user) as any;
 
       // Auto-assign "Chủ Doanh Nghiệp" title
       const titleRepository = manager.getRepository(Title);

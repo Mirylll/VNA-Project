@@ -453,6 +453,10 @@ export async function seed(dataSource: DataSource): Promise<void> {
       passwordHash,
       fullName: adminFullName,
       email: adminEmail,
+      dateOfBirth: '1990-01-01',
+      address: '123 Nguyễn Huệ, Phường Bến Thành, Quận 1',
+      province: { id: 1 },
+      district: { id: 3 },
       isActive: true,
       accountType: AccountType.INTERNAL,
       role: adminRole || undefined,
@@ -934,16 +938,16 @@ export async function seed(dataSource: DataSource): Promise<void> {
           passwordHash: await bcrypt.hash(e.password, 10),
           fullName: e.name,
           email: e.email,
-          dateOfBirth: e.licenseDate || null,
-          address: e.address || null,
+          dateOfBirth: e.licenseDate || undefined,
+          address: e.address || undefined,
           province: e.province || undefined,
           district: e.ward || undefined,
           isActive: true,
           accountType: AccountType.ENTERPRISE,
           role: enterpriseRole || undefined,
         });
-        const savedUser = await userRepo.save(user);
-
+        const savedUser = await userRepo.save(user) as any;
+        
         let ownerTitle = await titleRepo.findOne({ where: { name: 'Chủ Doanh Nghiệp' } });
         if (!ownerTitle) {
           ownerTitle = titleRepo.create({ name: 'Chủ Doanh Nghiệp' });

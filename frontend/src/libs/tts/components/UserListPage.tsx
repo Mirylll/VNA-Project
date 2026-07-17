@@ -441,12 +441,12 @@ export default function UserListPage() {
                   <input
                     type="checkbox"
                     checked={
-                      paginatedUsers.length > 0 &&
-                      selectedIds.length === paginatedUsers.length
+                      filteredUsers.length > 0 &&
+                      selectedIds.length === filteredUsers.length
                     }
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedIds(paginatedUsers.map((u) => u.id));
+                        setSelectedIds(filteredUsers.map((u) => u.id));
                       } else {
                         setSelectedIds([]);
                       }
