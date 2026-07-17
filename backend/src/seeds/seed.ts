@@ -433,40 +433,6 @@ export async function seed(dataSource: DataSource): Promise<void> {
 
   console.log('✅ Seeded role_permissions');
 
-  // ---- Admin User ----
-  const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
-  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@vna.local';
-  const adminFullName = process.env.SEED_ADMIN_FULL_NAME || 'Administrator';
-
-  const existingAdmin = await userRepo.findOne({
-    where: { username: adminUsername },
-  });
-
-  if (!existingAdmin) {
-    const adminRole = savedRoles.get('ROLE_SUPER_ADMIN');
-    const adminTitle = await titleRepo.findOne({ where: { name: 'Giám đốc' } });
-    const passwordHash = await bcrypt.hash(adminPassword, 10);
-
-    const admin = userRepo.create({
-      username: adminUsername,
-      passwordHash,
-      fullName: adminFullName,
-      email: adminEmail,
-      dateOfBirth: '1990-01-01',
-      address: '123 Nguyễn Huệ, Phường Bến Thành, Quận 1',
-      province: { id: 1 },
-      district: { id: 3 },
-      isActive: true,
-      accountType: AccountType.INTERNAL,
-      role: adminRole || undefined,
-      title: adminTitle || undefined,
-    });
-
-    await userRepo.save(admin);
-    console.log('✅ Seeded admin user');
-  }
-
   // ---- Province ----
   const provinceRepo = dataSource.getRepository(Province);
   const provinceCount = await provinceRepo.count();
@@ -496,6 +462,42 @@ export async function seed(dataSource: DataSource): Promise<void> {
       inserted++;
     }
     console.log(`✅ HCMC wards seeded: ${inserted} inserted.`);
+  }
+
+  // ---- Admin User ----
+  const adminUsername = process.env.SEED_ADMIN_USERNAME || 'admin';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@vna.local';
+  const adminFullName = process.env.SEED_ADMIN_FULL_NAME || 'Administrator';
+
+  const existingAdmin = await userRepo.findOne({
+    where: { username: adminUsername },
+  });
+
+  if (!existingAdmin) {
+    const adminRole = savedRoles.get('ROLE_SUPER_ADMIN');
+    const adminTitle = await titleRepo.findOne({ where: { name: 'Giám đốc' } });
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    const adminProvince = await provinceRepo.findOne({ where: { id: 1 } });
+    const adminDistrict = await districtRepo.findOne({ where: { id: 3 } });
+
+    const admin = userRepo.create({
+      username: adminUsername,
+      passwordHash,
+      fullName: adminFullName,
+      email: adminEmail,
+      dateOfBirth: '1990-01-01',
+      address: '123 Nguyễn Huệ, Phường Bến Thành, Quận 1',
+      province: adminProvince || undefined,
+      district: adminDistrict || undefined,
+      isActive: true,
+      accountType: AccountType.INTERNAL,
+      role: adminRole || undefined,
+      title: adminTitle || undefined,
+    });
+
+    await userRepo.save(admin);
+    console.log('✅ Seeded admin user');
   }
 
   // ---- Enterprise Types ----
