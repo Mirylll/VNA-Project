@@ -26,15 +26,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   }, [pathname]);
 
-  if (checking) return null;
-
   const sidebarWidth = isEnterprise ? 'ml-[260px]' : 'ml-64';
 
   return (
     <>
-      {!isLoginPage && isAuthenticated && (isEnterprise ? <EnterpriseSidebar /> : <Sidebar />)}
-      <div className={!isLoginPage && isAuthenticated ? sidebarWidth : ''}>{children}</div>
-      {!isLoginPage && isAuthenticated && <UserProfilePopup />}
+      {!checking && !isLoginPage && isAuthenticated && (isEnterprise ? <EnterpriseSidebar /> : <Sidebar />)}
+      <div className={!checking && !isLoginPage && isAuthenticated ? sidebarWidth : ''}>{children}</div>
+      {!checking && !isLoginPage && isAuthenticated && <UserProfilePopup />}
     </>
   );
 }
