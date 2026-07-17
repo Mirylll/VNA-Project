@@ -251,6 +251,10 @@ export class EnterprisesService {
       passwordHash,
       fullName: dto.name,
       email: dto.email || undefined,
+      dateOfBirth: dto.licenseDate || null,
+      address: dto.address || undefined,
+      province: dto.provinceId ? ({ id: dto.provinceId } as any) : undefined,
+      district: dto.wardId ? ({ id: dto.wardId } as any) : undefined,
       isActive: dto.isActive ?? true,
       accountType: AccountType.ENTERPRISE,
       role: enterpriseRole || undefined,
@@ -258,10 +262,10 @@ export class EnterprisesService {
 
     await this.userRepo.save(user);
 
-    // Auto-assign "Người đại diện doanh nghiệp" title
-    let enterpriseTitle = await this.titleRepo.findOne({ where: { name: 'Người đại diện doanh nghiệp' } });
+    // Auto-assign "Chủ Doanh Nghiệp" title
+    let enterpriseTitle = await this.titleRepo.findOne({ where: { name: 'Chủ Doanh Nghiệp' } });
     if (!enterpriseTitle) {
-      enterpriseTitle = this.titleRepo.create({ name: 'Người đại diện doanh nghiệp' });
+      enterpriseTitle = this.titleRepo.create({ name: 'Chủ Doanh Nghiệp' });
       enterpriseTitle = await this.titleRepo.save(enterpriseTitle);
     }
     user.title = enterpriseTitle;

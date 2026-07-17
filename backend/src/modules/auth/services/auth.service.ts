@@ -394,20 +394,24 @@ export class AuthService {
         passwordHash,
         fullName: data.tenDN || data.mst,
         email: data.email,
+        dateOfBirth: data.ngayCap || null,
+        address: data.diaChi || undefined,
+        province: province || undefined,
+        district: ward || undefined,
         isActive: true,
         accountType: AccountType.ENTERPRISE,
         role: enterpriseRole || undefined,
       });
       const savedUser = await userRepository.save(user);
 
-      // Auto-assign "Người đại diện doanh nghiệp" title
+      // Auto-assign "Chủ Doanh Nghiệp" title
       const titleRepository = manager.getRepository(Title);
-      let enterpriseTitle = await titleRepository.findOne({ where: { name: 'Người đại diện doanh nghiệp' } });
-      if (!enterpriseTitle) {
-        enterpriseTitle = titleRepository.create({ name: 'Người đại diện doanh nghiệp' });
-        enterpriseTitle = await titleRepository.save(enterpriseTitle);
+      let ownerTitle = await titleRepository.findOne({ where: { name: 'Chủ Doanh Nghiệp' } });
+      if (!ownerTitle) {
+        ownerTitle = titleRepository.create({ name: 'Chủ Doanh Nghiệp' });
+        ownerTitle = await titleRepository.save(ownerTitle);
       }
-      savedUser.title = enterpriseTitle;
+      savedUser.title = ownerTitle;
       await userRepository.save(savedUser);
 
       const enterprise = enterpriseRepository.create({

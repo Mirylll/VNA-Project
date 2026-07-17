@@ -42,7 +42,7 @@ const emptyForm: UserFormData = {
   password: '',
   fullName: '',
   dateOfBirth: '',
-  gender: 'Nam',
+  gender: '',
   titleName: '',
   roleId: '',
   email: '',
@@ -121,7 +121,7 @@ export default function UserDetailClient({
               password: '',
               fullName: user.fullName || '',
               dateOfBirth: user.dateOfBirth || '',
-              gender: user.gender || 'Nam',
+              gender: user.gender || '',
               titleName: user.title?.name || '',
               roleId: user.role?.id ?? '',
               email: user.email || '',
@@ -193,6 +193,7 @@ export default function UserDetailClient({
       }
     }
     if (!formData.titleName.trim()) errs.titleName = 'Vui lòng nhập chức danh';
+    if (!formData.gender) errs.gender = 'Vui lòng chọn giới tính';
     if (formData.roleId === '') errs.roleId = 'Vui lòng chọn vai trò';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -486,11 +487,13 @@ export default function UserDetailClient({
                       onChange={handleInputChange}
                       className={fieldClass('gender')}
                     >
+                      <option value="">Chọn giới tính</option>
                       <option value="Nam">Nam</option>
                       <option value="Nữ">Nữ</option>
                       <option value="Khác">Khác</option>
                     </select>
-                    <label className={labelClass}>Giới tính</label>
+                    <label className={labelClass}>Giới tính <span className="text-red-500">*</span></label>
+                    {errMsg('gender')}
                   </div>
 
                   {/* Row 3: Chức danh | Vai trò */}
@@ -620,11 +623,13 @@ export default function UserDetailClient({
                       onChange={handleInputChange}
                       className={fieldClass('gender')}
                     >
+                      <option value="">Chọn giới tính</option>
                       <option value="Nam">Nam</option>
                       <option value="Nữ">Nữ</option>
                       <option value="Khác">Khác</option>
                     </select>
-                    <label className={labelClass}>Giới tính</label>
+                    <label className={labelClass}>Giới tính <span className="text-red-500">*</span></label>
+                    {errMsg('gender')}
                   </div>
                   <div className="relative">
                     <input

@@ -191,6 +191,7 @@ const titleSeeds = [
   'Nhân viên',
   'Kế toán',
   'Quản trị viên',
+  'Chủ Doanh Nghiệp',
 ];
 
 // 20 phường + 10 xã phổ biến TP.HCM (post-merger 2025 structure)
@@ -933,11 +934,23 @@ export async function seed(dataSource: DataSource): Promise<void> {
           passwordHash: await bcrypt.hash(e.password, 10),
           fullName: e.name,
           email: e.email,
+          dateOfBirth: e.licenseDate || null,
+          address: e.address || null,
+          province: e.province || undefined,
+          district: e.ward || undefined,
           isActive: true,
           accountType: AccountType.ENTERPRISE,
           role: enterpriseRole || undefined,
         });
-        await userRepo.save(user);
+        const savedUser = await userRepo.save(user);
+
+        let ownerTitle = await titleRepo.findOne({ where: { name: 'Chủ Doanh Nghiệp' } });
+        if (!ownerTitle) {
+          ownerTitle = titleRepo.create({ name: 'Chủ Doanh Nghiệp' });
+          ownerTitle = await titleRepo.save(ownerTitle);
+        }
+        savedUser.title = ownerTitle;
+        await userRepo.save(savedUser);
       }
       console.log('✅ Seeded enterprise user accounts');
     }
