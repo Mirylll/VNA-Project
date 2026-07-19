@@ -205,7 +205,7 @@ export default function EnterpriseTypeListPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-semibold text-gray-900">
-          Danh sách loại hình kinh doanh
+          Danh sách loại hình doanh nghiệp
         </h1>
         <div className="flex items-center gap-3">
           {canCreate && (
